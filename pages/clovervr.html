@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloverVR — Self-Hosted VR Server &amp; Tools | MyClover.Tech</title>
+    <meta name="description" content="Self-hosted VR streaming server, social VR hub, training simulator, and content creation workstation. Stream to any headset wirelessly. Your reality, your rules.">
+    <meta property="og:title" content="CloverVR — Your Reality. Your Server. Your Rules.">
+    <meta property="og:description" content="Turn any Citadel appliance into a VR streaming server. Stream PCVR wirelessly, host social VR rooms, run training sims — all self-hosted.">
+    <meta property="og:image" content="/assets/og-clovervr.png">
+    <meta property="og:url" content="https://myclover.tech/pages/clovervr.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .vr-accent { color: #8b5cf6; }
+        .vr-gradient { background: linear-gradient(135deg, #8b5cf6, #06b6d4, #22c55e); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+        .capability-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; margin-top: 32px; }
+        .cap-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 32px; transition: all .3s; }
+        .cap-card:hover { border-color: #8b5cf6; box-shadow: 0 0 40px rgba(139,92,246,.12); transform: translateY(-3px); }
+        .cap-icon { font-size: 2.2rem; margin-bottom: 14px; }
+        .cap-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+        .cap-card p { font-size: .85rem; color: var(--dim); line-height: 1.7; }
+
+        .headset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; margin-top: 32px; }
+        .headset-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 16px; text-align: center; transition: all .25s; }
+        .headset-card:hover { border-color: #8b5cf6; transform: translateY(-3px); box-shadow: 0 0 30px rgba(139,92,246,.1); }
+        .headset-icon { font-size: 2rem; margin-bottom: 10px; }
+        .headset-card span { font-size: .82rem; font-weight: 600; color: var(--dim); }
+
+        .integration-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .int-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; transition: all .3s; }
+        .int-card:hover { border-color: var(--green); box-shadow: 0 0 40px var(--green-g); transform: translateY(-3px); }
+        .int-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .int-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+        .int-card p { font-size: .82rem; color: var(--dim); line-height: 1.6; }
+
+        .hw-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; margin-top: 32px; }
+        .hw-card { background: linear-gradient(135deg, var(--card), rgba(139,92,246,.06)); border: 1px solid rgba(139,92,246,.2); border-radius: 20px; padding: 36px; text-align: center; transition: all .3s; }
+        .hw-card:hover { border-color: #8b5cf6; box-shadow: 0 0 50px rgba(139,92,246,.15); transform: translateY(-4px); }
+        .hw-card h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
+        .hw-card .hw-spec { font-size: .78rem; color: var(--dim); margin-bottom: 16px; line-height: 1.6; }
+        .hw-card .hw-price { font-size: 2rem; font-weight: 900; color: #8b5cf6; margin-bottom: 8px; }
+        .hw-card .hw-includes { font-size: .78rem; color: var(--green); font-weight: 600; margin-bottom: 20px; }
+        .hw-card .btn { width: 100%; }
+
+        .ai-features { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 32px; }
+        .ai-card { background: linear-gradient(135deg, var(--card), rgba(139,92,246,.05)); border: 1px solid rgba(139,92,246,.2); border-radius: 16px; padding: 28px; }
+        .ai-card h4 { font-size: .95rem; font-weight: 700; color: #8b5cf6; margin-bottom: 8px; }
+        .ai-card p { font-size: .82rem; color: var(--dim); line-height: 1.6; }
+
+        .scenario-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; margin-top: 32px; }
+        .scenario-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 32px; }
+        .scenario-card h4 { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; }
+        .scenario-type { font-size: .78rem; color: #8b5cf6; font-weight: 600; margin-bottom: 12px; }
+        .scenario-card p { font-size: .85rem; color: var(--dim); line-height: 1.7; }
+
+        @media (max-width: 768px) {
+            .hw-grid { grid-template-columns: 1fr; }
+            .headset-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- Navigation -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="/" class="nav-logo">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="36" height="36">
+            <span>My<span class="green">Clover</span>.Tech</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/">Home</a>
+            <a href="/#products">Products</a>
+            <a href="/#hardware">Hardware</a>
+            <a href="#pricing">Pricing</a>
+            <a href="/#blog">Blog</a>
+            <a href="/keygen">KeyGen</a>
+            <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+            <a href="/#trial" class="nav-cta">Free 90-Day Trial</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-badge">
+            <span class="pulse"></span>
+            New Product &mdash; CloverVR
+        </div>
+        <h1>
+            Your Reality. Your Server.<br>
+            <span class="vr-gradient">Your Rules.</span>
+        </h1>
+        <p>
+            Self-hosted VR streaming server, social VR hub, training simulator, and content creation workstation.
+            Stream PCVR games wirelessly to any headset. Host private VR worlds. Run training sims.
+            All on your own hardware. Zero cloud. Zero Meta.
+        </p>
+        <div class="hero-actions">
+            <a href="#pricing" class="btn btn-primary">See Pricing</a>
+            <a href="#hardware" class="btn btn-secondary">VR Hardware</a>
+            <a href="/#trial" class="btn btn-secondary">Free 90-Day Trial</a>
+        </div>
+    </div>
+</section>
+
+<!-- Stats -->
+<div class="container">
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-number" style="color:#8b5cf6">&lt;20ms</div>
+            <div class="stat-label">Streaming Latency</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" style="color:#8b5cf6">Any</div>
+            <div class="stat-label">Headset Brand</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" style="color:#8b5cf6">0</div>
+            <div class="stat-label">Cloud Dependencies</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" style="color:#8b5cf6">AI</div>
+            <div class="stat-label">Voice Assistant in VR</div>
+        </div>
+    </div>
+</div>
+
+<!-- What It Does -->
+<section>
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Capabilities</div>
+            <h2 class="section-title">Everything VR, On Your Hardware</h2>
+            <p class="section-desc">
+                Five core capabilities. One self-hosted platform. No Meta account, no cloud fees, no per-user pricing.
+                Plug in your GPU server, connect your headsets, and go.
+            </p>
+        </div>
+
+        <div class="capability-grid">
+            <div class="cap-card">
+                <div class="cap-icon">&#127918;</div>
+                <h3>VR Game Streaming</h3>
+                <p>Stream your entire SteamVR / OpenXR library wirelessly to any headset. Ultra-low latency via Wi-Fi 6/6E. Multi-user &mdash; multiple headsets streaming from one server simultaneously. Automatic library detection.</p>
+            </div>
+            <div class="cap-card">
+                <div class="cap-icon">&#127758;</div>
+                <h3>Social VR / Private Worlds</h3>
+                <p>Self-hosted social VR rooms &mdash; think VRChat but private. Custom 3D environments, spatial audio, avatar system. No Meta/Facebook account required. Perfect for team meetings, collaboration, gaming lobbies, education.</p>
+            </div>
+            <div class="cap-card">
+                <div class="cap-icon">&#127891;</div>
+                <h3>VR Training &amp; Simulation</h3>
+                <p>Pre-built training environments. Custom scenario builder with drag-and-drop 3D editor. Session recording &amp; playback. Analytics dashboard. SCORM-compatible for LMS integration.</p>
+            </div>
+            <div class="cap-card">
+                <div class="cap-icon">&#127912;</div>
+                <h3>VR Content Creation</h3>
+                <p>3D model import/export (FBX, OBJ, GLTF, USD). VR scene builder powered by Godot + Blender. 360&deg; video capture and streaming. Integration with CloverDesign for architectural walkthroughs.</p>
+            </div>
+            <div class="cap-card">
+                <div class="cap-icon">&#127922;</div>
+                <h3>VR Arcade / Kiosk Mode</h3>
+                <p>Turn any space into a VR arcade. Timed sessions with auto-reset. Content library management. Usage tracking &amp; billing per session. Perfect for arcades, hotels, events, education labs.</p>
+            </div>
+            <div class="cap-card">
+                <div class="cap-icon">&#129302;</div>
+                <h3>Chappie &amp; Clover AI in VR</h3>
+                <p>Voice commands ("Chappie, launch Beat Saber"), AI NPCs in social worlds, text-to-scene generation, auto performance tuning, content moderation. Pick your AI personality &mdash; or name your own.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Supported Headsets -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Compatibility</div>
+            <h2 class="section-title">Any Headset. Any Brand. Any OpenXR Device.</h2>
+            <p class="section-desc">
+                CloverVR uses open standards (OpenXR + ALVR/WiVRn). No vendor lock-in. If it supports OpenXR, it works.
+            </p>
+        </div>
+
+        <div class="headset-grid">
+            <div class="headset-card">
+                <div class="headset-icon">&#129309;</div>
+                <span>Meta Quest 2/3/Pro</span>
+            </div>
+            <div class="headset-card">
+                <div class="headset-icon">&#128065;&#65039;</div>
+                <span>Pico 4 / Neo</span>
+            </div>
+            <div class="headset-card">
+                <div class="headset-icon">&#127760;</div>
+                <span>HTC Vive / XR Elite</span>
+            </div>
+            <div class="headset-card">
+                <div class="headset-icon">&#128736;&#65039;</div>
+                <span>Valve Index</span>
+            </div>
+            <div class="headset-card">
+                <div class="headset-icon">&#128421;&#65039;</div>
+                <span>Windows MR</span>
+            </div>
+            <div class="headset-card">
+                <div class="headset-icon">&#10024;</div>
+                <span>Any OpenXR HMD</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Pricing</div>
+            <h2 class="section-title">Flat Price. Unlimited Targets. No Per-Headset Fees.</h2>
+            <p class="section-desc">
+                A 10-headset VR arcade with Meta Business costs ~$500/month + cloud fees.<br>
+                CloverVR Arcade: <strong style="color:#8b5cf6">$79/mo flat</strong>. Save $5,000+/year.
+            </p>
+        </div>
+
+        <div class="pricing-grid">
+            <div class="pricing-card">
+                <div class="pricing-tier">Player</div>
+                <div class="pricing-price">$19<span>/mo</span></div>
+                <div class="pricing-annual">$189/yr (save 17%)</div>
+                <ul class="pricing-features">
+                    <li>2 headset streams</li>
+                    <li>VR game streaming (SteamVR/OpenXR)</li>
+                    <li>Wi-Fi 6/6E optimization</li>
+                    <li>Game library management</li>
+                    <li>Chappie / Clover AI assistant</li>
+                    <li>CloverStack dashboard</li>
+                </ul>
+                <a href="#" class="btn btn-secondary" style="width:100%">Subscribe &mdash; $19/mo</a>
+            </div>
+            <div class="pricing-card popular">
+                <div class="pricing-badge">Most Popular</div>
+                <div class="pricing-tier">Studio</div>
+                <div class="pricing-price">$49<span>/mo</span></div>
+                <div class="pricing-annual">$469/yr (save 20%)</div>
+                <ul class="pricing-features">
+                    <li>5 headset streams</li>
+                    <li>Everything in Player</li>
+                    <li>Social VR rooms (up to 20 users)</li>
+                    <li>VR content creation tools</li>
+                    <li>360&deg; video capture &amp; streaming</li>
+                    <li>VR scene builder (Godot + Blender)</li>
+                    <li>Session recording &amp; playback</li>
+                    <li>Included in Full Stack Bundle</li>
+                </ul>
+                <a href="#" class="btn btn-primary" style="width:100%">Subscribe &mdash; $49/mo</a>
+            </div>
+            <div class="pricing-card">
+                <div class="pricing-tier">Arcade</div>
+                <div class="pricing-price">$79<span>/mo</span></div>
+                <div class="pricing-annual">$759/yr (save 20%)</div>
+                <ul class="pricing-features">
+                    <li>10 headset streams</li>
+                    <li>Everything in Studio</li>
+                    <li>Kiosk mode with timed sessions</li>
+                    <li>Per-session usage billing</li>
+                    <li>Content library management</li>
+                    <li>Analytics dashboard</li>
+                    <li>Auto-reset between sessions</li>
+                </ul>
+                <a href="#" class="btn btn-secondary" style="width:100%">Subscribe &mdash; $79/mo</a>
+            </div>
+            <div class="pricing-card">
+                <div class="pricing-tier">Enterprise</div>
+                <div class="pricing-price">$149<span>/mo</span></div>
+                <div class="pricing-annual">$1,429/yr (save 20%)</div>
+                <ul class="pricing-features">
+                    <li>Unlimited headsets</li>
+                    <li>Everything in Arcade</li>
+                    <li>Full training &amp; simulation suite</li>
+                    <li>SCORM integration (LMS)</li>
+                    <li>Multi-site via CloverMesh</li>
+                    <li>Custom VR environments</li>
+                    <li>White-label option</li>
+                    <li>Priority support</li>
+                </ul>
+                <a href="#" class="btn btn-secondary" style="width:100%">Subscribe &mdash; $149/mo</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Hardware -->
+<section id="hardware" class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">VR Hardware</div>
+            <h2 class="section-title">Citadel VR Series &mdash; GPU-Powered VR Servers</h2>
+            <p class="section-desc">
+                Purpose-built VR server hardware. Ships with mycloverOS + CloverStack + CloverVR pre-installed and configured.
+                Plug in. Power on. Stream VR.
+            </p>
+        </div>
+
+        <div class="hw-grid">
+            <div class="hw-card">
+                <h3>VR Puck</h3>
+                <div class="hw-spec">Ryzen 7 / 32GB DDR5<br>RTX 4060 8GB / 1TB NVMe</div>
+                <div class="hw-price">$1,299</div>
+                <div class="hw-includes">Includes 1yr Player License</div>
+                <a href="#" class="btn btn-secondary">Pre-Order</a>
+            </div>
+            <div class="hw-card">
+                <h3>VR Edge</h3>
+                <div class="hw-spec">Ryzen 9 / 64GB DDR5<br>RTX 4070 Ti 12GB / 2TB NVMe</div>
+                <div class="hw-price">$2,499</div>
+                <div class="hw-includes">Includes 1yr Studio License</div>
+                <a href="#" class="btn btn-secondary">Pre-Order</a>
+            </div>
+            <div class="hw-card">
+                <h3>VR Pro</h3>
+                <div class="hw-spec">Threadripper / 128GB DDR5<br>RTX 4090 24GB / 4TB NVMe</div>
+                <div class="hw-price">$5,999</div>
+                <div class="hw-includes">Includes 1yr Arcade License</div>
+                <a href="#" class="btn btn-primary">Pre-Order</a>
+            </div>
+            <div class="hw-card">
+                <h3>VR Rack R4 <span style="font-size:.7rem;color:var(--dim)">(1U)</span></h3>
+                <div class="hw-spec">Dual Xeon / 256GB<br>2&times; RTX 4090 / 8TB Storage</div>
+                <div class="hw-price">$12,999</div>
+                <div class="hw-includes">Includes 1yr Enterprise License</div>
+                <a href="#" class="btn btn-secondary">Pre-Order</a>
+            </div>
+            <div class="hw-card">
+                <h3>VR Rack R8 <span style="font-size:.7rem;color:var(--dim)">(2U)</span></h3>
+                <div class="hw-spec">Dual Xeon / 512GB<br>4&times; RTX 4090 / 16TB Storage</div>
+                <div class="hw-price">$24,999</div>
+                <div class="hw-includes">Includes 1yr Enterprise License</div>
+                <a href="#" class="btn btn-secondary">Pre-Order</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Competition -->
+<section>
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Why CloverVR</div>
+            <h2 class="section-title">Own Your VR. Don't Rent It.</h2>
+        </div>
+
+        <div class="comparison-section">
+            <table class="comparison-table" style="width:100%">
+                <thead>
+                    <tr>
+                        <th style="text-align:left">Feature</th>
+                        <th class="pos-col">CloverVR</th>
+                        <th>Meta Horizon</th>
+                        <th>NVIDIA CloudXR</th>
+                        <th>Shadow VR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Self-hosted</td><td class="pos-col">&#10003;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>No cloud dependency</td><td class="pos-col">&#10003;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>Flat price (no per-user)</td><td class="pos-col">&#10003;</td><td class="competitor-col">Per-user</td><td class="competitor-col">Per-user</td><td class="competitor-col">Per-user</td></tr>
+                    <tr><td>Own your data</td><td class="pos-col">&#10003;</td><td class="competitor-col">Meta owns it</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>Open-source core</td><td class="pos-col">&#10003;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>Any headset brand</td><td class="pos-col">&#10003;</td><td class="competitor-col">Meta only</td><td class="pos-col">&#10003;</td><td class="pos-col">&#10003;</td></tr>
+                    <tr><td>Private social VR</td><td class="pos-col">&#10003;</td><td class="competitor-col">Limited</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>AI assistant in VR</td><td class="pos-col">&#10003;</td><td class="competitor-col">Basic</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>Arcade / kiosk mode</td><td class="pos-col">&#10003;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>Works offline</td><td class="pos-col">&#10003;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- CloverStack Integrations -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Ecosystem</div>
+            <h2 class="section-title">Plugs Into the Entire CloverStack</h2>
+        </div>
+
+        <div class="integration-grid">
+            <div class="int-card">
+                <div class="int-icon">&#128752;</div>
+                <h3>CloverMesh</h3>
+                <p>Multi-site VR &mdash; connect VR servers across locations for shared social spaces and distributed rendering.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128250;</div>
+                <h3>StreamServer</h3>
+                <p>Stream VR sessions live as spectator feeds via RTMP/HLS to any screen, anywhere.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128208;</div>
+                <h3>CloverDesign</h3>
+                <p>Design in CloverDesign, walk through in CloverVR. Architectural and engineering VR walkthroughs.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128250;</div>
+                <h3>CloverSign</h3>
+                <p>Display VR session feeds on digital signage. Spectator screens for arcades and events.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128737;&#65039;</div>
+                <h3>CloverGuard</h3>
+                <p>Content filtering for VR &mdash; block inappropriate content in arcade and education environments.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128202;</div>
+                <h3>NetMon</h3>
+                <p>Monitor VR server performance, GPU load, latency, and headset connections in real-time.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- AI Features -->
+<section>
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">AI-Powered</div>
+            <h2 class="section-title">Chappie &amp; Clover &mdash; Your AI Assistants in VR</h2>
+            <p class="section-desc">
+                Choose Chappie (direct, technical) or Clover (warm, conversational) &mdash; or name your own bot.
+                Same Ollama AI Engine, different personality. The O.G.s of MyClover.Tech.
+            </p>
+        </div>
+
+        <div class="ai-features">
+            <div class="ai-card">
+                <h4>&#127908; Voice Commands</h4>
+                <p>"Chappie, launch Beat Saber." "Clover, start a 30-minute session." Hands-free VR control.</p>
+            </div>
+            <div class="ai-card">
+                <h4>&#129302; AI NPCs</h4>
+                <p>Populate social worlds with AI characters for training scenarios, education, or just keeping you company.</p>
+            </div>
+            <div class="ai-card">
+                <h4>&#127912; Scene Generation</h4>
+                <p>Describe a VR environment in text. The AI generates it using Godot + diffusion models. Text to reality.</p>
+            </div>
+            <div class="ai-card">
+                <h4>&#9881;&#65039; Performance Tuning</h4>
+                <p>Monitors latency, GPU load, and network quality. Auto-adjusts resolution, bitrate, and encoding for butter-smooth VR.</p>
+            </div>
+            <div class="ai-card">
+                <h4>&#128737;&#65039; Content Moderation</h4>
+                <p>AI filters for arcade and education mode. Inappropriate content detection and behavior monitoring.</p>
+            </div>
+            <div class="ai-card">
+                <h4>&#128202; VR Analytics</h4>
+                <p>"Show me which training modules have the lowest completion rate." Natural language queries on your VR data.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Use Cases -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Use Cases</div>
+            <h2 class="section-title">VR for Every Scenario</h2>
+        </div>
+
+        <div class="scenario-grid">
+            <div class="scenario-card">
+                <h4>Home VR Gamer</h4>
+                <div class="scenario-type">Gaming &middot; Player Tier</div>
+                <p>Stream your full Steam VR library wirelessly to Quest 3 from your own server. No Meta account. No cloud. No monthly Big Tech tax. Just plug in your GPU box and play.</p>
+            </div>
+            <div class="scenario-card">
+                <h4>Downtown VR Arcade</h4>
+                <div class="scenario-type">Entertainment &middot; Arcade Tier</div>
+                <p>10-station VR arcade with timed sessions, auto-reset between customers, content library, and per-session billing. Spectator feeds on CloverSign screens. $79/mo vs. $500/mo with Meta Business.</p>
+            </div>
+            <div class="scenario-card">
+                <h4>SafetyFirst Corp Training</h4>
+                <div class="scenario-type">Enterprise Training &middot; Enterprise Tier</div>
+                <p>Safety training, equipment walkthroughs, onboarding sims. Session recording for review. SCORM export to their LMS. Analytics showing completion rates and time-to-competency.</p>
+            </div>
+            <div class="scenario-card">
+                <h4>Greenfield Architecture</h4>
+                <div class="scenario-type">Real Estate &middot; Studio Tier</div>
+                <p>Walk clients through buildings before they're built. CloverDesign creates the 3D model, CloverVR lets them explore it in full VR. Close deals faster with immersive walkthroughs.</p>
+            </div>
+            <div class="scenario-card">
+                <h4>State University VR Lab</h4>
+                <div class="scenario-type">Education &middot; Enterprise Tier</div>
+                <p>20-headset university lab with content library, usage analytics, content filtering via CloverGuard, and SCORM integration for grade tracking. Students learn by doing, not watching.</p>
+            </div>
+            <div class="scenario-card">
+                <h4>MSP VR Service</h4>
+                <div class="scenario-type">Managed Services &middot; Enterprise + White-Label</div>
+                <p>Resell CloverVR as a managed VR service to your clients. White-label the dashboard. Enterprise tier + CloverMesh for multi-site deployments. New revenue stream, zero development.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Tech Stack -->
+<section>
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Under the Hood</div>
+            <h2 class="section-title">Open-Source Foundation. Premium Execution.</h2>
+            <p class="section-desc">
+                Built on battle-tested open-source VR software, wrapped in the MyClover.Tech experience.
+                We credit every creator and contribute back.
+            </p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(139,92,246,.1)">&#129309;</div>
+                <h3>Monado (OpenXR)</h3>
+                <p>Open-source OpenXR runtime by Collabora. The industry-standard VR API. <a href="https://monado.dev/" target="_blank">BSL-1.0</a></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(139,92,246,.1)">&#128225;</div>
+                <h3>ALVR</h3>
+                <p>Air Light VR &mdash; wireless VR streaming from PC to standalone headsets. Ultra-low latency. <a href="https://github.com/alvr-org/ALVR" target="_blank">MIT</a></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(139,92,246,.1)">&#127760;</div>
+                <h3>Overte</h3>
+                <p>Open-source social VR platform, continuing High Fidelity's vision. Custom worlds, spatial audio. <a href="https://overte.org/" target="_blank">Apache-2.0</a></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(139,92,246,.1)">&#127918;</div>
+                <h3>Godot 4 VR</h3>
+                <p>Open-source game engine with built-in VR toolkit. Scene building, 3D content creation. <a href="https://godotengine.org/" target="_blank">MIT</a></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(139,92,246,.1)">&#128187;</div>
+                <h3>Blender</h3>
+                <p>3D modeling, rendering, and animation. Headless render pipeline for VR asset generation. <a href="https://www.blender.org/" target="_blank">GPL-2.0+</a></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(139,92,246,.1)">&#129302;</div>
+                <h3>Ollama AI</h3>
+                <p>Local LLMs powering Chappie &amp; Clover in VR. Voice commands, NPC AI, scene generation. <a href="https://ollama.com/" target="_blank">MIT</a></p>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:32px;padding:24px;background:var(--card);border:1px solid var(--border);border-radius:16px">
+            <p style="font-size:.85rem;color:var(--dim)">
+                &#128156; Built on open-source software by amazing creators. We always credit, always link, always contribute back.
+                <br>Monado by <a href="https://collabora.com/" target="_blank">Collabora</a> (BSL-1.0) &middot;
+                ALVR by <a href="https://github.com/alvr-org" target="_blank">alvr-org</a> (MIT) &middot;
+                Overte by <a href="https://overte.org/" target="_blank">overte-org</a> (Apache-2.0) &middot;
+                Godot by <a href="https://godotengine.org/" target="_blank">Godot Engine</a> (MIT) &middot;
+                Blender by <a href="https://www.blender.org/" target="_blank">Blender Foundation</a> (GPL-2.0+)
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="section-alt">
+    <div class="container">
+        <div class="cta-card" style="border-color:rgba(139,92,246,.3)">
+            <h2>Ready to Own Your Reality?</h2>
+            <p>Start with the 90-day free Enterprise trial. No credit card. Full features. Every headset. All the AI. If it doesn't blow your mind, you owe nothing.</p>
+            <div class="cta-actions">
+                <a href="/#trial" class="btn btn-primary">Start Free 90-Day Trial</a>
+                <a href="#pricing" class="btn btn-secondary">See Pricing</a>
+                <a href="#hardware" class="btn btn-secondary">VR Hardware</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="container footer-inner">
+        <div class="footer-brand">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="24" height="24">
+            My<span class="green">Clover</span>.Tech
+        </div>
+        <div class="footer-links">
+            <a href="/">Home</a>
+            <a href="/#products">Products</a>
+            <a href="/#hardware">Hardware</a>
+            <a href="#pricing">Pricing</a>
+            <a href="/#blog">Blog</a>
+            <a href="/keygen">KeyGen</a>
+            <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+        </div>
+        <div class="footer-copy">
+            &copy; 2025 MyClover Technologies. All rights reserved.<br>
+            CloverVR, CloverStack, Chappie AI, Clover AI &mdash; MyClover.Tech<br>
+            Built on open-source. Powered by GPUs and ambition.
+        </div>
+    </div>
+</footer>
+
+<!-- Scripts -->
+<script src="../js/main.js"></script>
+</body>
+</html>
