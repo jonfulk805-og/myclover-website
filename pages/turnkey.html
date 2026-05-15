@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turnkey Businesses — MyClover.Tech | Buy a Pre-Built Business</title>
+    <meta name="description" content="Purchase a complete, ready-to-launch digital business from MyClover.Tech. Rebrandable websites, marketing kits, legal templates, and a 30-day launch playbook. From $499.">
+    <meta property="og:title" content="Turnkey Businesses — MyClover.Tech">
+    <meta property="og:description" content="Buy a pre-built business. Rebrand it. Own it. 15+ turnkey business templates powered by MyClover.Tech IT infrastructure.">
+    <meta property="og:image" content="/assets/og-image-logo.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body { padding-top: 0; }
+        nav { top: 0; }
+
+        /* Hero */
+        .tk-hero { padding: 140px 0 80px; text-align: center; }
+        .tk-hero h1 { font-size: clamp(2.2rem,5vw,3.6rem); font-weight: 900; line-height: 1.1; margin-bottom: 18px; letter-spacing: -.03em; }
+        .tk-hero h1 .gradient-purple { background: linear-gradient(135deg,#a855f7,#c084fc,#3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .tk-hero p { font-size: 1.15rem; color: var(--dim); max-width: 660px; margin: 0 auto 36px; line-height: 1.7; }
+        .tk-hero .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+        /* How it works */
+        .tk-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; counter-reset: tkstep; }
+        .tk-step { text-align: center; counter-increment: tkstep; }
+        .tk-step::before { content: counter(tkstep); display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; background: rgba(168,85,247,.1); border: 2px solid var(--purple); border-radius: 50%; font-weight: 900; font-size: 1.2rem; color: var(--purple); margin: 0 auto 18px; }
+        .tk-step h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+        .tk-step p { font-size: .85rem; color: var(--dim); line-height: 1.5; }
+
+        /* Business cards */
+        .biz-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .biz-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 36px 30px; transition: all .3s; position: relative; overflow: hidden; }
+        .biz-card:hover { border-color: var(--purple); box-shadow: 0 0 50px rgba(168,85,247,.1); transform: translateY(-4px); }
+        .biz-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--purple), var(--blue)); }
+        .biz-card .biz-icon { font-size: 2.2rem; margin-bottom: 14px; display: block; }
+        .biz-card h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
+        .biz-card .biz-sub { font-size: .82rem; color: var(--purple); font-weight: 600; margin-bottom: 14px; }
+        .biz-card p { font-size: .85rem; color: var(--dim); line-height: 1.6; margin-bottom: 18px; }
+        .biz-card .biz-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+        .biz-tag { font-size: .68rem; font-weight: 600; padding: 3px 10px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); color: var(--dim); }
+        .biz-tag.highlight { background: rgba(168,85,247,.08); border-color: rgba(168,85,247,.2); color: var(--purple); }
+        .biz-price { font-size: 1.3rem; font-weight: 800; color: var(--green); margin-bottom: 6px; }
+        .biz-price-note { font-size: .75rem; color: var(--muted); margin-bottom: 16px; }
+        .biz-btn { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; font-weight: 600; color: var(--purple); }
+        .biz-btn:hover { color: #c084fc; }
+
+        /* Coming soon grid */
+        .coming-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .coming-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 18px; text-align: center; opacity: .7; transition: all .25s; }
+        .coming-card:hover { opacity: 1; border-color: var(--muted); }
+        .coming-card .coming-icon { font-size: 1.5rem; margin-bottom: 8px; display: block; }
+        .coming-card h4 { font-size: .85rem; font-weight: 700; margin-bottom: 4px; }
+        .coming-card span { font-size: .72rem; color: var(--muted); }
+
+        /* Includes section */
+        .includes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .inc-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px 24px; text-align: center; transition: all .25s; }
+        .inc-card:hover { border-color: var(--green); }
+        .inc-card .inc-icon { font-size: 1.8rem; margin-bottom: 12px; display: block; }
+        .inc-card h3 { font-size: .95rem; font-weight: 700; margin-bottom: 6px; }
+        .inc-card p { font-size: .82rem; color: var(--dim); line-height: 1.5; }
+
+        /* Revenue model */
+        .rev-card { background: linear-gradient(135deg, var(--card), rgba(34,197,94,.05)); border: 1px solid rgba(34,197,94,.2); border-radius: 24px; padding: 48px; }
+        .rev-card h3 { font-size: 1.4rem; font-weight: 800; margin-bottom: 24px; text-align: center; }
+        .rev-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; text-align: center; }
+        .rev-item .rev-num { font-size: 2rem; font-weight: 900; color: var(--green); }
+        .rev-item .rev-label { font-size: .82rem; color: var(--dim); margin-top: 4px; }
+
+        /* FAQ */
+        .faq-list { max-width: 740px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+        .faq-item { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+        .faq-q { padding: 20px 24px; font-weight: 700; font-size: .95rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+        .faq-q:hover { color: var(--green); }
+        .faq-q .faq-arrow { transition: transform .3s; font-size: .8rem; color: var(--muted); }
+        .faq-item.open .faq-q .faq-arrow { transform: rotate(180deg); }
+        .faq-a { padding: 0 24px 20px; font-size: .88rem; color: var(--dim); line-height: 1.7; display: none; }
+        .faq-item.open .faq-a { display: block; }
+
+        /* CTA */
+        .tk-cta { text-align: center; padding: 100px 0; }
+        .tk-cta h2 { font-size: clamp(1.8rem,4vw,2.6rem); font-weight: 900; margin-bottom: 14px; }
+        .tk-cta p { color: var(--dim); font-size: 1.05rem; max-width: 520px; margin: 0 auto 32px; }
+
+        @media (max-width: 968px) {
+            .biz-grid { grid-template-columns: 1fr 1fr; }
+            .tk-steps { grid-template-columns: repeat(2, 1fr); }
+            .coming-grid { grid-template-columns: repeat(3, 1fr); }
+            .includes-grid { grid-template-columns: repeat(2, 1fr); }
+            .rev-grid { grid-template-columns: 1fr; gap: 20px; }
+        }
+        @media (max-width: 640px) {
+            .biz-grid { grid-template-columns: 1fr; }
+            .tk-steps { grid-template-columns: 1fr; }
+            .coming-grid { grid-template-columns: repeat(2, 1fr); }
+            .includes-grid { grid-template-columns: 1fr; }
+            .nav-links { display: none; }
+            .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 56px; right: 24px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 24px; gap: 14px; z-index: 200; }
+            .mobile-toggle { display: block; }
+            .tk-hero { padding: 120px 0 60px; }
+            .rev-card { padding: 32px 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- Navigation -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="/" class="nav-logo">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="36" height="36">
+            <span>My<span class="green">Clover</span>.Tech</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/">Home</a>
+            <a href="#businesses">Businesses</a>
+            <a href="#how">How It Works</a>
+            <a href="#includes">What's Included</a>
+            <a href="#faq">FAQ</a>
+            <a href="bulletin.html" class="nav-bulletin">📋 Bulletin</a>
+            <a href="partners.html">Partners</a>
+            <a href="creator-signup.html" class="nav-cta">🍀 Become a Creator</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="tk-hero">
+    <div class="container">
+        <div style="display:inline-flex;align-items:center;gap:8px;background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.25);border-radius:999px;padding:6px 18px 6px 12px;font-size:.78rem;font-weight:600;color:var(--purple);margin-bottom:28px">
+            <span style="width:8px;height:8px;border-radius:50%;background:var(--purple);box-shadow:0 0 8px var(--purple);animation:pulse 2s infinite"></span>
+            The Business Creation Business
+        </div>
+        <h1>
+            Buy a Pre-Built Business.<br>
+            <span class="gradient-purple">Rebrand It. Own It.</span>
+        </h1>
+        <p>
+            MyClover.Tech builds complete, ready-to-launch digital businesses. 
+            Each comes with a live website, marketing kit, legal templates, supplier contacts, 
+            and a 30-day launch playbook. Just add your brand name and go.
+        </p>
+        <div class="hero-actions">
+            <a href="#businesses" class="btn btn-primary" style="background:var(--purple);box-shadow:0 4px 24px rgba(168,85,247,.3)">Browse Businesses →</a>
+            <a href="#how" class="btn btn-secondary">How It Works</a>
+            <a href="/" class="btn btn-secondary">← Back to Home</a>
+        </div>
+    </div>
+</section>
+
+<!-- Stats -->
+<div class="container" style="margin-bottom:60px">
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-number" style="color:var(--purple)">15+</div>
+            <div class="stat-label">Business Templates</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" style="color:var(--purple)">$499</div>
+            <div class="stat-label">Starting License</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" style="color:var(--purple)">100%</div>
+            <div class="stat-label">Your Revenue</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" style="color:var(--purple)">7 Days</div>
+            <div class="stat-label">To Launch</div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- HOW IT WORKS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="how" class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">🚀 How It Works</div>
+            <h2 class="section-title">Your Business in Four Steps</h2>
+        </div>
+        <div class="tk-steps">
+            <div class="tk-step">
+                <h3>Choose a Business</h3>
+                <p>Browse the catalog. Each template includes a live demo, revenue projections, and target market analysis.</p>
+            </div>
+            <div class="tk-step">
+                <h3>Purchase & Rebrand</h3>
+                <p>Pay the license fee. Enter your brand name, colors, and domain. Everything auto-generates with your identity.</p>
+            </div>
+            <div class="tk-step">
+                <h3>Connect Payments</h3>
+                <p>Wire up your Stripe account. Your revenue goes directly to you — MCT keeps only the platform fee.</p>
+            </div>
+            <div class="tk-step">
+                <h3>Launch & Scale</h3>
+                <p>Follow the 30-day playbook. Use the marketing kit. Start selling to your market immediately.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- AVAILABLE BUSINESSES -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="businesses">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">🏪 Available Now</div>
+            <h2 class="section-title">Turnkey Business Catalog</h2>
+            <p class="section-desc">Each business is fully built, legally templated, and ready for you to rebrand and launch within a week.</p>
+        </div>
+
+        <div class="biz-grid">
+            <!-- InkForge -->
+            <div class="biz-card">
+                <span class="biz-icon">📚</span>
+                <h3>AI Book Publishing</h3>
+                <div class="biz-sub">InkForge Template</div>
+                <p>SaaS subscriptions for AI-powered book creation. Guide chapters from topic to theme or auto-generate entire stories. Connects to Amazon KDP.</p>
+                <div class="biz-meta">
+                    <span class="biz-tag highlight">Pure Digital</span>
+                    <span class="biz-tag">SaaS Model</span>
+                    <span class="biz-tag">$0 Startup Cost</span>
+                </div>
+                <div class="biz-price">From $499</div>
+                <div class="biz-price-note">License + $19/mo platform · Year 1 potential: $84K</div>
+                <a href="#" class="biz-btn">View Details →</a>
+            </div>
+
+            <!-- CloverDrone -->
+            <div class="biz-card">
+                <span class="biz-icon">🚁</span>
+                <h3>Drone Services</h3>
+                <div class="biz-sub">CloverDrone Template</div>
+                <p>Per-mission drone services for real estate, agriculture, construction, and inspection. Pre-built booking website, FAA compliance pack, cold email templates.</p>
+                <div class="biz-meta">
+                    <span class="biz-tag highlight">$58B Market</span>
+                    <span class="biz-tag">Services Model</span>
+                    <span class="biz-tag">25% CAGR</span>
+                </div>
+                <div class="biz-price">From $1,499</div>
+                <div class="biz-price-note">License + $29/mo platform · Year 1 potential: $167K</div>
+                <a href="#" class="biz-btn">View Details →</a>
+            </div>
+
+            <!-- CloverMesh -->
+            <div class="biz-card">
+                <span class="biz-icon">📡</span>
+                <h3>Off-Grid Mesh Radio</h3>
+                <div class="biz-sub">CloverMesh Template</div>
+                <p>E-commerce store selling pre-configured Meshtastic LoRa nodes. Hardware margins of 50–72%. Exploding prepper and outdoor markets.</p>
+                <div class="biz-meta">
+                    <span class="biz-tag highlight">72% Margins</span>
+                    <span class="biz-tag">E-commerce + Services</span>
+                    <span class="biz-tag">Viral Growth</span>
+                </div>
+                <div class="biz-price">From $999</div>
+                <div class="biz-price-note">License + $19/mo platform · Year 1 potential: $265K</div>
+                <a href="#" class="biz-btn">View Details →</a>
+            </div>
+        </div>
+
+        <!-- Coming Soon -->
+        <div class="section-header center" style="margin-top:80px">
+            <div class="section-label">🔮 Coming Soon</div>
+            <h2 class="section-title" style="font-size:1.6rem">More Businesses in Development</h2>
+        </div>
+        <div class="coming-grid">
+            <div class="coming-card"><span class="coming-icon">🏪</span><h4>POS System</h4><span>Restaurant & Retail</span></div>
+            <div class="coming-card"><span class="coming-icon">🎮</span><h4>Game Studio</h4><span>Mobile & Web Games</span></div>
+            <div class="coming-card"><span class="coming-icon">🕶️</span><h4>VR Arcade</h4><span>Entertainment Venues</span></div>
+            <div class="coming-card"><span class="coming-icon">🛡️</span><h4>Cybersecurity</h4><span>Security Auditing</span></div>
+            <div class="coming-card"><span class="coming-icon">📺</span><h4>Digital Signage</h4><span>AV Integrators</span></div>
+            <div class="coming-card"><span class="coming-icon">🖥️</span><h4>IT / MSP</h4><span>Managed Services</span></div>
+            <div class="coming-card"><span class="coming-icon">💎</span><h4>Memecoin Platform</h4><span>Crypto Enthusiasts</span></div>
+            <div class="coming-card"><span class="coming-icon">🗄️</span><h4>Database Builder</h4><span>SaaS Consultants</span></div>
+            <div class="coming-card"><span class="coming-icon">🎬</span><h4>Streaming</h4><span>Live Video Platform</span></div>
+            <div class="coming-card"><span class="coming-icon">🔐</span><h4>Password Manager</h4><span>MSP Resellers</span></div>
+            <div class="coming-card"><span class="coming-icon">📱</span><h4>Mobile Connect</h4><span>BYOD Management</span></div>
+            <div class="coming-card"><span class="coming-icon">🧼</span><h4>Grooming Brand</h4><span>Lifestyle Products</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- WHAT'S INCLUDED -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="includes" class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">📦 What's Included</div>
+            <h2 class="section-title">Every Business Comes With</h2>
+            <p class="section-desc">Not a template. A complete, operational business ready for day one.</p>
+        </div>
+
+        <div class="includes-grid">
+            <div class="inc-card">
+                <span class="inc-icon">🌐</span>
+                <h3>Live Website</h3>
+                <p>Fully designed, responsive, Stripe-connected. All placeholder variables for instant rebranding.</p>
+            </div>
+            <div class="inc-card">
+                <span class="inc-icon">📊</span>
+                <h3>Business Plan</h3>
+                <p>Revenue projections, cost breakdown, target markets, competitive analysis. Investor-ready.</p>
+            </div>
+            <div class="inc-card">
+                <span class="inc-icon">📅</span>
+                <h3>30-Day Playbook</h3>
+                <p>Week-by-week launch checklist. From domain setup to first customer. Step by step.</p>
+            </div>
+            <div class="inc-card">
+                <span class="inc-icon">📧</span>
+                <h3>Marketing Kit</h3>
+                <p>Email sequences, social media templates, cold outreach scripts, ad copy. Ready to deploy.</p>
+            </div>
+            <div class="inc-card">
+                <span class="inc-icon">⚖️</span>
+                <h3>Legal Templates</h3>
+                <p>Terms of Service, Privacy Policy, License Agreement. Wyoming-governed, professionally drafted.</p>
+            </div>
+            <div class="inc-card">
+                <span class="inc-icon">🤝</span>
+                <h3>Supplier Contacts</h3>
+                <p>Pre-vetted supplier intros, hardware sourcing guides, dropship partner connections.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- THE IT INFRASTRUCTURE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="infrastructure">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">🖥️ The Infrastructure</div>
+            <h2 class="section-title">Sell the Entire IT Stack<br>As Your Own Brand</h2>
+            <p class="section-desc">
+                The MyClover.Tech infrastructure — 18+ integrated services, hardware appliances, and software subscriptions — is itself a sellable, rebrandable business model. Fork it. Brand it. Sell it to your market.
+            </p>
+        </div>
+
+        <div class="rev-card">
+            <h3>Revenue Per Business Sold</h3>
+            <div class="rev-grid">
+                <div class="rev-item">
+                    <div class="rev-num">$499 – $14,999</div>
+                    <div class="rev-label">One-time license fee</div>
+                </div>
+                <div class="rev-item">
+                    <div class="rev-num">$19 – $199/mo</div>
+                    <div class="rev-label">Recurring platform fee</div>
+                </div>
+                <div class="rev-item">
+                    <div class="rev-num">$99</div>
+                    <div class="rev-label">Transfer fee on resale</div>
+                </div>
+            </div>
+            <div style="text-align:center;margin-top:28px">
+                <p style="color:var(--dim);font-size:.9rem">
+                    <strong style="color:var(--green)">10 businesses sold</strong> at avg $1,500 license + $50/mo = <strong style="color:var(--text)">$15,000 + $6,000/yr recurring</strong><br>
+                    <strong style="color:var(--green)">100 businesses sold</strong> = <strong style="color:var(--text)">$150,000 + $60,000/yr recurring</strong>
+                </p>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:36px">
+            <p style="color:var(--dim);font-size:.95rem;margin-bottom:20px">The buyer keeps 100% of their customer revenue. MCT earns from platform usage — the Shopify model.</p>
+            <a href="/" class="btn btn-secondary">See the Full Stack →</a>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FAQ -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="faq" class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">❓ FAQ</div>
+            <h2 class="section-title">Common Questions</h2>
+        </div>
+
+        <div class="faq-list">
+            <div class="faq-item open">
+                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+                    Is this a franchise?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">No. This is a software license, not a franchise. You're purchasing a business template and platform access. There's no franchise fee, no territory restrictions (unless you purchase exclusivity), and no FTC Franchise Rule compliance needed. You operate independently under your own brand.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+                    Do I keep 100% of my customer revenue?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">Yes. Revenue from your customers goes directly to your Stripe account. MCT earns only through the monthly platform fee, CloverCoin ecosystem participation, and marketplace commissions — never from your direct sales.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+                    Do I need technical experience?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">Minimal. Each business comes with a step-by-step 30-day launch playbook. The website is pre-built, payments are pre-configured, and Viktor AI can help you customize. For hardware-based businesses (drones, mesh radio), the supplier guides walk you through sourcing and assembly.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+                    Can I use the "Clover" brand name?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">No — mandatory rebrand is required. Your business runs under your own brand name and identity. "Powered by MyClover.Tech" may appear in the footer only. This protects both parties and keeps the ecosystem clean.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+                    Can I resell my business later?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">Yes. You can transfer or sell your operating business to another party. There's a $99 transfer fee to update the platform license. MCT takes no cut of the resale price — you keep the full sale amount.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+                    What if I stop paying the monthly platform fee?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">Your website and core business tools continue to work — you own the code. Platform features like CloverCoin integration, marketplace listing, AI assistance, and priority support would be disabled. No data is deleted.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+                    Do you accept crypto?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">Yes. License purchases can be made via Stripe (credit card), CloverCoin, or XRPL-based cryptocurrency. Contact inforequest@myclover.tech for crypto payment arrangements.</div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">
+                    Can I customize beyond the template?
+                    <span class="faq-arrow">▼</span>
+                </div>
+                <div class="faq-a">Absolutely. The template is your starting point, not your ceiling. You own the code and can modify anything. Viktor AI can help with customizations, and the creator community in Slack can provide guidance and collaboration.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- CTA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="tk-cta">
+    <div class="container">
+        <div style="font-size:3.5rem;margin-bottom:20px">🏭</div>
+        <h2>Ready to Own a Business?</h2>
+        <p>
+            Browse the catalog, pick your market, and launch in under a week. Or become a creator and build your own from scratch — it's free.
+        </p>
+        <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
+            <a href="#businesses" class="btn btn-primary" style="background:var(--purple);box-shadow:0 4px 24px rgba(168,85,247,.3)">Browse Businesses</a>
+            <a href="creator-signup.html" class="btn btn-primary">🍀 Become a Creator — Free</a>
+            <a href="mailto:inforequest@myclover.tech" class="btn btn-secondary">📧 Contact Us</a>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="/assets/logo.webp" alt="MyClover.Tech" width="32" height="32" onerror="this.style.display='none'">
+                <span>My<span class="green">Clover</span>.Tech</span>
+            </div>
+            <div class="footer-links">
+                <a href="/">Home</a>
+                <a href="/">Creator Tools</a>
+                <a href="/">Pricing</a>
+                <a href="bulletin.html">Bulletin</a>
+                <a href="partners.html">Partners</a>
+                <a href="/keygen">KeyGen</a>
+                <a href="cloverbot.html">CloverBot</a>
+                <a href="cloverdrone.html">CloverDrone</a>
+                <a href="clovermesh-radio.html">CloverMesh Radio</a>
+                <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+                <a href="mailto:inforequest@myclover.tech">Contact</a>
+            </div>
+            <div class="footer-copy">
+                &copy; 2026 MyClover Technologies. All rights reserved.<br>
+                <span class="dim">The Business Creation Business.</span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="../js/main.js"></script>
+</body>
+</html>
