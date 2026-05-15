@@ -6,7 +6,7 @@
     <title>MyClover.Tech — The Creator Platform | Build. Brand. Launch.</title>
     <meta name="description" content="Join MyClover.Tech and turn your ideas into businesses. Free creator tools, AI-powered apps, turnkey business templates, and a full IT infrastructure you can rebrand as your own.">
     <meta property="og:title" content="MyClover.Tech — The Creator Platform">
-    <meta property="og:description" content="Build apps, launch brands, mint coins, publish books — all powered by the MyClover.Tech creator stack. Start free.">
+    <meta property="og:description" content="Build apps, launch brands, mint coins, publish books — all powered by MyClover.Tech. Start free.">
     <meta property="og:image" content="/assets/og-image-logo.png">
     <meta property="og:url" content="https://myclover.tech">
     <meta name="twitter:card" content="summary_large_image">
@@ -97,13 +97,7 @@
         .cp-btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
         .cp-btn-secondary:hover { border-color: var(--muted); color: var(--text); }
 
-        /* IT Stack brief */
-        .stack-preview { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
-        .sp-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 12px; text-align: center; transition: all .25s; text-decoration: none; color: var(--text); }
-        .sp-item:hover { border-color: var(--green); transform: translateY(-2px); color: var(--text); }
-        .sp-item .sp-icon { font-size: 1.4rem; margin-bottom: 6px; display: block; }
-        .sp-item .sp-name { font-size: .72rem; font-weight: 700; display: block; }
-        .sp-item .sp-desc { font-size: .62rem; color: var(--muted); display: block; }
+
 
         /* Bottom ticker */
         .bottom-ticker { position: relative; z-index: 1; background: linear-gradient(90deg,rgba(34,197,94,.12),rgba(10,14,23,.95),rgba(34,197,94,.12)); border-top: 1px solid rgba(34,197,94,.2); border-bottom: 1px solid rgba(34,197,94,.2); height: 36px; overflow: hidden; }
@@ -126,13 +120,13 @@
             .steps-row { grid-template-columns: repeat(2, 1fr); }
             .turnkey-teaser { grid-template-columns: 1fr; padding: 40px; }
             .creator-pricing { grid-template-columns: repeat(2, 1fr); }
-            .stack-preview { grid-template-columns: repeat(4, 1fr); }
+
         }
         @media (max-width: 640px) {
             .tools-grid { grid-template-columns: 1fr; }
             .steps-row { grid-template-columns: 1fr; }
             .creator-pricing { grid-template-columns: 1fr; max-width: 380px; margin-left: auto; margin-right: auto; }
-            .stack-preview { grid-template-columns: repeat(3, 1fr); }
+
             .value-strip { gap: 18px; }
             .hero-creator { padding: 120px 0 60px; }
             .hero-creator .hero-actions { flex-direction: column; align-items: center; }
@@ -140,8 +134,8 @@
             .nav-links { display: none; }
             .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: rgba(10,14,23,.98); backdrop-filter: blur(20px); padding: 16px; gap: 2px; z-index: 200; border-bottom: 1px solid var(--border); }
             .mobile-toggle { display: block; }
-            .nav-dropdown-menu { position: static; opacity: 1; visibility: visible; transform: none; border: none; background: transparent; box-shadow: none; padding: 0 0 0 16px; min-width: 0; backdrop-filter: none; }
-            .nav-dropdown.mobile-closed .nav-dropdown-menu { display: none; }
+            .nav-dropdown-menu { position: static !important; opacity: 1 !important; visibility: visible !important; transform: none !important; border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 0 0 16px !important; min-width: 0 !important; backdrop-filter: none !important; }
+            .nav-dropdown.mobile-closed .nav-dropdown-menu { display: none !important; }
         }
     </style>
 </head>
@@ -167,11 +161,10 @@
                 <button class="nav-dropdown-btn" aria-expanded="false" aria-haspopup="true">
                     More <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </button>
-                <div class="nav-dropdown-menu">
-                    <a href="#stack">The Stack</a>
-                    <a href="pages/bulletin.html">Bulletin Board</a>
-                    <a href="pages/partners.html">Partners</a>
-                    <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener">GitHub</a>
+                <div class="nav-dropdown-menu" style="position:absolute;top:calc(100% + 8px);right:0;min-width:180px;background:rgba(26,34,53,.98);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:6px;opacity:0;visibility:hidden;transform:translateY(-4px);transition:all .2s ease;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+                    <a href="pages/bulletin.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">Bulletin Board</a>
+                    <a href="pages/partners.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">Partners</a>
+                    <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">GitHub</a>
                 </div>
             </div>
             <a href="pages/creator-signup.html" class="nav-cta">Become a Creator</a>
@@ -217,7 +210,7 @@
             </div>
             <div class="vp">
                 <div class="vp-icon">🔧</div>
-                <span>Full IT stack included</span>
+                <span>All tools included</span>
             </div>
         </div>
     </div>
@@ -423,98 +416,7 @@
     </div>
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════ -->
-<!-- THE STACK -->
-<!-- ═══════════════════════════════════════════════════════════ -->
-<section id="stack" class="section-alt">
-    <div class="container">
-        <div class="section-header center">
-            <div class="section-label">🖥️ The Stack</div>
-            <h2 class="section-title">Powered by a Full IT Infrastructure</h2>
-            <p class="section-desc">
-                Every creator runs on the MyClover.Tech stack — 18+ integrated services, self-hosted, battle-tested. 
-                The same stack that powers your business is also available as a turnkey product to sell to your clients.
-            </p>
-        </div>
 
-        <div class="stack-preview">
-            <a class="sp-item" href="#"><span class="sp-icon">📡</span><span class="sp-name">NetMon</span><span class="sp-desc">Network Monitoring</span></a>
-            <a class="sp-item" href="#"><span class="sp-icon">📋</span><span class="sp-name">SentryLog</span><span class="sp-desc">Log Management</span></a>
-            <a class="sp-item" href="#"><span class="sp-icon">🔐</span><span class="sp-name">MyCloverVault</span><span class="sp-desc">Password Mgmt</span></a>
-            <a class="sp-item" href="#"><span class="sp-icon">🧠</span><span class="sp-name">AI Engine</span><span class="sp-desc">Local AI</span></a>
-            <a class="sp-item" href="#"><span class="sp-icon">🛡️</span><span class="sp-name">Wazuh SIEM</span><span class="sp-desc">Security</span></a>
-            <a class="sp-item" href="#"><span class="sp-icon">🔒</span><span class="sp-name">WireGuard</span><span class="sp-desc">VPN</span></a>
-            <a class="sp-item" href="#"><span class="sp-icon">🖥️</span><span class="sp-name">Remote Access</span><span class="sp-desc">RustDesk + Guac</span></a>
-            <a class="sp-item" href="#"><span class="sp-icon">🎫</span><span class="sp-name">Ticketing</span><span class="sp-desc">Help Desk</span></a>
-            <a class="sp-item" href="#"><span class="sp-icon">📦</span><span class="sp-name">Asset Mgmt</span><span class="sp-desc">Snipe-IT</span></a>
-            <a class="sp-item" href="#"><span class="sp-icon">📁</span><span class="sp-name">Git Server</span><span class="sp-desc">Gitea</span></a>
-            <a class="sp-item" href="#"><span class="sp-icon">💾</span><span class="sp-name">Backup</span><span class="sp-desc">Restic + S3</span></a>
-            <a class="sp-item" href="#"><span class="sp-icon">🐳</span><span class="sp-name">Containers</span><span class="sp-desc">Portainer</span></a>
-        </div>
-
-        <div style="text-align:center;margin-top:40px">
-            <p style="color:var(--dim);font-size:.95rem;margin-bottom:20px">Will be available as pre-installed hardware appliances — from palm-sized Puck ($299) to rack-mounted servers. <em style="color:#eab308">Hardware store coming soon.</em></p>
-            <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
-                <a href="#hardware-brief" class="btn btn-secondary">See Hardware →</a>
-                <a href="pages/turnkey.html" class="btn btn-secondary">Sell IT as a Business →</a>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- ═══════════════════════════════════════════════════════════ -->
-<!-- HARDWARE BRIEF -->
-<!-- ═══════════════════════════════════════════════════════════ -->
-<section id="hardware-brief">
-    <div class="container">
-        <div class="section-header center">
-            <div class="section-label">🖥️ Hardware <span style="display:inline-block;font-size:.65rem;font-weight:700;padding:3px 8px;border-radius:4px;text-transform:uppercase;background:rgba(234,179,8,.1);color:#eab308;vertical-align:middle;margin-left:8px">Work in Progress</span></div>
-            <h2 class="section-title">Pick Your Weapon.</h2>
-            <p class="section-desc">Every appliance ships with the full stack pre-installed. Plug in and go.<br><em style="color:#eab308;font-size:.9rem">Hardware store coming soon — join the waitlist to be first in line.</em></p>
-        </div>
-        <div class="hardware-grid" style="opacity:.65;pointer-events:none">
-            <div class="hw-card">
-                <div class="hw-badge" style="background:rgba(234,179,8,.1);color:#eab308">Coming Soon</div>
-                <h3>Puck</h3>
-                <div class="hw-price">$299</div>
-                <ul class="hw-specs">
-                    <li>Intel N100 quad-core</li>
-                    <li>16GB RAM · 256GB NVMe</li>
-                    <li>Palm-sized, fanless</li>
-                    <li>Full stack included</li>
-                </ul>
-                <div class="hw-ideal">Ideal for: Small office, home lab, branch</div>
-            </div>
-            <div class="hw-card">
-                <div class="hw-badge" style="background:rgba(234,179,8,.1);color:#eab308">Coming Soon</div>
-                <h3>Edge</h3>
-                <div class="hw-price">$499</div>
-                <ul class="hw-specs">
-                    <li>AMD Ryzen 7</li>
-                    <li>32GB RAM · 512GB NVMe</li>
-                    <li>AI-capable · Dual NIC</li>
-                    <li>Full stack + SIEM</li>
-                </ul>
-                <div class="hw-ideal">Ideal for: MSP clients, mid-size office</div>
-            </div>
-            <div class="hw-card">
-                <div class="hw-badge" style="background:rgba(234,179,8,.1);color:#eab308">Coming Soon</div>
-                <h3>Citadel AI NAS</h3>
-                <div class="hw-price">$5,499</div>
-                <ul class="hw-specs">
-                    <li>5-bay NAS + NVMe cache</li>
-                    <li>GPU-accelerated AI</li>
-                    <li>All services at full power</li>
-                    <li>3yr license included</li>
-                </ul>
-                <div class="hw-ideal">Ideal for: Enterprise, AI workloads</div>
-            </div>
-        </div>
-        <div style="text-align:center;margin-top:28px">
-            <a href="mailto:inforequest@myclover.tech" class="btn btn-secondary">📧 Join the Hardware Waitlist</a>
-        </div>
-    </div>
-</section>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- PRICING -->
@@ -583,8 +485,8 @@
                 <div class="cp-desc">Full ecosystem access. Build an empire.</div>
                 <ul>
                     <li><span class="ck">✓</span> All Studio features</li>
-                    <li><span class="ck">✓</span> Full IT stack access</li>
-                    <li><span class="ck">✓</span> Hardware discounts</li>
+                    <li><span class="ck">✓</span> Full platform access</li>
+                    <li><span class="ck">✓</span> Priority support</li>
                     <li><span class="ck">✓</span> Turnkey business resale rights</li>
                     <li><span class="ck">✓</span> Custom integrations</li>
                     <li><span class="ck">✓</span> White-glove onboarding</li>
@@ -650,8 +552,7 @@
                 <a href="#tools">Creator Tools</a>
                 <a href="#pricing">Pricing</a>
                 <a href="pages/turnkey.html">Turnkey Businesses</a>
-                <a href="#stack">The Stack</a>
-                <a href="#hardware-brief">Hardware</a>
+
                 <a href="pages/bulletin.html">Bulletin</a>
                 <a href="pages/partners.html">Partners</a>
                 <a href="/keygen">KeyGen</a>
