@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloverDrone — UAV Control & FPV | MyClover.Tech</title>
+    <meta name="description" content="CloverDrone brings drone flight control, FPV video, autonomous missions, and AI video analysis into the CloverStack platform. Built on QGroundControl, MAVLink, and OpenHD.">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .cd-hero { padding-top: 140px; padding-bottom: 80px; text-align: center; }
+        .cd-hero h1 { font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; }
+        .cd-hero .gradient { background: linear-gradient(135deg, var(--green), var(--green-l), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .cd-hero p { font-size: 1.15rem; color: var(--dim); max-width: 620px; margin: 20px auto 0; line-height: 1.7; }
+        .cd-hero .hero-actions { margin-top: 36px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+        .cd-section { margin-top: 80px; }
+        .cd-section .section-label { font-size: 0.8rem; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+        .cd-section h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 12px; }
+        .cd-section > p { color: var(--dim); font-size: 1rem; line-height: 1.6; max-width: 600px; }
+
+        .cd-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 40px; }
+        .cd-feat { padding: 28px; background: var(--card); border: 1px solid var(--border-l); border-radius: 14px; transition: all 0.3s; }
+        .cd-feat:hover { border-color: rgba(34,197,94,0.2); transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .cd-feat .icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .cd-feat h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+        .cd-feat p { font-size: 0.9rem; color: var(--dim); line-height: 1.6; }
+
+        .cd-pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 40px; }
+        .cd-price-card { padding: 32px; background: var(--card); border: 1px solid var(--border-l); border-radius: 16px; text-align: center; transition: all 0.3s; position: relative; }
+        .cd-price-card:hover { border-color: rgba(34,197,94,0.2); transform: translateY(-4px); }
+        .cd-price-card.featured { border-color: rgba(34,197,94,0.3); }
+        .cd-price-card.featured::before { content: "Most Popular"; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: var(--green); color: #000; font-size: 0.7rem; font-weight: 700; padding: 3px 14px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .cd-price-card h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
+        .cd-price-card .price { font-size: 2.2rem; font-weight: 900; color: var(--green-l); margin: 12px 0 4px; }
+        .cd-price-card .price span { font-size: 1rem; font-weight: 500; color: var(--muted); }
+        .cd-price-card .desc { color: var(--dim); font-size: 0.9rem; margin-bottom: 16px; }
+        .cd-price-card ul { list-style: none; padding: 0; text-align: left; }
+        .cd-price-card li { padding: 6px 0; font-size: 0.9rem; color: var(--dim); display: flex; align-items: center; gap: 8px; }
+        .cd-price-card li::before { content: "✓"; color: var(--green); font-weight: 700; }
+
+        .cd-hw { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 40px; }
+        .cd-hw-card { padding: 28px; background: var(--card); border: 1px solid var(--border-l); border-radius: 14px; }
+        .cd-hw-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+        .cd-hw-card .hw-price { font-size: 1.4rem; font-weight: 800; color: var(--green-l); margin: 8px 0 12px; }
+        .cd-hw-card ul { list-style: none; padding: 0; }
+        .cd-hw-card li { padding: 4px 0; font-size: 0.9rem; color: var(--dim); }
+        .cd-hw-card li::before { content: "• "; color: var(--green); }
+
+        .cd-stack-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 32px; }
+        .cd-stack-item { padding: 20px; background: rgba(34,197,94,0.03); border: 1px solid rgba(34,197,94,0.08); border-radius: 12px; }
+        .cd-stack-item .hw-name { font-weight: 700; color: var(--text); font-size: 0.95rem; }
+        .cd-stack-item .hw-role { font-size: 0.85rem; color: var(--dim); margin-top: 4px; }
+
+        .cd-use-cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 32px; }
+        .cd-use { padding: 24px; background: var(--card); border: 1px solid var(--border-l); border-radius: 12px; }
+        .cd-use h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+        .cd-use p { font-size: 0.85rem; color: var(--dim); line-height: 1.6; }
+
+        .cd-credits { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 28px; }
+        .cd-credit { padding: 16px 20px; background: var(--card); border: 1px solid var(--border-l); border-radius: 10px; }
+        .cd-credit .name { font-weight: 600; color: var(--text); font-size: 0.9rem; }
+        .cd-credit .license { font-size: 0.8rem; color: var(--muted); }
+
+        .cd-mars { margin-top: 32px; padding: 24px; background: rgba(34,197,94,0.04); border: 1px solid rgba(34,197,94,0.1); border-radius: 14px; }
+        .cd-mars p { color: var(--dim); font-size: 0.95rem; line-height: 1.6; font-style: italic; }
+
+        @media (max-width: 640px) {
+            .cd-hero { padding-top: 100px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="/" class="nav-logo">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="36" height="36">
+            <span>My<span class="green">Clover</span>.Tech</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/">Home</a>
+            <a href="/#products">Products</a>
+            <a href="/#hardware">Hardware</a>
+            <a href="cloverbot.html">CloverBot</a>
+            <a href="cloverdrone.html" style="color:var(--green-l)">CloverDrone</a>
+            <a href="clovermesh-radio.html">CloverMesh Radio</a>
+            <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+            <a href="/#trial" class="nav-cta">Free Trial</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<section class="cd-hero">
+    <div class="container">
+        <div class="hero-badge"><span class="pulse"></span>UAV Control & FPV Video</div>
+        <h1>Meet <span class="gradient">CloverDrone</span></h1>
+        <p>
+            Flight control, FPV video, autonomous missions, and AI-powered video analysis — 
+            all integrated into the CloverStack platform. Built on production-grade open-source 
+            projects used by commercial drone operators worldwide.
+        </p>
+        <div class="hero-actions">
+            <a href="#pricing" class="btn btn-primary">🚁 See Pricing</a>
+            <a href="#features" class="btn btn-secondary">Features →</a>
+            <a href="/#hardware" class="btn btn-secondary">Hardware</a>
+        </div>
+    </div>
+</section>
+
+<div class="container">
+
+    <!-- Core Features -->
+    <div class="cd-section" id="features">
+        <div class="section-label">Capabilities</div>
+        <h2>Everything You Need for Drone Operations</h2>
+        <p>Not a toy. This is built on the same protocols NASA uses on Mars.</p>
+        <div class="cd-features">
+            <div class="cd-feat">
+                <div class="icon">🎮</div>
+                <h3>QGroundControl Station</h3>
+                <p>Full ground station UI — mission planning, real-time telemetry, waypoint navigation, geofencing, parameter tuning. Works with any MAVLink drone.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">📡</div>
+                <h3>MAVLink Protocol</h3>
+                <p>Universal drone communication. Compatible with ArduPilot, PX4, Pixhawk, Cube, and any MAVLink flight controller. TCP, UDP, and serial connections.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">📹</div>
+                <h3>Low-Latency FPV</h3>
+                <p>OpenHD and WFB-ng deliver sub-100ms HD video over Wi-Fi. Multi-kilometer range with proper antennas. H.264/H.265 hardware decode.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">🌐</div>
+                <h3>Browser FPV via WebRTC</h3>
+                <p>View FPV feeds from any device through a web browser. No app required. Share live views with your team instantly.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">🤖</div>
+                <h3>AI Video Analysis</h3>
+                <p>Run YOLO/object detection on Edge Pro or Citadel for real-time video analysis. Spot damage, count objects, detect anomalies automatically.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">🐍</div>
+                <h3>DroneKit Scripting</h3>
+                <p>Python SDK for autonomous missions and custom flight logic. Script survey patterns, inspection routes, and complex automation.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">🎬</div>
+                <h3>StreamServer Recording</h3>
+                <p>Pipe all FPV feeds directly into StreamServer for live streaming, recording, multi-viewer observation, and archival.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">🔗</div>
+                <h3>CloverMesh Fleet</h3>
+                <p>Multi-drone fleet management across distributed nodes. Assign drones to sites, monitor from anywhere, coordinate operations.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stack Integration -->
+    <div class="cd-section">
+        <div class="section-label">Integration</div>
+        <h2>Deep CloverStack Integration</h2>
+        <p>CloverDrone isn't standalone — it connects to every part of the platform.</p>
+        <div class="cd-stack-map">
+            <div class="cd-stack-item">
+                <div class="hw-name">Puck / Edge</div>
+                <div class="hw-role">Ground station controller — runs QGroundControl + MAVProxy + video receiver</div>
+            </div>
+            <div class="cd-stack-item">
+                <div class="hw-name">Edge Pro / Citadel</div>
+                <div class="hw-role">Mission control server — DroneKit automation, AI video analysis, StreamServer recording</div>
+            </div>
+            <div class="cd-stack-item">
+                <div class="hw-name">Field Laptop</div>
+                <div class="hw-role">Mobile ground station for field operations with full CloverDrone suite</div>
+            </div>
+            <div class="cd-stack-item">
+                <div class="hw-name">CloverMesh</div>
+                <div class="hw-role">Multi-drone fleet management across distributed nodes</div>
+            </div>
+            <div class="cd-stack-item">
+                <div class="hw-name">StreamServer</div>
+                <div class="hw-role">Record and live-stream all FPV feeds to any viewer</div>
+            </div>
+            <div class="cd-stack-item">
+                <div class="hw-name">NetMon</div>
+                <div class="hw-role">Monitor drone network links, radio health, and telemetry status</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pricing -->
+    <div class="cd-section" id="pricing">
+        <div class="section-label">Pricing</div>
+        <h2>Simple Tiers. No Per-Drone Surprises.</h2>
+        <div class="cd-pricing">
+            <div class="cd-price-card">
+                <h3>Pilot</h3>
+                <div class="price">$29<span>/mo</span></div>
+                <div class="desc">Single drone operations</div>
+                <ul>
+                    <li>1 drone connection</li>
+                    <li>QGroundControl ground station</li>
+                    <li>FPV video streaming</li>
+                    <li>Basic mission planning</li>
+                    <li>Telemetry logging</li>
+                </ul>
+            </div>
+            <div class="cd-price-card featured">
+                <h3>Fleet</h3>
+                <div class="price">$79<span>/mo</span></div>
+                <div class="desc">Multi-drone + AI</div>
+                <ul>
+                    <li>Unlimited drones</li>
+                    <li>AI video analysis (YOLO)</li>
+                    <li>DroneKit scripting</li>
+                    <li>StreamServer integration</li>
+                    <li>Multi-viewer FPV</li>
+                    <li>Fleet dashboard</li>
+                </ul>
+            </div>
+            <div class="cd-price-card">
+                <h3>Enterprise</h3>
+                <div class="price">$149<span>/mo</span></div>
+                <div class="desc">Full fleet operations</div>
+                <ul>
+                    <li>Everything in Fleet</li>
+                    <li>BVLOS operations</li>
+                    <li>Compliance logging</li>
+                    <li>Multi-site mesh</li>
+                    <li>Priority support</li>
+                    <li>Custom automation</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hardware -->
+    <div class="cd-section">
+        <div class="section-label">Hardware</div>
+        <h2>Purpose-Built Hardware Kits</h2>
+        <div class="cd-hw">
+            <div class="cd-hw-card">
+                <h3>Drone Ground Station Kit</h3>
+                <div class="hw-price">$1,299</div>
+                <ul>
+                    <li>Edge Pro pre-loaded with CloverDrone</li>
+                    <li>Gamepad controller</li>
+                    <li>FPV display + antennas</li>
+                    <li>QGroundControl pre-configured</li>
+                    <li>1-year Pilot license included</li>
+                </ul>
+            </div>
+            <div class="cd-hw-card">
+                <h3>Field Drone Pack</h3>
+                <div class="hw-price">$3,999</div>
+                <ul>
+                    <li>Citadel Field Laptop (MIL-STD-810H)</li>
+                    <li>QGroundControl + full CloverDrone suite</li>
+                    <li>Long-range antenna kit</li>
+                    <li>Mission planning + AI video analysis</li>
+                    <li>1-year Fleet license included</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Use Cases -->
+    <div class="cd-section">
+        <div class="section-label">Use Cases</div>
+        <h2>From Site Surveys to Search & Rescue</h2>
+        <div class="cd-use-cases">
+            <div class="cd-use">
+                <h4>🏗️ Site Surveys</h4>
+                <p>Automated flyover and mapping for construction, agriculture, or infrastructure. DroneKit scripts handle the flight plan.</p>
+            </div>
+            <div class="cd-use">
+                <h4>🔒 Security Patrol</h4>
+                <p>Scheduled drone patrols with AI object detection. Integrates with Wazuh SIEM for automated security alerts.</p>
+            </div>
+            <div class="cd-use">
+                <h4>🔍 Infrastructure Inspection</h4>
+                <p>Inspect towers, roofs, solar panels, pipelines without climbing. AI spots damage and anomalies automatically.</p>
+            </div>
+            <div class="cd-use">
+                <h4>🆘 Search & Rescue</h4>
+                <p>Real-time video feed to multiple viewers via StreamServer. Thermal camera support for finding people.</p>
+            </div>
+            <div class="cd-use">
+                <h4>🌾 Agriculture</h4>
+                <p>Crop monitoring, NDVI mapping, precision agriculture. Automated survey patterns over large fields.</p>
+            </div>
+            <div class="cd-use">
+                <h4>📦 Logistics</h4>
+                <p>Warehouse and yard inventory via aerial scanning. Track assets across large facilities.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open Source Credits -->
+    <div class="cd-section">
+        <div class="section-label">Open Source</div>
+        <h2>Built on Battle-Tested Projects</h2>
+        <p>We appreciate every contributor who makes this possible.</p>
+        <div class="cd-credits">
+            <div class="cd-credit">
+                <div class="name"><a href="http://qgroundcontrol.com/" target="_blank">QGroundControl</a></div>
+                <div class="license">Apache 2.0 — Dronecode Foundation</div>
+            </div>
+            <div class="cd-credit">
+                <div class="name"><a href="https://ardupilot.org/" target="_blank">ArduPilot / MAVLink</a></div>
+                <div class="license">LGPL / MIT — ArduPilot community</div>
+            </div>
+            <div class="cd-credit">
+                <div class="name"><a href="https://dronekit-python.readthedocs.io/" target="_blank">DroneKit-Python</a></div>
+                <div class="license">Apache 2.0 — 3D Robotics / community</div>
+            </div>
+            <div class="cd-credit">
+                <div class="name"><a href="https://openhdfpv.org/" target="_blank">OpenHD</a></div>
+                <div class="license">GPL — OpenHD project</div>
+            </div>
+            <div class="cd-credit">
+                <div class="name"><a href="https://github.com/svpcom/wfb-ng" target="_blank">WFB-ng</a></div>
+                <div class="license">GPL — Vasily Evseenko</div>
+            </div>
+        </div>
+
+        <div class="cd-mars">
+            <p>🚀 Fun fact: The same MAVLink protocol CloverDrone uses also flies on Mars. NASA's Ingenuity helicopter runs a MAVLink-compatible system. So technically, CloverStack is Mars-tested technology. Kind of.</p>
+        </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cd-section" style="text-align:center;padding-bottom:80px">
+        <h2>Ready for Takeoff?</h2>
+        <p style="margin:12px auto;color:var(--dim)">CloverDrone is coming soon. Get in touch to be first in line.</p>
+        <div style="margin-top:28px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+            <a href="mailto:inforequest@myclover.tech" class="btn btn-primary">📧 Contact Sales</a>
+            <a href="/" class="btn btn-secondary">← Back to MyClover.Tech</a>
+        </div>
+    </div>
+
+</div>
+
+<footer>
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="/assets/logo.webp" alt="MyClover.Tech" width="32" height="32" onerror="this.style.display='none'">
+                <span>My<span class="green">Clover</span>.Tech</span>
+            </div>
+            <div class="footer-links">
+                <a href="/">Home</a>
+                <a href="/#products">Products</a>
+                <a href="cloverbot.html">CloverBot</a>
+                <a href="cloverdrone.html">CloverDrone</a>
+                <a href="clovermesh-radio.html">CloverMesh Radio</a>
+                <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+                <a href="mailto:inforequest@myclover.tech">Contact</a>
+            </div>
+            <div class="footer-copy">
+                &copy; 2026 MyClover Technologies. All rights reserved.<br>
+                <span class="dim">Making IT infrastructure accessible, secure, and self-hosted.</span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/static/cloverbot.js" data-api-url=""></script>
+</body>
+</html>

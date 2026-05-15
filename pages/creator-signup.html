@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join CloverMarket as a Creator | MyClover.Tech</title>
+    <meta name="description" content="Build apps for mycloverOS. Sell them in CloverMarket. Keep 80%. Viktor AI guides you from idea to published — all inside Slack.">
+    <meta property="og:title" content="Become a CloverMarket Creator — Build, Sell, Keep 80%">
+    <meta property="og:description" content="Free to join. Viktor AI is your dev partner. Everything happens in Slack. No dashboards to learn.">
+    <meta property="og:url" content="https://creator.myclover.tech">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{
+            --bg:#0a0e17;--bg2:#111827;
+            --card:#141c2b;--card-h:#1a2438;
+            --border:#1e2a3e;--border-l:#2a3650;
+            --text:#f1f5f9;--dim:#94a3b8;--muted:#64748b;
+            --green:#22c55e;--green-d:#16a34a;--green-l:#4ade80;
+            --green-g:rgba(34,197,94,.12);
+            --purple:#8b5cf6;--yellow:#eab308;
+            --font:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+            --mono:'JetBrains Mono',monospace;
+        }
+        html{scroll-behavior:smooth}
+        body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+        a{color:var(--green);text-decoration:none}
+        a:hover{color:var(--green-l)}
+
+        .bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(34,197,94,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(34,197,94,.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none}
+        .bg-glow{position:fixed;top:-20%;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(34,197,94,.06),transparent 70%);pointer-events:none}
+
+        .page{position:relative;z-index:1;display:flex;min-height:100vh}
+
+        /* Left panel — branding */
+        .brand-panel{flex:0 0 44%;display:flex;flex-direction:column;justify-content:center;padding:80px 60px;position:relative;overflow:hidden}
+        .brand-panel::after{content:'';position:absolute;right:0;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,transparent,var(--border),transparent)}
+        .brand-logo{display:flex;align-items:center;gap:10px;font-size:1rem;font-weight:700;margin-bottom:48px;color:var(--dim)}
+        .brand-logo .dot{width:28px;height:28px;background:linear-gradient(135deg,var(--green),var(--green-l));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.85rem}
+        .brand-panel h1{font-size:2.8rem;font-weight:900;line-height:1.15;margin-bottom:20px}
+        .brand-panel h1 .grad{background:linear-gradient(135deg,var(--purple),#06b6d4,var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .brand-panel p{font-size:1.05rem;color:var(--dim);line-height:1.7;max-width:440px}
+
+        .brand-features{margin-top:48px;display:flex;flex-direction:column;gap:20px}
+        .bf{display:flex;align-items:flex-start;gap:14px}
+        .bf-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0}
+        .bf-icon.green{background:var(--green-g)}
+        .bf-icon.purple{background:rgba(139,92,246,.1)}
+        .bf-icon.yellow{background:rgba(234,179,8,.1)}
+        .bf h4{font-size:.88rem;font-weight:700;margin-bottom:2px}
+        .bf p{font-size:.82rem;color:var(--dim);line-height:1.5}
+
+        .brand-quote{margin-top:48px;padding:20px 24px;background:var(--card);border:1px solid var(--border);border-radius:14px;font-style:italic;font-size:.88rem;color:var(--dim);line-height:1.6}
+        .brand-quote strong{color:var(--text);font-style:normal}
+
+        /* Right panel — form */
+        .form-panel{flex:1;display:flex;align-items:center;justify-content:center;padding:40px}
+        .form-card{width:100%;max-width:480px}
+        .form-card h2{font-size:1.6rem;font-weight:800;margin-bottom:6px}
+        .form-card .sub{font-size:.88rem;color:var(--dim);margin-bottom:32px}
+
+        .step-indicator{display:flex;gap:8px;margin-bottom:28px}
+        .step-dot{flex:1;height:4px;border-radius:2px;background:var(--border);transition:all .3s}
+        .step-dot.active{background:var(--green)}
+        .step-dot.done{background:var(--purple)}
+
+        .form-group{margin-bottom:20px}
+        .form-group label{display:block;font-size:.78rem;font-weight:600;color:var(--dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+        .form-group input,.form-group textarea,.form-group select{width:100%;padding:12px 16px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--font);font-size:.9rem;transition:border-color .2s;outline:none}
+        .form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:var(--green)}
+        .form-group textarea{resize:vertical;min-height:80px}
+        .form-group select{cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+        .form-group select option{background:var(--bg2);color:var(--text)}
+
+        .radio-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .radio-opt{padding:10px 14px;border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s;font-size:.82rem;text-align:center}
+        .radio-opt:hover{border-color:var(--green);background:var(--green-g)}
+        .radio-opt.selected{border-color:var(--green);background:var(--green-g);color:var(--green)}
+        .radio-opt input{display:none}
+
+        .exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .exp-opt{padding:10px 14px;border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s;font-size:.78rem;text-align:center}
+        .exp-opt:hover{border-color:var(--purple);background:rgba(139,92,246,.08)}
+        .exp-opt.selected{border-color:var(--purple);background:rgba(139,92,246,.08);color:var(--purple)}
+        .exp-opt input{display:none}
+
+        .btn-submit{width:100%;padding:14px;background:linear-gradient(135deg,var(--green),var(--green-d));color:#fff;font-family:var(--font);font-size:.95rem;font-weight:700;border:none;border-radius:12px;cursor:pointer;transition:all .2s;margin-top:8px}
+        .btn-submit:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(34,197,94,.25)}
+        .btn-submit:active{transform:translateY(0)}
+
+        .btn-oauth{width:100%;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--font);font-size:.88rem;font-weight:600;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px}
+        .btn-oauth:hover{border-color:var(--dim);background:var(--card-h)}
+        .btn-oauth img{width:20px;height:20px}
+
+        .divider{display:flex;align-items:center;gap:16px;margin:20px 0;color:var(--muted);font-size:.78rem}
+        .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+        .form-note{text-align:center;font-size:.75rem;color:var(--muted);margin-top:16px;line-height:1.6}
+        .form-note a{color:var(--green)}
+
+        .already{text-align:center;margin-top:16px;font-size:.82rem;color:var(--dim)}
+
+        /* Confirmation state */
+        .confirm-card{text-align:center;padding:40px 20px}
+        .confirm-icon{font-size:3rem;margin-bottom:16px}
+        .confirm-card h2{font-size:1.5rem;font-weight:800;margin-bottom:8px}
+        .confirm-card p{font-size:.95rem;color:var(--dim);margin-bottom:24px;line-height:1.7}
+        .confirm-steps{text-align:left;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin:24px 0}
+        .confirm-steps .cs{display:flex;align-items:flex-start;gap:12px;padding:10px 0}
+        .confirm-steps .cs+.cs{border-top:1px solid var(--border)}
+        .cs-num{width:28px;height:28px;border-radius:50%;background:var(--green-g);color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.78rem;flex-shrink:0}
+        .cs-text{font-size:.85rem;color:var(--dim);line-height:1.5}
+        .cs-text strong{color:var(--text)}
+
+        /* Responsive */
+        @media(max-width:900px){
+            .page{flex-direction:column}
+            .brand-panel{flex:none;padding:40px 24px 32px}
+            .brand-panel h1{font-size:2rem}
+            .brand-features{flex-direction:row;flex-wrap:wrap;gap:12px}
+            .bf{flex:1;min-width:200px}
+            .brand-panel::after{display:none}
+            .form-panel{padding:24px}
+            .brand-quote{display:none}
+        }
+        @media(max-width:500px){
+            .radio-grid,.exp-grid{grid-template-columns:1fr}
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<div class="page">
+    <!-- Left: Branding -->
+    <div class="brand-panel">
+        <a href="/" class="brand-logo">
+            <div class="dot">🍀</div>
+            MyClover.Tech
+        </a>
+
+        <h1>Build Apps.<br>Sell Them.<br><span class="grad">Keep 80%.</span></h1>
+        <p>Join CloverMarket as a creator. Viktor AI is your personal dev partner — guiding you from idea to published app. Everything happens in Slack. No dashboards to learn.</p>
+
+        <div class="brand-features">
+            <div class="bf">
+                <div class="bf-icon green">🤖</div>
+                <div>
+                    <h4>Viktor AI Guides You</h4>
+                    <p>From scaffold to published app. Ask anything in your private Slack channel.</p>
+                </div>
+            </div>
+            <div class="bf">
+                <div class="bf-icon purple">💬</div>
+                <div>
+                    <h4>Everything in Slack</h4>
+                    <p>Your private channel in the MCT workspace. Build, review, analytics — all there.</p>
+                </div>
+            </div>
+            <div class="bf">
+                <div class="bf-icon yellow">🪙</div>
+                <div>
+                    <h4>80/20 Revenue Split</h4>
+                    <p>You keep 80%. Weekly payouts. CloverCoin economy. No 30% app store tax.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="brand-quote">
+            "I described what I wanted to build, Viktor scaffolded the app, helped me code it, and submitted it to the marketplace. My first sale was 48 hours later."
+            <br><strong>— Early Creator</strong>
+        </div>
+    </div>
+
+    <!-- Right: Form -->
+    <div class="form-panel">
+        <div class="form-card" id="formCard">
+            <!-- Step 1: Viktor Account -->
+            <div id="step1">
+                <div class="step-indicator">
+                    <div class="step-dot active"></div>
+                    <div class="step-dot"></div>
+                </div>
+                <h2>Step 1 — Create Your Account</h2>
+                <p class="sub">Viktor AI is your free dev assistant. Start here.</p>
+
+                <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="btn-oauth" style="background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.3)">
+                    🍀 Sign Up with Viktor (Free)
+                </a>
+
+                <div class="divider">or sign up with</div>
+
+                <a href="#" class="btn-oauth">
+                    <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#f1f5f9" d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                    Continue with GitHub
+                </a>
+                <a href="#" class="btn-oauth">
+                    <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    Continue with Google
+                </a>
+
+                <div class="already">
+                    Already have Viktor? <a href="#" onclick="showStep2()">Link your account →</a>
+                </div>
+            </div>
+
+            <!-- Step 2: Creator Info -->
+            <div id="step2" style="display:none">
+                <div class="step-indicator">
+                    <div class="step-dot done"></div>
+                    <div class="step-dot active"></div>
+                </div>
+                <h2>Step 2 — Your App Idea</h2>
+                <p class="sub">Tell us what you want to build. Viktor will help from here.</p>
+
+                <form id="creatorForm" onsubmit="submitForm(event)">
+                    <div class="form-group">
+                        <label>Creator / Brand Name</label>
+                        <input type="text" name="brand" placeholder="e.g., Sarah's Apps, NovaTech" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>What are you building?</label>
+                        <div class="radio-grid">
+                            <label class="radio-opt" onclick="selectRadio(this)"><input type="radio" name="category" value="business">💼 Business Tool</label>
+                            <label class="radio-opt" onclick="selectRadio(this)"><input type="radio" name="category" value="media">🎬 Media App</label>
+                            <label class="radio-opt" onclick="selectRadio(this)"><input type="radio" name="category" value="security">🔐 Security</label>
+                            <label class="radio-opt" onclick="selectRadio(this)"><input type="radio" name="category" value="devtools">🛠️ Dev Tools</label>
+                            <label class="radio-opt" onclick="selectRadio(this)"><input type="radio" name="category" value="iot">🏠 IoT / Home</label>
+                            <label class="radio-opt" onclick="selectRadio(this)"><input type="radio" name="category" value="ai">🤖 AI / ML</label>
+                            <label class="radio-opt" onclick="selectRadio(this)"><input type="radio" name="category" value="retail">🛒 Retail</label>
+                            <label class="radio-opt" onclick="selectRadio(this)"><input type="radio" name="category" value="other">✨ Other</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Describe your app idea</label>
+                        <textarea name="description" placeholder="e.g., An automated invoice generator for freelancers with AI-powered cost estimates..." required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Your experience level</label>
+                        <div class="exp-grid">
+                            <label class="exp-opt" onclick="selectExp(this)"><input type="radio" name="experience" value="beginner">🌱 Brand new</label>
+                            <label class="exp-opt" onclick="selectExp(this)"><input type="radio" name="experience" value="intermediate">🔧 Built a few things</label>
+                            <label class="exp-opt" onclick="selectExp(this)"><input type="radio" name="experience" value="experienced">⚡ Experienced dev</label>
+                            <label class="exp-opt" onclick="selectExp(this)"><input type="radio" name="experience" value="team">👥 Team / Agency</label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit">🚀 Join CloverMarket</button>
+
+                    <p class="form-note">
+                        Free forever. No credit card required.<br>
+                        You'll be invited to our Slack workspace where Viktor guides you.<br>
+                        By joining you agree to the <a href="#">Creator Terms</a>.
+                    </p>
+                </form>
+            </div>
+
+            <!-- Confirmation -->
+            <div id="confirmation" style="display:none">
+                <div class="confirm-card">
+                    <div class="confirm-icon">🎉</div>
+                    <h2>You're In!</h2>
+                    <p>Welcome to CloverMarket. Here's what happens next:</p>
+
+                    <div class="confirm-steps">
+                        <div class="cs">
+                            <div class="cs-num">1</div>
+                            <div class="cs-text"><strong>Check your email</strong> — Slack workspace invite incoming (MyClover.Tech workspace)</div>
+                        </div>
+                        <div class="cs">
+                            <div class="cs-num">2</div>
+                            <div class="cs-text"><strong>Join the Slack</strong> — you'll find your private <code>#creator-{yourname}</code> channel</div>
+                        </div>
+                        <div class="cs">
+                            <div class="cs-num">3</div>
+                            <div class="cs-text"><strong>Viktor says hello</strong> — your AI dev partner will guide you through everything</div>
+                        </div>
+                        <div class="cs">
+                            <div class="cs-num">4</div>
+                            <div class="cs-text"><strong>Build &amp; publish</strong> — scaffold, code, validate, ship. All from Slack.</div>
+                        </div>
+                    </div>
+
+                    <p style="font-size:.88rem;color:var(--dim)">
+                        🍀 +500 CloverCoin bonus when you publish your first app.<br>
+                        Average time to first publish: <strong>5 days</strong>.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showStep2() {
+    document.getElementById('step1').style.display = 'none';
+    document.getElementById('step2').style.display = 'block';
+}
+
+function selectRadio(el) {
+    el.closest('.radio-grid').querySelectorAll('.radio-opt').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    el.querySelector('input').checked = true;
+}
+
+function selectExp(el) {
+    el.closest('.exp-grid').querySelectorAll('.exp-opt').forEach(o => o.classList.remove('selected'));
+    el.classList.add('selected');
+    el.querySelector('input').checked = true;
+}
+
+function submitForm(e) {
+    e.preventDefault();
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('confirmation').style.display = 'block';
+}
+
+// Auto-show step 2 if redirected from Viktor signup
+if (window.location.search.includes('viktor=connected')) {
+    showStep2();
+}
+</script>
+
+</body>
+</html>

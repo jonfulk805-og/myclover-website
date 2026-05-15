@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloverStack Partner Directory — MyClover.Tech</title>
+    <meta name="description" content="Find a certified CloverStack installer, MSP, or IT tech near you. Or register as a partner to grow your business.">
+    <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
+    <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* Partner Directory Styles */
+        .partner-hero {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0d1117 100%);
+            padding: 80px 0 60px;
+            text-align: center;
+            border-bottom: 1px solid rgba(212,175,55,0.15);
+        }
+        .partner-hero h1 {
+            font-size: 2.4rem;
+            background: linear-gradient(135deg, #4ade80 0%, #d4af37 50%, #f97316 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+        .partner-hero p { color: var(--muted); font-size: 1.1rem; max-width: 600px; margin: 0 auto; }
+
+        .partner-tabs {
+            display: flex; justify-content: center; gap: 16px;
+            margin: 40px auto 0; max-width: 500px;
+        }
+        .partner-tab {
+            flex: 1; padding: 14px 24px; border: 1px solid rgba(212,175,55,0.3);
+            background: rgba(26,26,46,0.6); color: var(--gold); border-radius: 8px;
+            cursor: pointer; font-size: .95rem; font-weight: 600; text-align: center;
+            transition: all .3s ease;
+        }
+        .partner-tab:hover, .partner-tab.active {
+            background: linear-gradient(135deg, rgba(74,222,128,0.15), rgba(212,175,55,0.15));
+            border-color: var(--green); color: #fff;
+        }
+
+        /* Search / Directory */
+        .directory-section { padding: 60px 0; }
+        .search-bar {
+            display: flex; gap: 12px; max-width: 700px; margin: 0 auto 40px;
+            flex-wrap: wrap; justify-content: center;
+        }
+        .search-bar input, .search-bar select {
+            padding: 12px 16px; border: 1px solid rgba(212,175,55,0.3);
+            background: rgba(10,10,10,0.8); color: #fff; border-radius: 8px;
+            font-size: .95rem; outline: none; transition: border-color .3s;
+        }
+        .search-bar input:focus, .search-bar select:focus { border-color: var(--green); }
+        .search-bar input[type="text"] { flex: 1; min-width: 200px; }
+        .search-bar select { min-width: 160px; }
+        .search-bar button {
+            padding: 12px 28px; background: linear-gradient(135deg, var(--green), var(--gold));
+            color: #000; border: none; border-radius: 8px; font-weight: 700;
+            cursor: pointer; font-size: .95rem; transition: transform .2s;
+        }
+        .search-bar button:hover { transform: translateY(-2px); }
+
+        .partner-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px; max-width: 1100px; margin: 0 auto;
+        }
+        .partner-card {
+            background: rgba(26,26,46,0.5); border: 1px solid rgba(212,175,55,0.15);
+            border-radius: 12px; padding: 24px; transition: all .3s ease;
+        }
+        .partner-card:hover {
+            border-color: var(--green); transform: translateY(-4px);
+            box-shadow: 0 8px 32px rgba(74,222,128,0.1);
+        }
+        .partner-card-header { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
+        .partner-avatar {
+            width: 56px; height: 56px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--green), var(--gold));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem; font-weight: 700; color: #000; flex-shrink: 0;
+        }
+        .partner-name { font-size: 1.1rem; font-weight: 700; color: #fff; }
+        .partner-company { font-size: .85rem; color: var(--gold); }
+        .partner-location { font-size: .82rem; color: var(--muted); margin-top: 2px; }
+        .partner-location i { margin-right: 4px; }
+        .partner-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+        .partner-badge {
+            padding: 3px 10px; font-size: .72rem; border-radius: 20px; font-weight: 600;
+            background: rgba(74,222,128,0.12); color: var(--green); border: 1px solid rgba(74,222,128,0.25);
+        }
+        .partner-badge.certified {
+            background: rgba(212,175,55,0.12); color: var(--gold); border-color: rgba(212,175,55,0.3);
+        }
+        .partner-rate { font-size: .85rem; color: var(--muted); margin-bottom: 12px; }
+        .partner-rate strong { color: #fff; }
+        .partner-stars { color: var(--gold); font-size: .9rem; margin-bottom: 12px; }
+        .partner-contact-btn {
+            display: inline-block; padding: 8px 20px; border: 1px solid var(--green);
+            color: var(--green); border-radius: 6px; font-size: .82rem; font-weight: 600;
+            text-decoration: none; transition: all .3s;
+        }
+        .partner-contact-btn:hover { background: var(--green); color: #000; }
+
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: var(--muted);
+        }
+        .empty-state h3 { color: #fff; margin-bottom: 8px; }
+
+        /* Registration Form */
+        .register-section { padding: 60px 0; display: none; }
+        .register-section.active { display: block; }
+        .directory-section.active { display: block; }
+        .register-form {
+            max-width: 700px; margin: 0 auto;
+            background: rgba(26,26,46,0.5); border: 1px solid rgba(212,175,55,0.15);
+            border-radius: 16px; padding: 40px;
+        }
+        .register-form h2 {
+            font-size: 1.6rem; color: #fff; margin-bottom: 8px;
+        }
+        .register-form .subtitle { color: var(--muted); font-size: .9rem; margin-bottom: 32px; }
+        .form-row { display: flex; gap: 16px; margin-bottom: 20px; }
+        .form-row.single { flex-direction: column; }
+        .form-group { flex: 1; display: flex; flex-direction: column; }
+        .form-group label {
+            font-size: .82rem; color: var(--gold); font-weight: 600;
+            margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 12px 14px; background: rgba(10,10,10,0.8);
+            border: 1px solid rgba(212,175,55,0.2); border-radius: 8px;
+            color: #fff; font-size: .92rem; outline: none; transition: border-color .3s;
+            font-family: inherit;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--green);
+        }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+
+        .checkbox-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;
+        }
+        .checkbox-item {
+            display: flex; align-items: center; gap: 8px;
+            font-size: .88rem; color: var(--text); cursor: pointer;
+        }
+        .checkbox-item input[type="checkbox"] {
+            accent-color: var(--green); width: 16px; height: 16px;
+        }
+
+        .form-submit {
+            margin-top: 28px; padding: 14px 36px;
+            background: linear-gradient(135deg, var(--green), var(--gold));
+            color: #000; border: none; border-radius: 8px; font-size: 1rem;
+            font-weight: 700; cursor: pointer; transition: transform .2s;
+            width: 100%;
+        }
+        .form-submit:hover { transform: translateY(-2px); }
+
+        .form-success {
+            display: none; text-align: center; padding: 40px;
+        }
+        .form-success h3 { color: var(--green); font-size: 1.3rem; margin-bottom: 8px; }
+        .form-success p { color: var(--muted); }
+
+        @media (max-width: 600px) {
+            .form-row { flex-direction: column; }
+            .partner-tabs { flex-direction: column; }
+            .search-bar { flex-direction: column; }
+            .search-bar input, .search-bar select, .search-bar button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Nav (simplified) -->
+<nav class="nav">
+    <div class="nav-inner">
+        <a href="../index.html" class="nav-brand">
+            <img src="../assets/logo.webp" alt="MyClover.Tech" style="height:36px;margin-right:10px">
+            <span style="font-weight:800; background: linear-gradient(135deg, #4ade80, #d4af37); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">MyClover.Tech</span>
+        </a>
+        <div class="nav-links">
+            <a href="../index.html#products">Products</a>
+            <a href="../index.html#hardware">Hardware</a>
+            <a href="../index.html#pricing">Pricing</a>
+            <a href="partners.html" class="active-link">Partners</a>
+            <a href="../index.html#blog">Blog</a>
+            <a href="../index.html#contact">Contact</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="partner-hero">
+    <div class="container">
+        <h1>🛠️ CloverStack Partner Network</h1>
+        <p>Find a verified tech, MSP, or installer near you — or register to grow your business with CloverStack.</p>
+
+        <div class="partner-tabs">
+            <div class="partner-tab active" onclick="showTab('directory')">🔍 Find an Installer</div>
+            <div class="partner-tab" onclick="showTab('register')">📋 Become a Partner</div>
+        </div>
+    </div>
+</section>
+
+<!-- Directory (Find) -->
+<section class="directory-section active" id="directory-tab">
+    <div class="container">
+        <div class="search-bar">
+            <input type="text" id="search-zip" placeholder="Enter ZIP code or city...">
+            <select id="search-specialty">
+                <option value="">All Specialties</option>
+                <option value="install">Installation & Setup</option>
+                <option value="migration">Migration & Upgrades</option>
+                <option value="networking">Networking & Infrastructure</option>
+                <option value="security">Security & Hardening</option>
+                <option value="mining">Mining Rig Builds</option>
+                <option value="industrial">SCADA / Industrial</option>
+                <option value="mesh">CloverMesh Multi-Site</option>
+                <option value="msp">Managed Services (MSP)</option>
+                <option value="media">Media / Streaming Setup</option>
+                <option value="voip">VoIP / Telecom</option>
+            </select>
+            <select id="search-radius">
+                <option value="25">Within 25 miles</option>
+                <option value="50" selected>Within 50 miles</option>
+                <option value="100">Within 100 miles</option>
+                <option value="250">Within 250 miles</option>
+                <option value="any">Any distance</option>
+            </select>
+            <button onclick="searchPartners()">Search</button>
+        </div>
+
+        <div class="partner-grid" id="partner-list">
+            <!-- Sample cards (will be replaced by API/backend) -->
+            <div class="partner-card">
+                <div class="partner-card-header">
+                    <div class="partner-avatar">JF</div>
+                    <div>
+                        <div class="partner-name">Jon Fulk</div>
+                        <div class="partner-company">MyClover Technologies</div>
+                        <div class="partner-location">📍 Central Coast, CA</div>
+                    </div>
+                </div>
+                <div class="partner-badges">
+                    <span class="partner-badge certified">⭐ Founding Partner</span>
+                    <span class="partner-badge">Install & Setup</span>
+                    <span class="partner-badge">Networking</span>
+                    <span class="partner-badge">Security</span>
+                    <span class="partner-badge">Industrial</span>
+                    <span class="partner-badge">Full Stack</span>
+                </div>
+                <div class="partner-stars">★★★★★ <span style="color:var(--muted);font-size:.78rem">(Founder)</span></div>
+                <div class="partner-rate">Rate: <strong>Contact for quote</strong> · 20+ yrs experience</div>
+                <a href="mailto:inforequest@myclover.tech" class="partner-contact-btn">Contact →</a>
+            </div>
+
+            <!-- Placeholder cards showing what the directory looks like populated -->
+            <div class="partner-card" style="opacity:0.5">
+                <div class="partner-card-header">
+                    <div class="partner-avatar" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">?</div>
+                    <div>
+                        <div class="partner-name">Your Name Here</div>
+                        <div class="partner-company">Your Company</div>
+                        <div class="partner-location">📍 Your City, State</div>
+                    </div>
+                </div>
+                <div class="partner-badges">
+                    <span class="partner-badge">Your Specialties</span>
+                </div>
+                <div style="text-align:center;padding:12px 0;color:var(--muted);font-size:.85rem">
+                    Register as a partner to appear here →
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Registration Form -->
+<section class="register-section" id="register-tab">
+    <div class="container">
+        <form class="register-form" id="partner-form" onsubmit="submitPartnerForm(event)">
+            <h2>🤝 Join the CloverStack Partner Network</h2>
+            <p class="subtitle">List your services for free. Get discovered by clients who need CloverStack installed, configured, or managed.</p>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>First Name *</label>
+                    <input type="text" name="first_name" required>
+                </div>
+                <div class="form-group">
+                    <label>Last Name *</label>
+                    <input type="text" name="last_name" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Company Name *</label>
+                    <input type="text" name="company" required>
+                </div>
+                <div class="form-group">
+                    <label>Title / Role</label>
+                    <input type="text" name="title" placeholder="e.g. Owner, Lead Tech, MSP Manager">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" name="phone" placeholder="Not displayed publicly">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Website</label>
+                    <input type="url" name="website" placeholder="https://...">
+                </div>
+                <div class="form-group">
+                    <label>Company Logo URL</label>
+                    <input type="url" name="logo_url" placeholder="https://... (optional)">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>City *</label>
+                    <input type="text" name="city" required>
+                </div>
+                <div class="form-group">
+                    <label>State *</label>
+                    <input type="text" name="state" required>
+                </div>
+                <div class="form-group">
+                    <label>ZIP Code *</label>
+                    <input type="text" name="zip" required>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Service Area Radius</label>
+                    <select name="radius">
+                        <option value="25">25 miles</option>
+                        <option value="50" selected>50 miles</option>
+                        <option value="100">100 miles</option>
+                        <option value="250">250 miles</option>
+                        <option value="nationwide">Nationwide / Remote</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Years of IT Experience</label>
+                    <select name="experience">
+                        <option value="1-3">1–3 years</option>
+                        <option value="3-5">3–5 years</option>
+                        <option value="5-10">5–10 years</option>
+                        <option value="10-20">10–20 years</option>
+                        <option value="20+">20+ years</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Hourly Rate Range</label>
+                    <select name="rate">
+                        <option value="contact">Contact for Quote</option>
+                        <option value="50-75">$50 – $75/hr</option>
+                        <option value="75-100">$75 – $100/hr</option>
+                        <option value="100-150">$100 – $150/hr</option>
+                        <option value="150-200">$150 – $200/hr</option>
+                        <option value="200+">$200+/hr</option>
+                        <option value="project">Project-Based Only</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-row single">
+                <div class="form-group">
+                    <label>Specialties * (select all that apply)</label>
+                    <div class="checkbox-grid">
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="install"> Installation & Initial Setup</label>
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="migration"> Migration & Upgrades</label>
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="networking"> Networking & Infrastructure</label>
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="security"> Cybersecurity & Hardening</label>
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="mining"> Mining Rig Builds</label>
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="industrial"> SCADA / Industrial / OT</label>
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="mesh"> CloverMesh Multi-Site</label>
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="msp"> Managed Services (MSP)</label>
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="media"> Media / Streaming / AV</label>
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="voip"> VoIP / Telecom</label>
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="cameras"> Surveillance / CloverCam</label>
+                        <label class="checkbox-item"><input type="checkbox" name="specialties" value="custom"> Custom Hardware Builds</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row single">
+                <div class="form-group">
+                    <label>Certifications (optional)</label>
+                    <input type="text" name="certs" placeholder="e.g. CompTIA A+, CCNA, CISSP, AWS, etc.">
+                </div>
+            </div>
+
+            <div class="form-row single">
+                <div class="form-group">
+                    <label>About You / Your Company *</label>
+                    <textarea name="bio" rows="4" required placeholder="Tell potential clients about your experience, what you specialize in, and why they should hire you..."></textarea>
+                </div>
+            </div>
+
+            <div class="form-row single">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="checkbox-item" style="font-size:.82rem;color:var(--muted)">
+                        <input type="checkbox" name="agree" required>
+                        I agree to the CloverStack Partner Network terms. My listing will be reviewed before going live.
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" class="form-submit">Submit Partner Application →</button>
+        </form>
+
+        <div class="form-success" id="form-success">
+            <div style="font-size:3rem;margin-bottom:16px">🍀</div>
+            <h3>Application Submitted!</h3>
+            <p>We'll review your information and get you listed within 48 hours.<br>You'll receive a confirmation email shortly.</p>
+            <p style="margin-top:16px"><a href="../index.html" style="color:var(--green);text-decoration:none;font-weight:600">← Back to MyClover.Tech</a></p>
+        </div>
+    </div>
+</section>
+
+<!-- Benefits Section -->
+<section class="section-alt" style="padding:60px 0">
+    <div class="container">
+        <div class="section-header center">
+            <h2>Why Join the Partner Network?</h2>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap:24px; max-width:1000px; margin:0 auto">
+            <div style="background:rgba(26,26,46,0.5); border:1px solid rgba(212,175,55,0.15); border-radius:12px; padding:28px; text-align:center">
+                <div style="font-size:2rem;margin-bottom:12px">💰</div>
+                <h3 style="color:#fff;font-size:1rem;margin-bottom:8px">Free to List</h3>
+                <p style="color:var(--muted);font-size:.85rem">No fees to join. Get discovered by CloverStack customers in your area immediately.</p>
+            </div>
+            <div style="background:rgba(26,26,46,0.5); border:1px solid rgba(212,175,55,0.15); border-radius:12px; padding:28px; text-align:center">
+                <div style="font-size:2rem;margin-bottom:12px">📈</div>
+                <h3 style="color:#fff;font-size:1rem;margin-bottom:8px">Grow Your Business</h3>
+                <p style="color:var(--muted);font-size:.85rem">Every CloverStack hardware sale in your area is a potential install job. We send clients to you.</p>
+            </div>
+            <div style="background:rgba(26,26,46,0.5); border:1px solid rgba(212,175,55,0.15); border-radius:12px; padding:28px; text-align:center">
+                <div style="font-size:2rem;margin-bottom:12px">⭐</div>
+                <h3 style="color:#fff;font-size:1rem;margin-bottom:8px">Get Certified</h3>
+                <p style="color:var(--muted);font-size:.85rem">Earn the Certified CloverStack Partner badge. Priority placement, verified skills, premium leads.</p>
+            </div>
+            <div style="background:rgba(26,26,46,0.5); border:1px solid rgba(212,175,55,0.15); border-radius:12px; padding:28px; text-align:center">
+                <div style="font-size:2rem;margin-bottom:12px">🤝</div>
+                <h3 style="color:#fff;font-size:1rem;margin-bottom:8px">MSP Bulk Licensing</h3>
+                <p style="color:var(--muted);font-size:.85rem">Partners get MSP pricing ($5-$18/customer). Manage 10 sites = $70K+ ARR. We handle the software.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="../assets/logo.webp" alt="MyClover.Tech" style="height:28px;margin-right:8px">
+                <span style="font-weight:700;color:#fff">MyClover.Tech</span>
+            </div>
+            <div class="footer-links">
+                <a href="../index.html">Home</a>
+                <a href="../index.html#products">Products</a>
+                <a href="partners.html">Partners</a>
+                <a href="../keygen/index.html">KeyGen</a>
+                <a href="mailto:inforequest@myclover.tech">Contact</a>
+            </div>
+            <div class="footer-copy">
+                <p>&copy; 2025 MyClover Technologies. All rights reserved. 🍀</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+function showTab(tab) {
+    document.querySelectorAll('.partner-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('directory-tab').style.display = 'none';
+    document.getElementById('directory-tab').classList.remove('active');
+    document.getElementById('register-tab').style.display = 'none';
+    document.getElementById('register-tab').classList.remove('active');
+
+    if (tab === 'directory') {
+        document.getElementById('directory-tab').style.display = 'block';
+        document.getElementById('directory-tab').classList.add('active');
+        document.querySelectorAll('.partner-tab')[0].classList.add('active');
+    } else {
+        document.getElementById('register-tab').style.display = 'block';
+        document.getElementById('register-tab').classList.add('active');
+        document.querySelectorAll('.partner-tab')[1].classList.add('active');
+    }
+}
+
+function searchPartners() {
+    var zip = document.getElementById('search-zip').value;
+    var specialty = document.getElementById('search-specialty').value;
+    var radius = document.getElementById('search-radius').value;
+    // In production: fetch('/api/partners/search', { zip, specialty, radius })
+    // For now, show the existing cards
+    alert('Partner search coming soon! For now, contact inforequest@myclover.tech and we\'ll match you with a local partner.');
+}
+
+async function submitPartnerForm(e) {
+    e.preventDefault();
+    var form = e.target;
+    var data = new FormData(form);
+    var obj = {};
+    data.forEach(function(val, key) {
+        if (key === 'specialties') {
+            if (!obj[key]) obj[key] = [];
+            obj[key].push(val);
+        } else {
+            obj[key] = val;
+        }
+    });
+
+    var btn = form.querySelector('.form-submit');
+    btn.textContent = 'Submitting...';
+    btn.disabled = true;
+
+    try {
+        var res = await fetch('/api/partners/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(obj)
+        });
+        // Show success regardless (form submissions also go to email)
+    } catch(err) {
+        // Graceful fallback — send via mailto
+    }
+
+    // Show success state
+    form.style.display = 'none';
+    document.getElementById('form-success').style.display = 'block';
+
+    // Also send via mailto as fallback
+    var subject = encodeURIComponent('CloverStack Partner Application: ' + (obj.company || obj.first_name));
+    var body = encodeURIComponent(JSON.stringify(obj, null, 2));
+    var mailto = document.createElement('a');
+    mailto.href = 'mailto:inforequest@myclover.tech?subject=' + subject + '&body=' + body;
+    mailto.click();
+}
+
+// Check URL hash for direct tab navigation
+if (window.location.hash === '#register') showTab('register');
+</script>
+
+</body>
+</html>

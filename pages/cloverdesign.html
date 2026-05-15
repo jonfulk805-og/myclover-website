@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloverDesign — AI Design & Engineering Studio | MyClover.Tech</title>
+    <meta name="description" content="CloverDesign brings AI-powered design and engineering planning to CloverStack. Designer Bot creates floor plans, renders, and layouts. Engineer Bot produces blueprints, specs, and BOMs. All self-hosted.">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .cd-hero { padding-top: 140px; padding-bottom: 80px; text-align: center; }
+        .cd-hero h1 { font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; }
+        .cd-hero .gradient { background: linear-gradient(135deg, #f59e0b, #ef4444, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .cd-hero p { font-size: 1.15rem; color: var(--dim); max-width: 640px; margin: 20px auto 0; line-height: 1.7; }
+        .cd-hero .hero-actions { margin-top: 36px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+        .cd-section { margin-top: 80px; }
+        .cd-section .section-label { font-size: 0.8rem; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+        .cd-section h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 12px; }
+        .cd-section > p { color: var(--dim); font-size: 1rem; line-height: 1.6; max-width: 600px; }
+
+        .cd-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 40px; }
+        .cd-feat { padding: 28px; background: var(--card); border: 1px solid var(--border-l); border-radius: 14px; transition: all 0.3s; }
+        .cd-feat:hover { border-color: rgba(245,158,11,0.3); transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .cd-feat .icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .cd-feat h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+        .cd-feat p { font-size: 0.9rem; color: var(--dim); line-height: 1.6; }
+
+        .cd-bots { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; margin-top: 40px; }
+        .cd-bot { padding: 32px; background: var(--card); border: 1px solid var(--border-l); border-radius: 16px; position: relative; overflow: hidden; }
+        .cd-bot::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+        .cd-bot.designer::before { background: linear-gradient(90deg, #f59e0b, #ef4444, #f97316); }
+        .cd-bot.engineer::before { background: linear-gradient(90deg, #3b82f6, #6366f1, #8b5cf6); }
+        .cd-bot h3 { font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+        .cd-bot .bot-desc { color: var(--dim); font-size: 0.95rem; line-height: 1.6; margin-bottom: 16px; }
+        .cd-bot ul { list-style: none; padding: 0; }
+        .cd-bot li { padding: 6px 0; font-size: 0.9rem; color: var(--dim); display: flex; align-items: center; gap: 8px; }
+        .cd-bot.designer li::before { content: "🎨"; }
+        .cd-bot.engineer li::before { content: "📐"; }
+
+        .cd-workflow { display: flex; flex-wrap: wrap; gap: 0; margin-top: 40px; justify-content: center; align-items: center; }
+        .cd-wf-step { padding: 20px 24px; background: var(--card); border: 1px solid var(--border-l); border-radius: 12px; text-align: center; min-width: 180px; flex: 1; max-width: 220px; }
+        .cd-wf-step .step-num { font-size: 0.7rem; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: 0.08em; }
+        .cd-wf-step h4 { font-size: 0.95rem; font-weight: 700; margin: 6px 0 4px; }
+        .cd-wf-step p { font-size: 0.8rem; color: var(--dim); line-height: 1.5; }
+        .cd-wf-arrow { font-size: 1.5rem; color: var(--muted); padding: 0 8px; }
+        @media (max-width: 800px) { .cd-wf-arrow { display: none; } .cd-wf-step { max-width: 100%; } }
+
+        .cd-pricing { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 40px; }
+        .cd-price-card { padding: 32px; background: var(--card); border: 1px solid var(--border-l); border-radius: 16px; text-align: center; transition: all 0.3s; position: relative; }
+        .cd-price-card:hover { border-color: rgba(245,158,11,0.3); transform: translateY(-4px); }
+        .cd-price-card.featured { border-color: rgba(245,158,11,0.3); }
+        .cd-price-card.featured::before { content: "Most Popular"; position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #f59e0b, #f97316); color: #000; font-size: 0.7rem; font-weight: 700; padding: 3px 14px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .cd-price-card h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
+        .cd-price-card .price { font-size: 2.2rem; font-weight: 900; color: #f59e0b; margin: 12px 0 4px; }
+        .cd-price-card .price span { font-size: 1rem; font-weight: 500; color: var(--muted); }
+        .cd-price-card .yearly { font-size: 0.85rem; color: var(--muted); margin-bottom: 16px; }
+        .cd-price-card .desc { color: var(--dim); font-size: 0.9rem; margin-bottom: 16px; }
+        .cd-price-card ul { list-style: none; padding: 0; text-align: left; }
+        .cd-price-card li { padding: 6px 0; font-size: 0.9rem; color: var(--dim); display: flex; align-items: center; gap: 8px; }
+        .cd-price-card li::before { content: "✓"; color: #f59e0b; font-weight: 700; }
+
+        .cd-hw { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 40px; }
+        .cd-hw-card { padding: 28px; background: var(--card); border: 1px solid var(--border-l); border-radius: 14px; }
+        .cd-hw-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+        .cd-hw-card .hw-price { font-size: 1.4rem; font-weight: 800; color: #f59e0b; margin: 8px 0 12px; }
+        .cd-hw-card ul { list-style: none; padding: 0; }
+        .cd-hw-card li { padding: 4px 0; font-size: 0.9rem; color: var(--dim); }
+        .cd-hw-card li::before { content: "• "; color: #f59e0b; }
+
+        .cd-stack-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 32px; }
+        .cd-stack-item { padding: 20px; background: rgba(245,158,11,0.03); border: 1px solid rgba(245,158,11,0.08); border-radius: 12px; }
+        .cd-stack-item .hw-name { font-weight: 700; color: var(--text); font-size: 0.95rem; }
+        .cd-stack-item .hw-role { font-size: 0.85rem; color: var(--dim); margin-top: 4px; }
+
+        .cd-use-cases { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 32px; }
+        .cd-use { padding: 24px; background: var(--card); border: 1px solid var(--border-l); border-radius: 12px; }
+        .cd-use h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+        .cd-use p { font-size: 0.85rem; color: var(--dim); line-height: 1.6; }
+
+        .cd-credits { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 28px; }
+        .cd-credit { padding: 16px 20px; background: var(--card); border: 1px solid var(--border-l); border-radius: 10px; }
+        .cd-credit .name { font-weight: 600; color: var(--text); font-size: 0.9rem; }
+        .cd-credit .name a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+        .cd-credit .license { font-size: 0.8rem; color: var(--muted); }
+
+        .cd-fun { margin-top: 32px; padding: 24px; background: rgba(245,158,11,0.04); border: 1px solid rgba(245,158,11,0.1); border-radius: 14px; }
+        .cd-fun p { color: var(--dim); font-size: 0.95rem; line-height: 1.6; font-style: italic; }
+
+        @media (max-width: 640px) {
+            .cd-hero { padding-top: 100px; }
+            .cd-bots { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="/" class="nav-logo">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="36" height="36">
+            <span>My<span class="green">Clover</span>.Tech</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/">Home</a>
+            <a href="/#products">Products</a>
+            <a href="/#hardware">Hardware</a>
+            <a href="cloverbot.html">CloverBot</a>
+            <a href="cloverdesign.html" style="color:#f59e0b">CloverDesign</a>
+            <a href="cloverdrone.html">CloverDrone</a>
+            <a href="clovermesh-radio.html">CloverMesh Radio</a>
+            <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+            <a href="/#trial" class="nav-cta">Free Trial</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<section class="cd-hero">
+    <div class="container">
+        <div class="hero-badge"><span class="pulse"></span>AI Design & Engineering</div>
+        <h1>Meet <span class="gradient">CloverDesign</span></h1>
+        <p>
+            Two AI agents — Designer Bot and Engineer Bot — turn your raw ideas into
+            professional plans with specs, drawings, and blueprints. Home layouts, engineering
+            designs, architectural visualization — all self-hosted on your CloverStack.
+        </p>
+        <div class="hero-actions">
+            <a href="#pricing" class="btn btn-primary">💰 See Pricing</a>
+            <a href="#bots" class="btn btn-secondary">Meet the Bots →</a>
+            <a href="#features" class="btn btn-secondary">Features</a>
+        </div>
+    </div>
+</section>
+
+<div class="container">
+
+    <!-- The Two Bots -->
+    <div class="cd-section" id="bots">
+        <div class="section-label">AI Agents</div>
+        <h2>Two Bots. One Pipeline. Idea to Blueprint.</h2>
+        <p>Describe what you want in plain English. Designer Bot visualizes it. Engineer Bot specs it.</p>
+        <div class="cd-bots">
+            <div class="cd-bot designer">
+                <h3>🎨 Designer Bot</h3>
+                <p class="bot-desc">The creative brain. Takes raw ideas and turns them into visuals you can see, refine, and approve.</p>
+                <ul>
+                    <li>Floor plans & room layouts from text descriptions</li>
+                    <li>Interior design — furniture, finishes, lighting, color palettes</li>
+                    <li>Exterior visualization — facades, landscaping, curb appeal</li>
+                    <li>3D concept renders with AI image generation</li>
+                    <li>Mood boards & material palettes auto-generated from style prompts</li>
+                    <li>Renovation planning — before/after visualization</li>
+                    <li>Product & brand mockups</li>
+                    <li>Iterative refinement — describe changes, Designer Bot revises</li>
+                </ul>
+            </div>
+            <div class="cd-bot engineer">
+                <h3>📐 Engineer Bot</h3>
+                <p class="bot-desc">The technical brain. Converts approved designs into buildable, spec'd, code-compliant plans.</p>
+                <ul>
+                    <li>Technical drawings — blueprints with dimensions, scale, annotations</li>
+                    <li>Structural specs — load calcs, material strengths, foundation requirements</li>
+                    <li>Bill of Materials (BOM) — itemized parts, quantities, cost estimates</li>
+                    <li>Code compliance — IRC/IBC residential, ADA, local building code flags</li>
+                    <li>MEP layouts — mechanical, electrical, plumbing rough-in diagrams</li>
+                    <li>Cost estimation — labor + materials breakdown by trade</li>
+                    <li>Export: PDF blueprints, DXF/DWG (CAD), SVG, 3D models (STL/OBJ)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workflow -->
+    <div class="cd-section">
+        <div class="section-label">Workflow</div>
+        <h2>From Napkin Sketch to Build-Ready Plans</h2>
+        <div class="cd-workflow">
+            <div class="cd-wf-step">
+                <div class="step-num">Step 1</div>
+                <h4>Describe</h4>
+                <p>Tell the AI what you want in plain English. Upload sketches, photos, or references.</p>
+            </div>
+            <div class="cd-wf-arrow">→</div>
+            <div class="cd-wf-step">
+                <div class="step-num">Step 2</div>
+                <h4>Visualize</h4>
+                <p>Designer Bot generates floor plans, renders, and mood boards. Iterate until perfect.</p>
+            </div>
+            <div class="cd-wf-arrow">→</div>
+            <div class="cd-wf-step">
+                <div class="step-num">Step 3</div>
+                <h4>Engineer</h4>
+                <p>Engineer Bot produces technical specs, blueprints, BOMs, and compliance checks.</p>
+            </div>
+            <div class="cd-wf-arrow">→</div>
+            <div class="cd-wf-step">
+                <div class="step-num">Step 4</div>
+                <h4>Build</h4>
+                <p>Export CAD files, PDF blueprints, and cost estimates. Hand to contractors and go.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core Features -->
+    <div class="cd-section" id="features">
+        <div class="section-label">Capabilities</div>
+        <h2>Everything You Need to Design and Plan</h2>
+        <p>Professional-grade design tools, powered by AI, running on your hardware.</p>
+        <div class="cd-features">
+            <div class="cd-feat">
+                <div class="icon">🏠</div>
+                <h3>Home Design & Layout</h3>
+                <p>Complete home design — floor plans, room layouts, furniture placement, traffic flow analysis. From single rooms to entire homes. Interactive drag-and-drop with AI suggestions.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">🖼️</div>
+                <h3>AI Renders & Visualization</h3>
+                <p>Photorealistic renders generated locally with Stable Diffusion XL via ComfyUI. See your design before building. Interior, exterior, aerial views, day/night lighting.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">📋</div>
+                <h3>Blueprint Generation</h3>
+                <p>Proper technical drawings with dimensions, scale bars, section cuts, and annotations. PDF export in standard architectural scales (1/4" = 1', 1:50, etc.).</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">🧮</div>
+                <h3>BOM & Cost Estimation</h3>
+                <p>Automatic bill of materials with quantities, unit costs, and labor estimates. Breakdown by trade — framing, electrical, plumbing, finishes. Regional price adjustments.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">📏</div>
+                <h3>Parametric 3D Modeling</h3>
+                <p>FreeCAD integration for precision 3D models. Change dimensions and everything updates. Export STL for 3D printing, OBJ for visualization, STEP for manufacturing.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">⚡</div>
+                <h3>MEP Planning</h3>
+                <p>Mechanical, electrical, and plumbing rough-in diagrams. Circuit load calculations, pipe sizing, HVAC duct routing. Clash detection between systems.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">✅</div>
+                <h3>Code Compliance</h3>
+                <p>AI-powered building code checks — IRC/IBC residential, ADA accessibility, egress requirements, structural minimums. Flags issues before you submit to the building dept.</p>
+            </div>
+            <div class="cd-feat">
+                <div class="icon">💬</div>
+                <h3>Natural Language Design</h3>
+                <p>Powered by Chappie AI (Ollama). Describe what you want conversationally: "Add a bathroom off the master bedroom with a walk-in shower." The AI builds it.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stack Integration -->
+    <div class="cd-section">
+        <div class="section-label">Integration</div>
+        <h2>Deep CloverStack Integration</h2>
+        <p>CloverDesign connects to the full platform for a seamless workflow.</p>
+        <div class="cd-stack-map">
+            <div class="cd-stack-item">
+                <div class="hw-name">Edge Pro / Citadel</div>
+                <div class="hw-role">GPU-accelerated AI rendering — runs Stable Diffusion XL locally for photorealistic renders</div>
+            </div>
+            <div class="cd-stack-item">
+                <div class="hw-name">Chappie AI (Ollama)</div>
+                <div class="hw-role">Natural language design — describe changes in English, AI updates the plans</div>
+            </div>
+            <div class="cd-stack-item">
+                <div class="hw-name">MyCloverVault</div>
+                <div class="hw-role">Secure project storage — encrypted design files, client data, access controls</div>
+            </div>
+            <div class="cd-stack-item">
+                <div class="hw-name">CloverSign</div>
+                <div class="hw-role">Present designs on screens — client walkthroughs on big-screen displays</div>
+            </div>
+            <div class="cd-stack-item">
+                <div class="hw-name">StreamServer</div>
+                <div class="hw-role">Live-stream design sessions — collaborate with clients and contractors remotely</div>
+            </div>
+            <div class="cd-stack-item">
+                <div class="hw-name">CloverBot</div>
+                <div class="hw-role">Client portal — customers submit design requests and feedback through chat</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pricing -->
+    <div class="cd-section" id="pricing">
+        <div class="section-label">Pricing</div>
+        <h2>Flat Pricing. No Per-Render Surprises.</h2>
+        <div class="cd-pricing">
+            <div class="cd-price-card">
+                <h3>Creator</h3>
+                <div class="price">$29<span>/mo</span></div>
+                <div class="yearly">or $279/yr (save 20%)</div>
+                <div class="desc">Personal design projects</div>
+                <ul>
+                    <li>Designer Bot — AI design assistant</li>
+                    <li>Floor plans & room layouts</li>
+                    <li>Mood boards & material palettes</li>
+                    <li>50 AI renders per month</li>
+                    <li>PDF export</li>
+                    <li>Basic 3D views</li>
+                </ul>
+            </div>
+            <div class="cd-price-card featured">
+                <h3>Studio</h3>
+                <div class="price">$79<span>/mo</span></div>
+                <div class="yearly">or $759/yr (save 20%)</div>
+                <div class="desc">Professional design + engineering</div>
+                <ul>
+                    <li>Everything in Creator</li>
+                    <li>Engineer Bot — specs & blueprints</li>
+                    <li>Blueprint generation (DXF/DWG)</li>
+                    <li>BOM generator & cost estimates</li>
+                    <li>Code compliance checks</li>
+                    <li>500 AI renders per month</li>
+                    <li>MEP rough-in diagrams</li>
+                    <li>FreeCAD parametric export</li>
+                </ul>
+            </div>
+            <div class="cd-price-card">
+                <h3>Enterprise</h3>
+                <div class="price">$149<span>/mo</span></div>
+                <div class="yearly">or $1,429/yr (save 20%)</div>
+                <div class="desc">Full design & engineering firm</div>
+                <ul>
+                    <li>Everything in Studio</li>
+                    <li>Unlimited AI renders</li>
+                    <li>Team collaboration & roles</li>
+                    <li>API access for automation</li>
+                    <li>Custom AI model training</li>
+                    <li>Structural analysis reports</li>
+                    <li>Multi-project management</li>
+                    <li>Priority support + dedicated GPU</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hardware -->
+    <div class="cd-section">
+        <div class="section-label">Hardware</div>
+        <h2>GPU-Powered Design Rigs</h2>
+        <p>CloverDesign is GPU-hungry — the more VRAM, the faster and better your renders.</p>
+        <div class="cd-hw">
+            <div class="cd-hw-card">
+                <h3>Edge Pro Design Station</h3>
+                <div class="hw-price">$799</div>
+                <ul>
+                    <li>Ryzen 9 / 64GB RAM</li>
+                    <li>iGPU — runs 7B-13B AI models + SD renders</li>
+                    <li>Pre-loaded with CloverDesign + ComfyUI</li>
+                    <li>Compact desktop form factor</li>
+                    <li>1-year Creator license included</li>
+                </ul>
+            </div>
+            <div class="cd-hw-card">
+                <h3>Citadel Design Workstation</h3>
+                <div class="hw-price">$5,499+</div>
+                <ul>
+                    <li>Citadel AI NAS with GPU acceleration</li>
+                    <li>High-VRAM GPU for SDXL at full resolution</li>
+                    <li>Multi-user design server — team access</li>
+                    <li>Full CloverStack + CloverDesign Enterprise</li>
+                    <li>1-year Enterprise license included</li>
+                </ul>
+            </div>
+            <div class="cd-hw-card">
+                <h3>R16 Design Cluster</h3>
+                <div class="hw-price">$14,999+</div>
+                <ul>
+                    <li>Dual CPU + multi-GPU rack unit</li>
+                    <li>Render farm — batch hundreds of designs</li>
+                    <li>Architecture firm scale workloads</li>
+                    <li>CloverMesh multi-node rendering</li>
+                    <li>Hot-spare failover for production uptime</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Use Cases -->
+    <div class="cd-section">
+        <div class="section-label">Use Cases</div>
+        <h2>From Dream Home to Build-Ready Plans</h2>
+        <div class="cd-use-cases">
+            <div class="cd-use">
+                <h4>🏡 Home Design</h4>
+                <p>Design your dream home from scratch. Floor plans, room layouts, kitchen design, bathroom planning. See photorealistic renders before breaking ground.</p>
+            </div>
+            <div class="cd-use">
+                <h4>🔨 Renovation Planning</h4>
+                <p>Upload photos of existing spaces. AI generates before/after visualizations, structural feasibility, cost estimates, and contractor-ready blueprints.</p>
+            </div>
+            <div class="cd-use">
+                <h4>🏢 Commercial Buildouts</h4>
+                <p>Office layouts, retail spaces, restaurant design. Traffic flow optimization, ADA compliance, MEP planning, permit-ready documentation.</p>
+            </div>
+            <div class="cd-use">
+                <h4>🏗️ General Contracting</h4>
+                <p>Generate professional blueprints, BOMs, and cost estimates for bids. Impress clients with AI renders and detailed specs before the project starts.</p>
+            </div>
+            <div class="cd-use">
+                <h4>🎨 Interior Design</h4>
+                <p>Furniture placement, color schemes, lighting design, material selection. Generate mood boards and 3D walkthroughs for client approval.</p>
+            </div>
+            <div class="cd-use">
+                <h4>⚙️ Engineering Projects</h4>
+                <p>Mechanical parts, product enclosures, custom brackets. Parametric 3D models with FreeCAD, export to STL/STEP for manufacturing or 3D printing.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Open Source Credits -->
+    <div class="cd-section">
+        <div class="section-label">Open Source</div>
+        <h2>Built on Industry-Leading Open Source</h2>
+        <p>We appreciate every contributor who makes this possible.</p>
+        <div class="cd-credits">
+            <div class="cd-credit">
+                <div class="name"><a href="https://github.com/comfyanonymous/ComfyUI" target="_blank">ComfyUI</a></div>
+                <div class="license">GPL-3.0 — comfyanonymous</div>
+            </div>
+            <div class="cd-credit">
+                <div class="name"><a href="https://stability.ai/" target="_blank">Stable Diffusion XL</a></div>
+                <div class="license">CreativeML Open RAIL-M — Stability AI</div>
+            </div>
+            <div class="cd-credit">
+                <div class="name"><a href="https://www.freecad.org/" target="_blank">FreeCAD</a></div>
+                <div class="license">LGPL-2.1 — FreeCAD community</div>
+            </div>
+            <div class="cd-credit">
+                <div class="name"><a href="https://openscad.org/" target="_blank">OpenSCAD</a></div>
+                <div class="license">GPL-2.0 — OpenSCAD contributors</div>
+            </div>
+            <div class="cd-credit">
+                <div class="name"><a href="http://www.sweethome3d.com/" target="_blank">Sweet Home 3D</a></div>
+                <div class="license">GPL-2.0 — eTeks</div>
+            </div>
+            <div class="cd-credit">
+                <div class="name"><a href="https://ollama.com/" target="_blank">Ollama</a></div>
+                <div class="license">MIT — Ollama team</div>
+            </div>
+        </div>
+
+        <div class="cd-fun">
+            <p>🏛️ Fun fact: The same parametric modeling engine in FreeCAD (OpenCASCADE) traces its lineage back to Matra Datavision — originally built for designing fighter jets and nuclear reactors in France. So when CloverDesign generates your kitchen remodel blueprint, it's using tech descended from military aerospace engineering. Your breakfast nook has never been more over-engineered.</p>
+        </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cd-section" style="text-align:center;padding-bottom:80px">
+        <h2>Ready to Design?</h2>
+        <p style="margin:12px auto;color:var(--dim)">CloverDesign is coming soon. Get in touch to be first in line.</p>
+        <div style="margin-top:28px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+            <a href="mailto:inforequest@myclover.tech" class="btn btn-primary">📧 Contact Sales</a>
+            <a href="/" class="btn btn-secondary">← Back to MyClover.Tech</a>
+        </div>
+    </div>
+
+</div>
+
+<footer>
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="/assets/logo.webp" alt="MyClover.Tech" width="32" height="32" onerror="this.style.display='none'">
+                <span>My<span class="green">Clover</span>.Tech</span>
+            </div>
+            <div class="footer-links">
+                <a href="/">Home</a>
+                <a href="/#products">Products</a>
+                <a href="cloverbot.html">CloverBot</a>
+                <a href="cloverdesign.html">CloverDesign</a>
+                <a href="cloverdrone.html">CloverDrone</a>
+                <a href="clovermesh-radio.html">CloverMesh Radio</a>
+                <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+                <a href="mailto:inforequest@myclover.tech">Contact</a>
+            </div>
+            <div class="footer-copy">
+                &copy; 2026 MyClover Technologies. All rights reserved.<br>
+                <span class="dim">Making IT infrastructure accessible, secure, and self-hosted.</span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="/js/main.js"></script>
+<script src="/static/cloverbot.js" data-api-url=""></script>
+</body>
+</html>

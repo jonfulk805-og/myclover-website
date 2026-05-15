@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloverBase — AI-Powered Low-Code Database &amp; App Builder | MyClover.Tech</title>
+    <meta name="description" content="Self-hosted, AI-powered low-code database platform. Build custom business apps in 60 seconds — describe your business, Chappie AI builds the app. Unlimited users, flat pricing. The FileMaker killer.">
+    <meta property="og:title" content="CloverBase — Your Data. Your Apps. Your Rules.">
+    <meta property="og:description" content="Self-hosted low-code database &amp; app builder with AI. 15+ industry templates. Unlimited users. 96% cheaper than FileMaker.">
+    <meta property="og:image" content="/assets/og-cloverbase.png">
+    <meta property="og:url" content="https://myclover.tech/pages/cloverbase.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* CloverBase page-specific styles */
+        .cb-accent { color: #3b82f6; }
+        .cb-gradient { background: linear-gradient(135deg, #3b82f6, #22c55e, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+        .ai-demo-box { background: linear-gradient(135deg, var(--card), rgba(168,85,247,.08)); border: 1px solid rgba(168,85,247,.25); border-radius: 20px; padding: 40px; margin-top: 40px; position: relative; overflow: hidden; }
+        .ai-demo-box::before { content:''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #3b82f6, #a855f7, #22c55e); }
+        .ai-demo-prompt { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; font-family: var(--mono); font-size: .88rem; color: var(--green-l); margin-bottom: 20px; line-height: 1.7; }
+        .ai-demo-prompt .user-label { color: var(--dim); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; display: block; }
+        .ai-demo-result { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+        .ai-result-item { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+        .ai-result-icon { font-size: 1.4rem; margin-bottom: 6px; }
+        .ai-result-item span { font-size: .78rem; font-weight: 600; color: var(--dim); }
+
+        .industry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; margin-top: 32px; }
+        .industry-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 16px; text-align: center; transition: all .25s; cursor: default; }
+        .industry-card:hover { border-color: #3b82f6; transform: translateY(-3px); box-shadow: 0 0 30px rgba(59,130,246,.1); }
+        .industry-icon { font-size: 2rem; margin-bottom: 10px; }
+        .industry-card span { font-size: .78rem; font-weight: 600; color: var(--dim); display: block; }
+        .industry-card .template-name { font-size: .68rem; color: var(--muted); margin-top: 4px; }
+
+        .views-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-top: 32px; }
+        .view-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px 20px; transition: all .25s; }
+        .view-card:hover { border-color: var(--green); box-shadow: 0 0 30px var(--green-g); transform: translateY(-2px); }
+        .view-icon { font-size: 1.6rem; margin-bottom: 10px; }
+        .view-card h4 { font-size: .9rem; font-weight: 700; margin-bottom: 4px; }
+        .view-card p { font-size: .78rem; color: var(--dim); line-height: 1.5; }
+
+        .migration-card { background: linear-gradient(135deg, var(--card), rgba(239,68,68,.06)); border: 1px solid rgba(239,68,68,.2); border-radius: 20px; padding: 40px; margin-top: 40px; }
+        .migration-card h3 { font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; }
+        .migration-steps { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 20px; }
+        .migration-step { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+        .migration-step .step-num { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--red); color: #fff; font-weight: 800; font-size: .9rem; border-radius: 50%; margin: 0 auto 12px; }
+        .migration-step h4 { font-size: .85rem; font-weight: 700; margin-bottom: 4px; }
+        .migration-step p { font-size: .75rem; color: var(--dim); line-height: 1.5; }
+
+        .integration-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .int-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; transition: all .3s; }
+        .int-card:hover { border-color: var(--green); box-shadow: 0 0 40px var(--green-g); transform: translateY(-3px); }
+        .int-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .int-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+        .int-card p { font-size: .82rem; color: var(--dim); line-height: 1.6; }
+
+        .savings-highlight { background: linear-gradient(135deg, rgba(34,197,94,.1), rgba(34,197,94,.02)); border: 2px solid rgba(34,197,94,.3); border-radius: 16px; padding: 24px 32px; text-align: center; margin-top: 30px; }
+        .savings-number { font-size: 3rem; font-weight: 900; color: var(--green); }
+        .savings-label { font-size: 1rem; color: var(--dim); font-weight: 500; }
+
+        .field-types { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+        .field-tag { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: .72rem; font-weight: 600; color: var(--dim); }
+        .field-tag.ai { border-color: rgba(168,85,247,.3); color: var(--purple); background: rgba(168,85,247,.06); }
+
+        @media (max-width: 768px) {
+            .industry-grid { grid-template-columns: repeat(3, 1fr); }
+            .views-grid { grid-template-columns: repeat(2, 1fr); }
+            .migration-steps { grid-template-columns: 1fr; }
+            .ai-demo-result { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- Navigation -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="/" class="nav-logo">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="36" height="36">
+            <span>My<span class="green">Clover</span>.Tech</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/">Home</a>
+            <a href="/#products">Products</a>
+            <a href="/#hardware">Hardware</a>
+            <a href="#pricing">Pricing</a>
+            <a href="/#blog">Blog</a>
+            <a href="/keygen" class="nav-cta">Free Trial</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-badge">
+            <span class="pulse"></span>
+            The FileMaker Killer &mdash; Now in CloverStack
+        </div>
+        <h1>
+            Your Data. Your Apps.<br>
+            <span class="cb-gradient">Your Rules.</span>
+        </h1>
+        <p>
+            Self-hosted, AI-powered low-code database platform. <em>Describe your business in plain English</em> &mdash; Chappie AI builds you a working app in 60 seconds. Unlimited users. Flat pricing. No per-seat surprises. <em>Ever.</em>
+        </p>
+        <div class="hero-actions">
+            <a href="/#trial" class="btn btn-primary">Start Free 90-Day Trial</a>
+            <a href="#pricing" class="btn btn-secondary">See Pricing</a>
+        </div>
+        <p class="hero-sub">Runs on any Citadel appliance, mycloverOS install, or cloud VPS</p>
+    </div>
+</section>
+
+<!-- Stats Bar -->
+<section style="padding:20px 0 60px">
+    <div class="container">
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-number">96%</div>
+                <div class="stat-label">Cheaper Than FileMaker</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">15+</div>
+                <div class="stat-label">Industry Templates</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">60s</div>
+                <div class="stat-label">AI App Generation</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">&infin;</div>
+                <div class="stat-label">Users Included</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- AI App Generator Demo -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#129302; The Killer Feature</div>
+            <h2 class="section-title">Describe Your Business. Get a Working App.</h2>
+            <p class="section-desc">
+                No drag-and-drop. No tutorials. No developer. Just tell Chappie what you need in plain English.
+            </p>
+        </div>
+
+        <div class="ai-demo-box">
+            <div class="ai-demo-prompt">
+                <span class="user-label">You say:</span>
+                "I run a plumbing company with 8 technicians. I need to track work orders, customer info, parts inventory, time logs, and generate invoices."
+            </div>
+            <p style="font-size:.88rem;font-weight:700;margin-bottom:16px;color:var(--purple)">&#9889; Chappie generates in ~60 seconds:</p>
+            <div class="ai-demo-result">
+                <div class="ai-result-item">
+                    <div class="ai-result-icon">&#128100;</div>
+                    <span>Customers Table</span>
+                </div>
+                <div class="ai-result-item">
+                    <div class="ai-result-icon">&#128736;</div>
+                    <span>Work Orders</span>
+                </div>
+                <div class="ai-result-item">
+                    <div class="ai-result-icon">&#128119;</div>
+                    <span>Technicians</span>
+                </div>
+                <div class="ai-result-item">
+                    <div class="ai-result-icon">&#128230;</div>
+                    <span>Parts Inventory</span>
+                </div>
+                <div class="ai-result-item">
+                    <div class="ai-result-icon">&#9200;</div>
+                    <span>Time Logs</span>
+                </div>
+                <div class="ai-result-item">
+                    <div class="ai-result-icon">&#128176;</div>
+                    <span>Invoices</span>
+                </div>
+                <div class="ai-result-item">
+                    <div class="ai-result-icon">&#128202;</div>
+                    <span>KPI Dashboard</span>
+                </div>
+                <div class="ai-result-item">
+                    <div class="ai-result-icon">&#128241;</div>
+                    <span>Mobile Views</span>
+                </div>
+            </div>
+            <p style="text-align:center;margin-top:20px;font-size:.85rem;color:var(--dim)">
+                Complete with relationships, forms, kanban boards, dashboards, and sample data. Ready to use <em>immediately</em>.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- Natural Language Everything -->
+<section>
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#128172; Natural Language Everything</div>
+            <h2 class="section-title">Talk to Your Database Like a Human</h2>
+            <p class="section-desc">
+                No SQL. No formulas. No scripting language to learn. Just ask.
+            </p>
+        </div>
+
+        <div class="features-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px">
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <h3 style="font-size:.95rem;font-weight:700;color:var(--purple);margin-bottom:8px">&#128269; Queries</h3>
+                <p style="font-family:var(--mono);font-size:.82rem;color:var(--green-l);margin-bottom:8px">"Show me all customers in Portland who haven't ordered in 90 days"</p>
+                <p style="font-size:.78rem;color:var(--dim)">&rarr; Instant filtered view with results</p>
+            </div>
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <h3 style="font-size:.95rem;font-weight:700;color:var(--purple);margin-bottom:8px">&#128200; Reports</h3>
+                <p style="font-family:var(--mono);font-size:.82rem;color:var(--green-l);margin-bottom:8px">"Generate a monthly revenue breakdown by service type with a bar chart"</p>
+                <p style="font-size:.78rem;color:var(--dim)">&rarr; Chart + PDF ready to share</p>
+            </div>
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <h3 style="font-size:.95rem;font-weight:700;color:var(--purple);margin-bottom:8px">&#128295; Modifications</h3>
+                <p style="font-family:var(--mono);font-size:.82rem;color:var(--green-l);margin-bottom:8px">"Add a phone number field to Customers and make it required"</p>
+                <p style="font-size:.78rem;color:var(--dim)">&rarr; Schema updated instantly</p>
+            </div>
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <h3 style="font-size:.95rem;font-weight:700;color:var(--purple);margin-bottom:8px">&#9889; Automation</h3>
+                <p style="font-family:var(--mono);font-size:.82rem;color:var(--green-l);margin-bottom:8px">"Every Friday at 5pm, email me a PDF of all overdue invoices"</p>
+                <p style="font-size:.78rem;color:var(--dim)">&rarr; Workflow created automatically</p>
+            </div>
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <h3 style="font-size:.95rem;font-weight:700;color:var(--purple);margin-bottom:8px">&#129504; Analysis</h3>
+                <p style="font-family:var(--mono);font-size:.82rem;color:var(--green-l);margin-bottom:8px">"Which product category has the highest return rate?"</p>
+                <p style="font-size:.78rem;color:var(--dim)">&rarr; Answer with supporting data and chart</p>
+            </div>
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <h3 style="font-size:.95rem;font-weight:700;color:var(--purple);margin-bottom:8px">&#128640; App Building</h3>
+                <p style="font-family:var(--mono);font-size:.82rem;color:var(--green-l);margin-bottom:8px">"I need an employee onboarding tracker with a checklist form"</p>
+                <p style="font-size:.78rem;color:var(--dim)">&rarr; Full app with tables, forms, views</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- View Types -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#128065;&#65039; 9 View Types</div>
+            <h2 class="section-title">See Your Data Any Way You Want</h2>
+            <p class="section-desc">
+                Every view type you need, built in. No plugins. No add-ons. No extra fees.
+            </p>
+        </div>
+
+        <div class="views-grid">
+            <div class="view-card">
+                <div class="view-icon">&#128202;</div>
+                <h4>Grid / Table</h4>
+                <p>Spreadsheet-like with inline editing, sorting, filtering, grouping</p>
+            </div>
+            <div class="view-card">
+                <div class="view-icon">&#128221;</div>
+                <h4>Form Builder</h4>
+                <p>Drag-and-drop with validation, conditional logic, multi-step wizards</p>
+            </div>
+            <div class="view-card">
+                <div class="view-icon">&#128203;</div>
+                <h4>Kanban</h4>
+                <p>Drag cards between columns &mdash; perfect for workflows and pipelines</p>
+            </div>
+            <div class="view-card">
+                <div class="view-icon">&#128197;</div>
+                <h4>Calendar</h4>
+                <p>Date-based records on a beautiful calendar grid</p>
+            </div>
+            <div class="view-card">
+                <div class="view-icon">&#127912;</div>
+                <h4>Gallery</h4>
+                <p>Card-based visual layout with images and thumbnails</p>
+            </div>
+            <div class="view-card">
+                <div class="view-icon">&#128506;</div>
+                <h4>Map</h4>
+                <p>Geolocation fields plotted on OpenStreetMap</p>
+            </div>
+            <div class="view-card">
+                <div class="view-icon">&#128200;</div>
+                <h4>Gantt</h4>
+                <p>Project timeline view with dependencies and milestones</p>
+            </div>
+            <div class="view-card">
+                <div class="view-icon">&#128201;</div>
+                <h4>Dashboard</h4>
+                <p>Custom charts, KPIs, metrics, sparklines from any table</p>
+            </div>
+            <div class="view-card">
+                <div class="view-icon">&#128196;</div>
+                <h4>Report</h4>
+                <p>Formatted, printable reports with branding and PDF export</p>
+            </div>
+        </div>
+
+        <div style="margin-top:40px">
+            <h3 style="font-size:1.1rem;font-weight:700;margin-bottom:8px">Rich Field Types + AI Fields</h3>
+            <p style="font-size:.85rem;color:var(--dim);margin-bottom:12px">Every field type you'd expect, plus AI-powered smart fields that no other platform offers:</p>
+            <div class="field-types">
+                <span class="field-tag">Text</span>
+                <span class="field-tag">Number</span>
+                <span class="field-tag">Date</span>
+                <span class="field-tag">Currency</span>
+                <span class="field-tag">Email</span>
+                <span class="field-tag">Phone</span>
+                <span class="field-tag">URL</span>
+                <span class="field-tag">Checkbox</span>
+                <span class="field-tag">Select</span>
+                <span class="field-tag">Multi-Select</span>
+                <span class="field-tag">Lookup</span>
+                <span class="field-tag">Rollup</span>
+                <span class="field-tag">Formula</span>
+                <span class="field-tag">Attachment</span>
+                <span class="field-tag">Barcode/QR</span>
+                <span class="field-tag">Signature</span>
+                <span class="field-tag">Rating</span>
+                <span class="field-tag">JSON</span>
+                <span class="field-tag">Geolocation</span>
+                <span class="field-tag ai">&#129302; Auto-Categorize</span>
+                <span class="field-tag ai">&#129302; Sentiment</span>
+                <span class="field-tag ai">&#129302; Extract (OCR)</span>
+                <span class="field-tag ai">&#129302; Summarize</span>
+                <span class="field-tag ai">&#129302; Translate</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Industry Templates -->
+<section>
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#127981; 15+ Industries</div>
+            <h2 class="section-title">Ready-to-Use Templates for Every Business</h2>
+            <p class="section-desc">
+                Each template includes pre-built tables, relationships, forms, views, dashboards, reports, automations, and sample data. Productive in under 5 minutes.
+            </p>
+        </div>
+
+        <div class="industry-grid">
+            <div class="industry-card">
+                <div class="industry-icon">&#128187;</div>
+                <span>MSP / IT</span>
+                <span class="template-name">IT Command Center</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127959;</div>
+                <span>Construction</span>
+                <span class="template-name">Job Tracker Pro</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127973;</div>
+                <span>Healthcare</span>
+                <span class="template-name">Patient Manager</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127968;</div>
+                <span>Real Estate</span>
+                <span class="template-name">Deal Pipeline</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#9878;&#65039;</div>
+                <span>Legal</span>
+                <span class="template-name">Case Manager</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127981;</div>
+                <span>Manufacturing</span>
+                <span class="template-name">Shop Floor</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127860;</div>
+                <span>Restaurant</span>
+                <span class="template-name">Kitchen &amp; Floor</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127891;</div>
+                <span>Education</span>
+                <span class="template-name">Campus Hub</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#128153;</div>
+                <span>Nonprofit</span>
+                <span class="template-name">Mission Control</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127806;</div>
+                <span>Agriculture</span>
+                <span class="template-name">Farm Manager</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#128663;</div>
+                <span>Auto Shop</span>
+                <span class="template-name">Bay Manager</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#128722;</div>
+                <span>Retail</span>
+                <span class="template-name">Store Ops</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127912;</div>
+                <span>Creative</span>
+                <span class="template-name">Project Studio</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127970;</div>
+                <span>Property Mgmt</span>
+                <span class="template-name">Rental Hub</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#128170;</div>
+                <span>Fitness / Gym</span>
+                <span class="template-name">Member Zone</span>
+            </div>
+        </div>
+
+        <p style="text-align:center;margin-top:24px;font-size:.85rem;color:var(--dim)">
+            Don't see your industry? Chappie AI generates custom apps for <em>any</em> business. Or build and sell your own templates on the <strong>Template Marketplace</strong>.
+        </p>
+    </div>
+</section>
+
+<!-- Comparison -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#9876;&#65039; The Comparison</div>
+            <h2 class="section-title">CloverBase vs. Everything Else</h2>
+            <p class="section-desc">
+                We built CloverBase to be the last database platform you ever need.
+            </p>
+        </div>
+
+        <div class="comparison-section">
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th class="pos-col" style="color:var(--green)">CloverBase</th>
+                        <th>FileMaker</th>
+                        <th>Airtable</th>
+                        <th>NocoDB</th>
+                        <th>Notion</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>50-user annual cost</td>
+                        <td class="green-text">$469/yr</td>
+                        <td class="red-text">$12,600/yr</td>
+                        <td class="red-text">$12,000/yr</td>
+                        <td>Free (OSS)</td>
+                        <td class="red-text">$4,800/yr</td>
+                    </tr>
+                    <tr>
+                        <td>AI app generation</td>
+                        <td class="green-text">&#10003; Chappie AI</td>
+                        <td>&#10007;</td>
+                        <td>&#10007;</td>
+                        <td>&#10007;</td>
+                        <td>Basic</td>
+                    </tr>
+                    <tr>
+                        <td>Natural language queries</td>
+                        <td class="green-text">&#10003; Full NL</td>
+                        <td>&#10007;</td>
+                        <td>&#10007;</td>
+                        <td>&#10007;</td>
+                        <td>&#10007;</td>
+                    </tr>
+                    <tr>
+                        <td>Self-hosted option</td>
+                        <td class="green-text">&#10003;</td>
+                        <td>Partial</td>
+                        <td>&#10007;</td>
+                        <td>&#10003;</td>
+                        <td>&#10007;</td>
+                    </tr>
+                    <tr>
+                        <td>Industry templates</td>
+                        <td class="green-text">15+</td>
+                        <td>Basic</td>
+                        <td>Some</td>
+                        <td>&#10007;</td>
+                        <td>Some</td>
+                    </tr>
+                    <tr>
+                        <td>Workflow automation</td>
+                        <td class="green-text">&#10003; Visual builder</td>
+                        <td>Scripts (complex)</td>
+                        <td>Basic</td>
+                        <td>Webhooks</td>
+                        <td>Basic</td>
+                    </tr>
+                    <tr>
+                        <td>Real database (PostgreSQL)</td>
+                        <td class="green-text">&#10003;</td>
+                        <td>Proprietary</td>
+                        <td>&#10007;</td>
+                        <td>&#10003;</td>
+                        <td>&#10007;</td>
+                    </tr>
+                    <tr>
+                        <td>Gantt / Map / Dashboard views</td>
+                        <td class="green-text">&#10003; All 9</td>
+                        <td>Layouts</td>
+                        <td>Paid add-on</td>
+                        <td>Limited</td>
+                        <td>Some</td>
+                    </tr>
+                    <tr>
+                        <td>Open-source</td>
+                        <td class="green-text">&#10003; AGPL-3.0</td>
+                        <td>&#10007;</td>
+                        <td>&#10007;</td>
+                        <td>&#10003;</td>
+                        <td>&#10007;</td>
+                    </tr>
+                    <tr>
+                        <td>Mobile PWA (offline)</td>
+                        <td class="green-text">&#10003;</td>
+                        <td>FM Go (limited)</td>
+                        <td>App</td>
+                        <td>&#10007;</td>
+                        <td>App</td>
+                    </tr>
+                    <tr>
+                        <td>CloverStack integration</td>
+                        <td class="green-text">&#10003; Full ecosystem</td>
+                        <td>&#10007;</td>
+                        <td>&#10007;</td>
+                        <td>&#10007;</td>
+                        <td>&#10007;</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="savings-highlight">
+            <div class="savings-number">96%</div>
+            <div class="savings-label">less than FileMaker for a 50-person team &mdash; with AI that FileMaker doesn't have</div>
+        </div>
+    </div>
+</section>
+
+<!-- FileMaker Migration -->
+<section>
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#128259; Escape FileMaker</div>
+            <h2 class="section-title">FileMaker Migration Assistant</h2>
+            <p class="section-desc">
+                Stuck on FileMaker? We built a dedicated wizard to get you out. Your data, your relationships, your scripts &mdash; all converted.
+            </p>
+        </div>
+
+        <div class="migration-card">
+            <h3>4 Steps to Freedom</h3>
+            <p style="font-size:.88rem;color:var(--dim);margin-bottom:16px">CloverBase includes a purpose-built migration tool for FileMaker users.</p>
+            <div class="migration-steps">
+                <div class="migration-step">
+                    <div class="step-num">1</div>
+                    <h4>Export from FM</h4>
+                    <p>Export your FileMaker tables as CSV or XML. We'll guide you step by step.</p>
+                </div>
+                <div class="migration-step">
+                    <div class="step-num">2</div>
+                    <h4>AI Auto-Map</h4>
+                    <p>Drop the files in. Chappie detects your schema, maps columns, suggests field types.</p>
+                </div>
+                <div class="migration-step">
+                    <div class="step-num">3</div>
+                    <h4>Rebuild Relationships</h4>
+                    <p>AI analyzes your data and reconstructs relationships between tables.</p>
+                </div>
+                <div class="migration-step">
+                    <div class="step-num">4</div>
+                    <h4>Go Live</h4>
+                    <p>Review, adjust, and you're running. Your team gets modern views, AI, and mobile instantly.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CloverStack Integration -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#128279; Ecosystem Power</div>
+            <h2 class="section-title">Plugs Into the Entire CloverStack</h2>
+            <p class="section-desc">
+                No standalone product can match this. CloverBase connects to every module in the stack.
+            </p>
+        </div>
+
+        <div class="integration-grid">
+            <div class="int-card">
+                <div class="int-icon">&#128179;</div>
+                <h3>CloverPOS</h3>
+                <p>Shared customers, products, inventory, and sales data. Build custom reports across POS data.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128225;</div>
+                <h3>NetMon</h3>
+                <p>Pull network device data into CloverBase for custom IT asset management dashboards.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128196;</div>
+                <h3>SentryLog</h3>
+                <p>Query and analyze log data. Build compliance reports combining logs + asset data.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#129302;</div>
+                <h3>Chappie AI</h3>
+                <p>AI assistant lives inside every app. Context-aware help, data analysis, natural language queries.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128172;</div>
+                <h3>CloverBot</h3>
+                <p>Website chatbot queries and updates CloverBase data. Customer self-service portals.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128250;</div>
+                <h3>CloverSign</h3>
+                <p>Display live CloverBase data on digital signage &mdash; KPI boards, queue status, menu boards.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#127760;</div>
+                <h3>CloverMesh</h3>
+                <p>Multi-site database sync. Branch offices share data in real-time over encrypted mesh.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128274;</div>
+                <h3>MyCloverVault</h3>
+                <p>Credential management for API integrations. Secure storage for tokens and keys.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128247;</div>
+                <h3>CloverDrone</h3>
+                <p>Mission data, flight logs, and captured media stored in CloverBase tables.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#128176; Simple Pricing</div>
+            <h2 class="section-title">Unlimited Users. Flat Price. Period.</h2>
+            <p class="section-desc">
+                FileMaker charges per user. Airtable charges per user. We don't. Add your whole team &mdash; the price stays the same.
+            </p>
+        </div>
+
+        <div class="pricing-grid" style="grid-template-columns:repeat(3,1fr)">
+            <!-- Starter -->
+            <div class="price-card">
+                <h3>Starter</h3>
+                <div class="price-amount">$19<span style="font-size:.9rem;font-weight:500;color:var(--dim)">/mo</span></div>
+                <div class="price-period">$189/yr (save 17%)</div>
+                <ul class="price-features">
+                    <li>5 apps / databases</li>
+                    <li>50,000 records total</li>
+                    <li>Unlimited users</li>
+                    <li>All 9 view types</li>
+                    <li>Form builder</li>
+                    <li>5 automation workflows</li>
+                    <li>PDF export</li>
+                    <li>REST API</li>
+                    <li>1 AI generation/day</li>
+                </ul>
+                <a href="https://buy.stripe.com/14AbJ18Cj4tpeqQgyzfrW2k" class="btn btn-secondary btn-sm" target="_blank" style="width:100%;justify-content:center">Subscribe Monthly</a>
+                <a href="https://buy.stripe.com/8x228r9Gn7FBaaAgyzfrW2l" class="btn btn-secondary btn-sm" target="_blank" style="width:100%;justify-content:center;margin-top:8px;border-color:var(--green);color:var(--green)">Subscribe Annual</a>
+            </div>
+
+            <!-- Professional -->
+            <div class="price-card featured">
+                <span class="price-featured-badge">Most Popular</span>
+                <h3>Professional</h3>
+                <div class="price-amount">$49<span style="font-size:.9rem;font-weight:500;color:var(--dim)">/mo</span></div>
+                <div class="price-period">$469/yr (save 20%)</div>
+                <ul class="price-features">
+                    <li>25 apps / databases</li>
+                    <li>500,000 records total</li>
+                    <li>Unlimited users</li>
+                    <li>All views + Gantt + dashboards</li>
+                    <li>Visual workflow builder (unlimited)</li>
+                    <li>Report designer</li>
+                    <li>GraphQL + REST API</li>
+                    <li>Import wizard</li>
+                    <li>Scheduled reports</li>
+                    <li>25 AI generations/day</li>
+                </ul>
+                <a href="https://buy.stripe.com/bJe28rbOve3ZeqQ0zBfrW2m" class="btn btn-primary btn-sm" target="_blank" style="width:100%;justify-content:center">Subscribe Monthly</a>
+                <a href="https://buy.stripe.com/6oU8wPf0H7FB1E4fuvfrW2n" class="btn btn-primary btn-sm" target="_blank" style="width:100%;justify-content:center;margin-top:8px">Subscribe Annual</a>
+            </div>
+
+            <!-- Enterprise -->
+            <div class="price-card">
+                <h3>Enterprise</h3>
+                <div class="price-amount">$99<span style="font-size:.9rem;font-weight:500;color:var(--dim)">/mo</span></div>
+                <div class="price-period">$949/yr (save 20%)</div>
+                <ul class="price-features">
+                    <li>Unlimited apps / databases</li>
+                    <li>Unlimited records</li>
+                    <li>Unlimited users</li>
+                    <li>Everything in Professional</li>
+                    <li>SSO / SAML / OIDC</li>
+                    <li>Row-level security</li>
+                    <li>Audit log</li>
+                    <li>White-label option</li>
+                    <li>Unlimited AI generations</li>
+                    <li>FileMaker Migration Wizard</li>
+                    <li>Multi-site sync (CloverMesh)</li>
+                    <li>Custom AI model training</li>
+                    <li>Priority support</li>
+                </ul>
+                <a href="https://buy.stripe.com/3cI3cv7yf2lhgyY5TVfrW2o" class="btn btn-secondary btn-sm" target="_blank" style="width:100%;justify-content:center">Subscribe Monthly</a>
+                <a href="https://buy.stripe.com/fZudR9g4LaRN82s967frW2p" class="btn btn-secondary btn-sm" target="_blank" style="width:100%;justify-content:center;margin-top:8px;border-color:var(--green);color:var(--green)">Subscribe Annual</a>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:24px;padding:20px;background:var(--card);border:1px solid rgba(34,197,94,.2);border-radius:12px">
+            <p style="font-size:.92rem;font-weight:700;color:var(--green)">&#127808; Self-hosted on Citadel or mycloverOS?</p>
+            <p style="font-size:.85rem;color:var(--dim)">CloverBase Enterprise is <strong>included free</strong> with your CloverStack license. Zero additional cost. Unlimited everything.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Tech Stack -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Under the Hood</div>
+            <h2 class="section-title">Open-Source Foundation. Premium Execution.</h2>
+            <p class="section-desc">
+                Built on battle-tested open-source software, wrapped in the MyClover.Tech experience.
+                We credit every creator and contribute back.
+            </p>
+        </div>
+
+        <div class="features-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px">
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <div style="font-size:1.6rem;margin-bottom:10px">&#128024;</div>
+                <h3 style="font-size:.95rem;font-weight:700;margin-bottom:6px">PostgreSQL 16</h3>
+                <p style="font-size:.82rem;color:var(--dim);line-height:1.6">The world's most advanced open-source database. Your data in an industry-standard format &mdash; portable forever. <a href="https://www.postgresql.org/" target="_blank">PostgreSQL License</a></p>
+            </div>
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <div style="font-size:1.6rem;margin-bottom:10px">&#128187;</div>
+                <h3 style="font-size:.95rem;font-weight:700;margin-bottom:6px">NocoDB</h3>
+                <p style="font-size:.82rem;color:var(--dim);line-height:1.6">Open-source Airtable alternative as our UI foundation. Proven grid, form, and gallery views. <a href="https://github.com/nocodb/nocodb" target="_blank">AGPL-3.0</a></p>
+            </div>
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <div style="font-size:1.6rem;margin-bottom:10px">&#9889;</div>
+                <h3 style="font-size:.95rem;font-weight:700;margin-bottom:6px">FastAPI</h3>
+                <p style="font-size:.82rem;color:var(--dim);line-height:1.6">High-performance Python API layer for AI integrations, custom endpoints, and reports. <a href="https://github.com/tiangolo/fastapi" target="_blank">MIT</a></p>
+            </div>
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <div style="font-size:1.6rem;margin-bottom:10px">&#129302;</div>
+                <h3 style="font-size:.95rem;font-weight:700;margin-bottom:6px">Ollama AI</h3>
+                <p style="font-size:.82rem;color:var(--dim);line-height:1.6">Local LLMs for Chappie AI. App generation, natural language queries, smart fields. Data never leaves the box. <a href="https://github.com/ollama/ollama" target="_blank">MIT</a></p>
+            </div>
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <div style="font-size:1.6rem;margin-bottom:10px">&#128260;</div>
+                <h3 style="font-size:.95rem;font-weight:700;margin-bottom:6px">n8n Workflows</h3>
+                <p style="font-size:.82rem;color:var(--dim);line-height:1.6">Visual automation engine. Drag-and-drop workflows with 300+ integrations. <a href="https://github.com/n8n-io/n8n" target="_blank">n8n License</a></p>
+            </div>
+            <div class="feature-card" style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px">
+                <div style="font-size:1.6rem;margin-bottom:10px">&#128196;</div>
+                <h3 style="font-size:.95rem;font-weight:700;margin-bottom:6px">ReportLab + ECharts</h3>
+                <p style="font-size:.82rem;color:var(--dim);line-height:1.6">PDF report generation + interactive charts. Branded, printable, exportable. <a href="https://www.reportlab.com/" target="_blank">BSD</a> + <a href="https://echarts.apache.org/" target="_blank">Apache-2.0</a></p>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:32px;padding:24px;background:var(--card);border:1px solid var(--border);border-radius:16px">
+            <p style="font-size:.85rem;color:var(--dim)">
+                &#128156; Built on open-source software by amazing creators. We always credit, always link, always contribute back.
+                <br>NocoDB by <a href="https://nocodb.com" target="_blank">NocoDB Inc.</a> (AGPL-3.0) &middot;
+                PostgreSQL by <a href="https://www.postgresql.org/" target="_blank">PostgreSQL Global Dev Group</a> &middot;
+                FastAPI by <a href="https://github.com/tiangolo" target="_blank">Sebasti&aacute;n Ram&iacute;rez</a> (MIT) &middot;
+                Ollama by <a href="https://ollama.com" target="_blank">Ollama, Inc.</a> (MIT) &middot;
+                n8n by <a href="https://n8n.io" target="_blank">n8n GmbH</a>
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section>
+    <div class="container">
+        <div class="cta-card" style="border-color:rgba(59,130,246,.3)">
+            <h2>Ready to Kill FileMaker?</h2>
+            <p>Start with the 90-day free Enterprise trial. No credit card. Full features. Full AI. Full freedom. If it doesn't replace your current database platform, you owe nothing.</p>
+            <div class="cta-actions">
+                <a href="/#trial" class="btn btn-primary">Start Free 90-Day Trial</a>
+                <a href="#pricing" class="btn btn-secondary">See Pricing</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="container footer-inner">
+        <div class="footer-brand">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="24" height="24">
+            My<span class="green">Clover</span>.Tech
+        </div>
+        <div class="footer-links">
+            <a href="/">Home</a>
+            <a href="/#products">Products</a>
+            <a href="/#hardware">Hardware</a>
+            <a href="#pricing">Pricing</a>
+            <a href="/#blog">Blog</a>
+            <a href="/keygen">KeyGen</a>
+            <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+        </div>
+        <div class="footer-copy">
+            &copy; 2025 MyClover Technologies. All rights reserved.<br>
+            CloverBase, CloverStack, CloverPOS, CloverSign, Chappie AI — MyClover.Tech<br>
+            Built on open-source. Powered by coffee and stubbornness.
+        </div>
+    </div>
+</footer>
+
+<!-- Scripts -->
+<script src="../js/main.js"></script>
+</body>
+</html>

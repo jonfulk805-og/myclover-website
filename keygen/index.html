@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyClover KeyGen — Free Password Generator</title>
+    <meta name="description" content="Generate strong, random passwords instantly. No signup. No tracking. Free forever. By MyClover.Tech.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{
+            --bg:#0a0e17;--bg2:#111827;--card:#1a2235;
+            --border:#2a3550;--text:#f1f5f9;--dim:#94a3b8;--muted:#64748b;
+            --green:#22c55e;--green-l:#4ade80;--green-g:rgba(34,197,94,.12);
+            --red:#ef4444;--yellow:#eab308;--orange:#f97316;--blue:#3b82f6;
+            --font:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
+        }
+        html{font-size:16px}
+        body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;align-items:center}
+        .bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(34,197,94,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(34,197,94,.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none}
+        .bg-glow{position:fixed;top:-20%;left:50%;transform:translateX(-50%);width:700px;height:700px;background:radial-gradient(circle,rgba(34,197,94,.08),transparent 70%);pointer-events:none}
+
+        .wrapper{position:relative;z-index:1;width:100%;max-width:640px;padding:40px 24px 60px}
+
+        header{text-align:center;margin-bottom:40px}
+        .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--dim);font-size:.82rem;margin-bottom:24px;text-decoration:none;transition:color .2s}
+        .back-link:hover{color:var(--green)}
+        .logo{display:inline-flex;align-items:center;gap:10px;margin-bottom:14px}
+        .logo img{width:44px;height:44px;border-radius:10px}
+        .logo span{font-size:1.3rem;font-weight:800;color:var(--text)}
+        .logo .g{color:var(--green)}
+        h1{font-size:2rem;font-weight:900;margin-bottom:6px}
+        h1 .ico{margin-right:8px}
+        .tagline{color:var(--dim);font-size:.92rem}
+
+        /* Password display */
+        .password-box{background:var(--bg2);border:2px solid var(--border);border-radius:16px;padding:24px;margin-bottom:24px;position:relative;transition:border-color .3s}
+        .password-box.copied{border-color:var(--green);box-shadow:0 0 30px var(--green-g)}
+        .password-display{font-family:var(--mono);font-size:1.4rem;font-weight:500;word-break:break-all;line-height:1.5;min-height:60px;display:flex;align-items:center;letter-spacing:.02em;user-select:all;cursor:pointer}
+        .password-display .char-upper{color:var(--green-l)}
+        .password-display .char-num{color:var(--orange)}
+        .password-display .char-sym{color:var(--blue)}
+        .password-display .char-lower{color:var(--dim)}
+        .password-actions{display:flex;gap:10px;margin-top:16px}
+        .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 20px;border-radius:10px;font-weight:600;font-size:.88rem;transition:all .2s;cursor:pointer;border:none;font-family:var(--font);flex:1}
+        .btn-copy{background:var(--green);color:#000}
+        .btn-copy:hover{background:var(--green-l);transform:translateY(-1px)}
+        .btn-regen{background:var(--card);color:var(--text);border:1px solid var(--border)}
+        .btn-regen:hover{border-color:var(--muted);transform:translateY(-1px)}
+        .copied-msg{position:absolute;top:12px;right:16px;font-size:.72rem;font-weight:600;color:var(--green);opacity:0;transition:opacity .3s}
+        .copied-msg.show{opacity:1}
+
+        /* Strength meter */
+        .strength-bar{display:flex;gap:4px;margin-bottom:6px}
+        .strength-bar .seg{height:4px;flex:1;border-radius:2px;background:var(--border);transition:background .3s}
+        .strength-label{font-size:.75rem;font-weight:600;text-align:right;transition:color .3s}
+
+        /* Controls */
+        .controls{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:24px}
+        .control-group{margin-bottom:20px}
+        .control-group:last-child{margin-bottom:0}
+        .control-group label{display:flex;align-items:center;justify-content:space-between;font-size:.85rem;font-weight:600;margin-bottom:8px}
+        .control-group label span{color:var(--dim);font-weight:400;font-size:.78rem}
+        .slider-row{display:flex;align-items:center;gap:14px}
+        .slider-row input[type=range]{flex:1;-webkit-appearance:none;appearance:none;height:6px;background:var(--border);border-radius:3px;outline:none;cursor:pointer}
+        .slider-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--green);cursor:pointer;box-shadow:0 0 8px rgba(34,197,94,.4)}
+        .slider-val{font-family:var(--mono);font-size:1rem;font-weight:700;color:var(--green);min-width:36px;text-align:center}
+        .checkbox-group{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .checkbox-item{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all .2s;user-select:none}
+        .checkbox-item:hover{border-color:var(--muted)}
+        .checkbox-item.active{border-color:var(--green);background:var(--green-g)}
+        .checkbox-item input{display:none}
+        .cb-indicator{width:18px;height:18px;border:2px solid var(--border);border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;font-size:.7rem}
+        .checkbox-item.active .cb-indicator{background:var(--green);border-color:var(--green);color:#000}
+        .cb-label{font-size:.82rem;font-weight:500}
+
+        /* Presets */
+        .presets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px}
+        .preset{padding:8px 16px;background:var(--card);border:1px solid var(--border);border-radius:999px;font-size:.78rem;font-weight:500;color:var(--dim);cursor:pointer;transition:all .2s;border:1px solid var(--border)}
+        .preset:hover{border-color:var(--green);color:var(--text)}
+        .preset.active{background:var(--green-g);border-color:var(--green);color:var(--green)}
+
+        /* History */
+        .history{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:24px}
+        .history h3{font-size:.85rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+        .history-list{display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto}
+        .history-item{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg);border-radius:8px;font-family:var(--mono);font-size:.78rem;color:var(--dim);cursor:pointer;transition:all .2s}
+        .history-item:hover{color:var(--text);background:var(--bg2)}
+        .history-item .hi-copy{margin-left:auto;font-size:.65rem;color:var(--muted);font-family:var(--font)}
+
+        /* Info */
+        .info-box{text-align:center;padding:20px;color:var(--muted);font-size:.78rem;line-height:1.6}
+        .info-box a{color:var(--green)}
+
+        footer{text-align:center;padding:20px 0;font-size:.72rem;color:var(--muted)}
+        footer a{color:var(--green)}
+
+        @media(max-width:500px){
+            .checkbox-group{grid-template-columns:1fr}
+            .password-display{font-size:1.1rem}
+            .presets{gap:6px}
+        }
+    </style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<div class="wrapper">
+    <header>
+        <a href="/" class="back-link">← Back to MyClover.Tech</a>
+        <div class="logo">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" onerror="this.style.display='none'">
+            <span>My<span class="g">Clover</span> KeyGen</span>
+        </div>
+        <h1><span class="ico">🔑</span>Password Generator</h1>
+        <p class="tagline">Strong. Random. Private. No tracking. Free forever.</p>
+    </header>
+
+    <!-- Presets -->
+    <div class="presets">
+        <button class="preset active" data-preset="strong">Strong (20)</button>
+        <button class="preset" data-preset="max">Maximum (32)</button>
+        <button class="preset" data-preset="pin">PIN (6)</button>
+        <button class="preset" data-preset="passphrase">Passphrase</button>
+        <button class="preset" data-preset="wifi">Wi-Fi Key</button>
+    </div>
+
+    <!-- Password Display -->
+    <div class="password-box" id="passwordBox">
+        <div class="password-display" id="passwordDisplay" title="Click to copy"></div>
+        <span class="copied-msg" id="copiedMsg">✓ Copied!</span>
+        <div class="strength-bar" id="strengthBar">
+            <div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div>
+        </div>
+        <div class="strength-label" id="strengthLabel">—</div>
+        <div class="password-actions">
+            <button class="btn btn-copy" id="btnCopy">📋 Copy</button>
+            <button class="btn btn-regen" id="btnRegen">🔄 Generate</button>
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+        <div class="control-group">
+            <label>Length <span id="lengthVal">20</span></label>
+            <div class="slider-row">
+                <input type="range" id="lengthSlider" min="4" max="128" value="20">
+            </div>
+        </div>
+        <div class="control-group">
+            <label>Character Types</label>
+            <div class="checkbox-group">
+                <div class="checkbox-item active" data-opt="upper">
+                    <input type="checkbox" id="optUpper" checked>
+                    <div class="cb-indicator">✓</div>
+                    <span class="cb-label">ABC Uppercase</span>
+                </div>
+                <div class="checkbox-item active" data-opt="lower">
+                    <input type="checkbox" id="optLower" checked>
+                    <div class="cb-indicator">✓</div>
+                    <span class="cb-label">abc Lowercase</span>
+                </div>
+                <div class="checkbox-item active" data-opt="numbers">
+                    <input type="checkbox" id="optNumbers" checked>
+                    <div class="cb-indicator">✓</div>
+                    <span class="cb-label">123 Numbers</span>
+                </div>
+                <div class="checkbox-item active" data-opt="symbols">
+                    <input type="checkbox" id="optSymbols" checked>
+                    <div class="cb-indicator">✓</div>
+                    <span class="cb-label">!@# Symbols</span>
+                </div>
+            </div>
+        </div>
+        <div class="control-group">
+            <div class="checkbox-group" style="grid-template-columns:1fr">
+                <div class="checkbox-item" data-opt="ambiguous">
+                    <input type="checkbox" id="optAmbiguous">
+                    <div class="cb-indicator">✓</div>
+                    <span class="cb-label">Exclude ambiguous (0, O, l, 1, I)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History -->
+    <div class="history">
+        <h3>📜 Recent (session only — nothing stored)</h3>
+        <div class="history-list" id="historyList">
+            <div class="history-item" style="color:var(--muted);font-family:var(--font);justify-content:center">Passwords appear here as you generate them</div>
+        </div>
+    </div>
+
+    <div class="info-box">
+        Everything runs in your browser. No passwords are sent, stored, or logged.<br>
+        Uses <code>crypto.getRandomValues()</code> — cryptographically secure randomness.<br><br>
+        <a href="/">MyClover.Tech</a> — Self-hosted IT infrastructure. Own your data.
+    </div>
+
+    <footer>
+        <a href="https://myclover.tech">myclover.tech</a> — MyClover KeyGen v X.01<br>
+        Built with open-source. Credit where credit is due.
+    </footer>
+</div>
+
+<script>
+// =============================================================================
+// MyClover KeyGen — Password Generator
+// All client-side. No data leaves the browser. Ever.
+// =============================================================================
+
+const CHARSETS = {
+    upper:   'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    lower:   'abcdefghijklmnopqrstuvwxyz',
+    numbers: '0123456789',
+    symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?/'
+};
+const AMBIGUOUS = '0OlI1';
+
+const PRESETS = {
+    strong:     { length: 20, upper: true, lower: true, numbers: true, symbols: true, ambiguous: false },
+    max:        { length: 32, upper: true, lower: true, numbers: true, symbols: true, ambiguous: false },
+    pin:        { length: 6,  upper: false, lower: false, numbers: true, symbols: false, ambiguous: false },
+    wifi:       { length: 24, upper: true, lower: true, numbers: true, symbols: false, ambiguous: true },
+    passphrase: null // handled separately
+};
+
+// Common words for passphrase generation
+const WORDS = [
+    'clover','network','secure','shield','guard','falcon','bridge','storm','pulse','beacon',
+    'cipher','vault','forge','delta','echo','lunar','solar','titan','spark','ember',
+    'frost','blaze','drift','surge','quest','nexus','pixel','logic','prism','orbit',
+    'maple','cedar','river','stone','cloud','flame','steel','coral','ivory','amber',
+    'ocean','thunder','crystal','phoenix','shadow','dragon','golden','silver','copper','iron',
+    'alpine','arctic','breeze','canyon','harbor','island','meadow','summit','valley','zenith',
+    'anchor','arrow','badge','crown','dagger','eagle','globe','hammer','jewel','knight',
+    'lance','mirror','noble','omega','pilot','raven','saber','tower','unity','vigor'
+];
+
+let state = { ...PRESETS.strong, mode: 'chars' };
+let history = [];
+
+const el = {
+    display: document.getElementById('passwordDisplay'),
+    box: document.getElementById('passwordBox'),
+    copiedMsg: document.getElementById('copiedMsg'),
+    strengthBar: document.getElementById('strengthBar'),
+    strengthLabel: document.getElementById('strengthLabel'),
+    lengthSlider: document.getElementById('lengthSlider'),
+    lengthVal: document.getElementById('lengthVal'),
+    historyList: document.getElementById('historyList'),
+    btnCopy: document.getElementById('btnCopy'),
+    btnRegen: document.getElementById('btnRegen')
+};
+
+// --- Crypto-secure random ---
+function secureRandom(max) {
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    return arr[0] % max;
+}
+
+// --- Generate password ---
+function generate() {
+    let password;
+
+    if (state.mode === 'passphrase') {
+        const count = Math.max(3, Math.min(8, Math.floor(state.length / 5)));
+        const words = [];
+        for (let i = 0; i < count; i++) {
+            let w = WORDS[secureRandom(WORDS.length)];
+            if (secureRandom(3) === 0) w = w.charAt(0).toUpperCase() + w.slice(1);
+            words.push(w);
+        }
+        const separators = ['-', '.', '_', '+'];
+        const sep = separators[secureRandom(separators.length)];
+        password = words.join(sep) + secureRandom(100);
+    } else {
+        let charset = '';
+        if (state.upper) charset += CHARSETS.upper;
+        if (state.lower) charset += CHARSETS.lower;
+        if (state.numbers) charset += CHARSETS.numbers;
+        if (state.symbols) charset += CHARSETS.symbols;
+
+        if (state.ambiguous) {
+            charset = charset.split('').filter(c => !AMBIGUOUS.includes(c)).join('');
+        }
+
+        if (!charset) charset = CHARSETS.lower; // fallback
+
+        const chars = [];
+        // Guarantee at least one from each selected type
+        const guarantees = [];
+        if (state.upper) guarantees.push(CHARSETS.upper);
+        if (state.lower) guarantees.push(CHARSETS.lower);
+        if (state.numbers) guarantees.push(CHARSETS.numbers);
+        if (state.symbols) guarantees.push(CHARSETS.symbols);
+
+        for (const g of guarantees) {
+            let filtered = g;
+            if (state.ambiguous) filtered = g.split('').filter(c => !AMBIGUOUS.includes(c)).join('');
+            if (filtered) chars.push(filtered[secureRandom(filtered.length)]);
+        }
+
+        while (chars.length < state.length) {
+            chars.push(charset[secureRandom(charset.length)]);
+        }
+
+        // Shuffle (Fisher-Yates)
+        for (let i = chars.length - 1; i > 0; i--) {
+            const j = secureRandom(i + 1);
+            [chars[i], chars[j]] = [chars[j], chars[i]];
+        }
+
+        password = chars.slice(0, state.length).join('');
+    }
+
+    renderPassword(password);
+    updateStrength(password);
+    addToHistory(password);
+    return password;
+}
+
+// --- Render with color coding ---
+function renderPassword(pw) {
+    el.display.innerHTML = pw.split('').map(c => {
+        if (/[A-Z]/.test(c)) return `<span class="char-upper">${c}</span>`;
+        if (/[0-9]/.test(c)) return `<span class="char-num">${c}</span>`;
+        if (/[a-z]/.test(c)) return `<span class="char-lower">${c}</span>`;
+        return `<span class="char-sym">${esc(c)}</span>`;
+    }).join('');
+    el.display.dataset.password = pw;
+}
+
+function esc(c) {
+    const div = document.createElement('span');
+    div.textContent = c;
+    return div.innerHTML;
+}
+
+// --- Strength calculator ---
+function updateStrength(pw) {
+    let pool = 0;
+    if (/[a-z]/.test(pw)) pool += 26;
+    if (/[A-Z]/.test(pw)) pool += 26;
+    if (/[0-9]/.test(pw)) pool += 10;
+    if (/[^a-zA-Z0-9]/.test(pw)) pool += 33;
+
+    const entropy = pw.length * Math.log2(pool || 1);
+    const segs = el.strengthBar.querySelectorAll('.seg');
+
+    let level, color, label;
+    if (entropy < 28) { level = 1; color = '#ef4444'; label = 'Very Weak'; }
+    else if (entropy < 36) { level = 2; color = '#f97316'; label = 'Weak'; }
+    else if (entropy < 60) { level = 3; color = '#eab308'; label = 'Moderate'; }
+    else if (entropy < 80) { level = 4; color = '#22c55e'; label = 'Strong'; }
+    else { level = 5; color = '#4ade80'; label = 'Very Strong'; }
+
+    segs.forEach((seg, i) => {
+        seg.style.background = i < level ? color : 'var(--border)';
+    });
+
+    el.strengthLabel.textContent = `${label} — ${Math.round(entropy)} bits of entropy`;
+    el.strengthLabel.style.color = color;
+}
+
+// --- Copy ---
+async function copyPassword() {
+    const pw = el.display.dataset.password;
+    if (!pw) return;
+    try {
+        await navigator.clipboard.writeText(pw);
+        el.box.classList.add('copied');
+        el.copiedMsg.classList.add('show');
+        el.btnCopy.textContent = '✓ Copied!';
+        setTimeout(() => {
+            el.box.classList.remove('copied');
+            el.copiedMsg.classList.remove('show');
+            el.btnCopy.textContent = '📋 Copy';
+        }, 2000);
+    } catch {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = pw;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+    }
+}
+
+// --- History ---
+function addToHistory(pw) {
+    history.unshift(pw);
+    if (history.length > 10) history.pop();
+    renderHistory();
+}
+
+function renderHistory() {
+    el.historyList.innerHTML = history.map((pw, i) => 
+        `<div class="history-item" data-pw="${pw.replace(/"/g, '&quot;')}" title="Click to copy">
+            <span style="opacity:.4;font-size:.65rem;min-width:18px">${i + 1}</span>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${pw.length > 40 ? pw.slice(0, 40) + '…' : pw}</span>
+            <span class="hi-copy">copy</span>
+        </div>`
+    ).join('');
+
+    el.historyList.querySelectorAll('.history-item').forEach(item => {
+        item.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(item.dataset.pw);
+                item.querySelector('.hi-copy').textContent = '✓';
+                setTimeout(() => item.querySelector('.hi-copy').textContent = 'copy', 1500);
+            } catch {}
+        });
+    });
+}
+
+// --- Controls ---
+el.lengthSlider.addEventListener('input', () => {
+    state.length = parseInt(el.lengthSlider.value);
+    el.lengthVal.textContent = state.length;
+    generate();
+});
+
+document.querySelectorAll('.checkbox-item').forEach(item => {
+    item.addEventListener('click', () => {
+        const opt = item.dataset.opt;
+        const checkbox = item.querySelector('input');
+        checkbox.checked = !checkbox.checked;
+        item.classList.toggle('active', checkbox.checked);
+        state[opt] = checkbox.checked;
+        state.mode = 'chars';
+        generate();
+    });
+});
+
+// --- Presets ---
+document.querySelectorAll('.preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const preset = btn.dataset.preset;
+        if (preset === 'passphrase') {
+            state = { length: 20, upper: true, lower: true, numbers: true, symbols: false, ambiguous: false, mode: 'passphrase' };
+        } else {
+            state = { ...PRESETS[preset], mode: 'chars' };
+        }
+
+        // Sync UI
+        el.lengthSlider.value = state.length;
+        el.lengthVal.textContent = state.length;
+        syncCheckboxes();
+        generate();
+    });
+});
+
+function syncCheckboxes() {
+    ['upper', 'lower', 'numbers', 'symbols', 'ambiguous'].forEach(opt => {
+        const item = document.querySelector(`.checkbox-item[data-opt="${opt}"]`);
+        if (item) {
+            const cb = item.querySelector('input');
+            cb.checked = !!state[opt];
+            item.classList.toggle('active', !!state[opt]);
+        }
+    });
+}
+
+// --- Buttons ---
+el.btnCopy.addEventListener('click', copyPassword);
+el.btnRegen.addEventListener('click', generate);
+el.display.addEventListener('click', copyPassword);
+
+// Keyboard shortcut
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'r' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT') {
+        generate();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !window.getSelection().toString()) {
+        copyPassword();
+    }
+});
+
+// --- Init ---
+generate();
+</script>
+</body>
+</html>

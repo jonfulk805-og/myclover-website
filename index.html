@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyClover.Tech — Self-Hosted IT Infrastructure That Actually Works</title>
+    <meta name="description" content="Network monitoring, security, password management, AI, and remote access — all self-hosted, all open-source, all yours. From a single Puck to a full rack.">
+    <meta property="og:title" content="MyClover.Tech — Self-Hosted IT Infrastructure">
+    <meta property="og:description" content="The full IT stack in one box. NetMon, SentryLog, MyCloverVault, AI Engine, and more.">
+    <meta property="og:image" content="/assets/og-image.png">
+    <meta property="og:url" content="https://myclover.tech">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Background effects -->
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- Navigation -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="/" class="nav-logo">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="36" height="36">
+            <span>My<span class="green">Clover</span>.Tech</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="#products">Products</a>
+            <a href="#hardware">Hardware</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#blog">Blog</a>
+            <a href="pages/partners.html">Partners</a>
+            <a href="/keygen">KeyGen</a>
+            <a href="pages/cloverbot.html">CloverBot</a>
+            <a href="pages/cloverdrone.html">CloverDrone</a>
+            <a href="pages/clovermesh-radio.html">CloverMesh Radio</a>
+            <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+            <a href="#trial" class="nav-cta">Free 90-Day Trial</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-badge">
+            <span class="pulse"></span>
+            Version X.01 — Now Available
+        </div>
+        <h1>
+            Self-Hosted IT Infrastructure<br>
+            <span class="gradient">That Actually Works.</span>
+        </h1>
+        <p>
+            Network monitoring, security, password management, AI, remote access, 
+            ticketing, backups — all running on <em>your</em> hardware. 
+            No cloud dependency. No per-seat pricing. No BS.
+        </p>
+        <div class="hero-actions">
+            <a href="#trial" class="btn btn-primary">🍀 Free 90-Day Trial</a>
+            <a href="#hardware" class="btn btn-secondary">Shop Hardware</a>
+            <a href="#software" class="btn btn-secondary">See the Stack</a>
+            <a href="https://github.com/jonfulk805-og/MyClover.Tech.NetMon" target="_blank" class="btn btn-secondary">⭐ GitHub</a>
+        </div>
+    </div>
+</section>
+
+<!-- Stats bar -->
+<div class="container">
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-number">18+</div>
+            <div class="stat-label">Integrated Services</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">100%</div>
+            <div class="stat-label">Self-Hosted</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">$0</div>
+            <div class="stat-label">Free Tier Available</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">1 Cmd</div>
+            <div class="stat-label">Install & Run</div>
+        </div>
+    </div>
+</div>
+
+<!-- Differentiator Banner -->
+<div class="container" style="margin-bottom:60px">
+    <div class="cta-card" style="border-color:rgba(34,197,94,.3)">
+        <blockquote style="font-size:clamp(1.2rem,3vw,1.6rem);font-weight:600;font-style:italic;color:var(--green);line-height:1.5;margin-bottom:12px">
+            "Unlimited devices. Flat price.<br>No per-sensor, per-host, per-agent surprises. Ever."
+        </blockquote>
+        <p style="font-size:.88rem;color:var(--muted)">The pricing philosophy behind everything we build.</p>
+    </div>
+</div>
+
+<!-- Products Overview -->
+<section id="products">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">🍀 The Stack</div>
+            <h2 class="section-title">Everything Your IT Department Needs.<br>In One Box.</h2>
+            <p class="section-desc">
+                14 integrated services, pre-configured and battle-tested. 
+                Pick a hardware tier, run the installer, and you're live in 30 minutes.
+                Not 30 days. Not 30 meetings. 30 minutes.
+            </p>
+        </div>
+
+        <div class="products-grid">
+            <!-- NetMon -->
+            <div class="product-card netmon">
+                <div class="product-icon">📡</div>
+                <h3>NetMon</h3>
+                <div class="product-sub">Network Monitoring & Discovery</div>
+                <p>12-tab dashboard. Auto-discovery. SNMP deep polling. Security scanner. NOC display mode. Multi-channel alerts. The network monitoring app that doesn't need a PhD to configure.</p>
+                <ul class="product-features">
+                    <li><span class="pf-i">+</span> Real-time device status with sub-second polling</li>
+                    <li><span class="pf-i">+</span> 6-module security scanner (ports, SSL, headers, vulns)</li>
+                    <li><span class="pf-i">+</span> SLA & uptime reports (PDF/CSV export)</li>
+                    <li><span class="pf-i">+</span> Slack, Teams, PagerDuty, webhook alerts</li>
+                    <li><span class="pf-i">+</span> Custom check plugins & RBAC</li>
+                </ul>
+                <a href="https://github.com/jonfulk805-og/MyClover.Tech.NetMon" class="product-link" target="_blank">View on GitHub →</a>
+            </div>
+
+            <!-- SentryLog -->
+            <div class="product-card sentrylog">
+                <div class="product-icon">📋</div>
+                <h3>SentryLog</h3>
+                <div class="product-sub">Log Management & Analysis</div>
+                <p>Centralized logging that scales. Powered by Graylog under the hood — because reinventing log aggregation would be dumb when open-source already nailed it. We just made it easier to deploy.</p>
+                <ul class="product-features">
+                    <li><span class="pf-i">+</span> Syslog, GELF, JSON — ingest anything</li>
+                    <li><span class="pf-i">+</span> Real-time search across millions of log lines</li>
+                    <li><span class="pf-i">+</span> Custom dashboards & alert rules</li>
+                    <li><span class="pf-i">+</span> Correlation with NetMon device data</li>
+                    <li><span class="pf-i">+</span> Retention policies & compliance archiving</li>
+                </ul>
+                <a href="https://github.com/jonfulk805-og/myclover.tech.sentrylog" class="product-link" target="_blank">View on GitHub →</a>
+            </div>
+
+            <!-- MyCloverVault -->
+            <div class="product-card vault">
+                <div class="product-icon">🔐</div>
+                <h3>MyCloverVault</h3>
+                <div class="product-sub">Password Manager & Secure Vault</div>
+                <p>Bitwarden-compatible password management, self-hosted on your hardware. Your passwords never touch someone else's server. Works with every Bitwarden client app — because Vaultwarden is that good.</p>
+                <ul class="product-features">
+                    <li><span class="pf-i">+</span> Full Bitwarden client compatibility</li>
+                    <li><span class="pf-i">+</span> Browser extensions, mobile apps, desktop clients</li>
+                    <li><span class="pf-i">+</span> Organizations & shared vaults for teams</li>
+                    <li><span class="pf-i">+</span> TOTP, passkeys, secure notes, file attachments</li>
+                    <li><span class="pf-i">+</span> Air-gap capable — works 100% offline</li>
+                </ul>
+                <a href="https://buy.stripe.com/fZu4gzf0H1hddmMgyzfrW0I" class="product-link" target="_blank">Get Standalone →</a>
+            </div>
+
+            <!-- AI Engine -->
+            <div class="product-card ai">
+                <div class="product-icon">🧠</div>
+                <h3>AI Engine</h3>
+                <div class="product-sub">Local AI — Your Data, Your Models</div>
+                <p>Every MyClover appliance ships with its own private AI. Powered by Ollama with a beautiful Open WebUI chat interface. No API keys. No usage fees. No data leaving your building. The AI works for <em>you</em>.</p>
+                <ul class="product-features">
+                    <li><span class="pf-i">+</span> GPU-accelerated or CPU — auto-detects</li>
+                    <li><span class="pf-i">+</span> Pull any model: Llama 3.1, Mistral, Phi-3, CodeLlama</li>
+                    <li><span class="pf-i">+</span> RAG knowledge base for company-specific answers</li>
+                    <li><span class="pf-i">+</span> Open WebUI chat — Slack-quality interface</li>
+                    <li><span class="pf-i">+</span> API endpoint for custom integrations</li>
+                </ul>
+                <a href="#hardware" class="product-link">See Hardware →</a>
+            </div>
+        </div>
+
+        <!-- Additional services grid -->
+        <div class="section-header center" style="margin-top:80px">
+            <div class="section-label">Also Included</div>
+            <h2 class="section-title" style="font-size:1.8rem">And That's Not Even Half of It</h2>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3>Wazuh SIEM</h3>
+                <p>Security monitoring, threat detection, vulnerability scanning, compliance reporting. NERC CIP & NIST 800-82 ready.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3>WireGuard VPN</h3>
+                <p>Modern VPN tunnels. Fast, lightweight, cryptographically sound. Auto-generates peer configs.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🖥️</div>
+                <h3>Remote Access</h3>
+                <p>RustDesk (self-hosted TeamViewer) + Apache Guacamole (web-based RDP/VNC/SSH). No client install needed for Guacamole.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎫</div>
+                <h3>Ticketing</h3>
+                <p>Zammad help desk. Email, phone, chat tickets. Customer portal. SLA tracking. Knowledge base.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📦</div>
+                <h3>Asset Management</h3>
+                <p>Snipe-IT tracks every laptop, switch, and cable. Check-in/out, audit trail, depreciation, warranty tracking.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📁</div>
+                <h3>Git Server</h3>
+                <p>Gitea — lightweight, self-hosted GitHub. Repos, issues, CI/CD, packages. Your code stays on your hardware.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💾</div>
+                <h3>Backup</h3>
+                <p>Restic encrypted backups to MinIO (S3-compatible). Deduplication, compression, scheduled snapshots.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🐳</div>
+                <h3>Container Mgmt</h3>
+                <p>Portainer CE for Docker management + Traefik reverse proxy with auto-SSL. One dashboard to rule them all.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🖥️</div>
+                <h3>myclover-desktop</h3>
+                <p>Custom branded Linux desktop. KDE, GNOME, XFCE, Cinnamon, or headless. Full stack pre-installed with IT tools and hardening.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎬</div>
+                <h3>StreamServer</h3>
+                <p>Self-hosted live streaming. RTMP/SRT ingest, HLS output. Stream to your own infrastructure without platform limits.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💬</div>
+                <h3><a href="pages/cloverbot.html" style="color:inherit">CloverBot</a></h3>
+                <p>AI support chatbot with personality. RAG-powered knowledge base, lead capture, Slack escalation. Embeddable one-line widget. <a href="pages/cloverbot.html">Full docs →</a></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🚁</div>
+                <h3>CloverDrone</h3>
+                <p>UAV control, FPV video, and autonomous missions. QGroundControl + MAVLink + OpenHD. Stream FPV to StreamServer. AI video analysis.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📡</div>
+                <h3><a href="pages/clovermesh-radio.html" style="color:inherit">CloverMesh Radio</a></h3>
+                <p>LoRa mesh networking powered by Meshtastic. Off-grid encrypted comms, GPS tracking, sensor telemetry. No cell towers needed. <a href="pages/clovermesh-radio.html">Full docs →</a></p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Hardware Section -->
+<section id="hardware" class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">🖥️ Hardware</div>
+            <h2 class="section-title">Pick Your Weapon.</h2>
+            <p class="section-desc">
+                From palm-sized to rack-mounted. Every appliance ships with the full MyClover.Tech stack 
+                pre-installed, pre-configured, and ready to plug in.
+            </p>
+        </div>
+
+        <!-- Micro Appliances -->
+        <h3 class="hw-category">Micro Appliances</h3>
+        <p class="hw-category-desc">Entry-level. Fits in your hand. Runs the full stack.</p>
+        <div class="hardware-grid">
+            <div class="hw-card">
+                <div class="hw-badge">Entry</div>
+                <h3>Puck</h3>
+                <div class="hw-price">$299</div>
+                <ul class="hw-specs">
+                    <li>Intel N100 quad-core</li>
+                    <li>16GB RAM</li>
+                    <li>256GB NVMe</li>
+                    <li>Palm-sized form factor</li>
+                    <li>Phi-3 Mini AI capable</li>
+                    <li>Silent, fanless operation</li>
+                </ul>
+                <div class="hw-ideal">Ideal for: Small office, home lab, branch monitoring</div>
+            </div>
+            <div class="hw-card featured">
+                <div class="hw-badge pop">Popular</div>
+                <h3>Edge</h3>
+                <div class="hw-price">$499</div>
+                <ul class="hw-specs">
+                    <li>AMD Ryzen 7</li>
+                    <li>32GB RAM</li>
+                    <li>512GB NVMe</li>
+                    <li>iGPU for 7B AI models</li>
+                    <li>Full stack + Wazuh SIEM</li>
+                    <li>Dual NIC</li>
+                </ul>
+                <div class="hw-ideal">Ideal for: MSP clients, mid-size office, retail</div>
+            </div>
+            <div class="hw-card">
+                <div class="hw-badge">Power</div>
+                <h3>Edge Pro</h3>
+                <div class="hw-price">$799</div>
+                <ul class="hw-specs">
+                    <li>AMD Ryzen 9</li>
+                    <li>64GB RAM</li>
+                    <li>1TB NVMe</li>
+                    <li>13B AI model capable</li>
+                    <li>All services at full capacity</li>
+                    <li>2.5GbE networking</li>
+                </ul>
+                <div class="hw-ideal">Ideal for: Enterprise branch, dev environments</div>
+            </div>
+        </div>
+
+        <!-- Desktop/NAS -->
+        <h3 class="hw-category" style="margin-top:60px">Desktop & NAS Appliances</h3>
+        <p class="hw-category-desc">Serious storage. Serious compute. The backbone of your infrastructure.</p>
+        <div class="hardware-grid">
+            <div class="hw-card">
+                <div class="hw-badge">Small Biz</div>
+                <h3>Scout</h3>
+                <div class="hw-price">$599</div>
+                <ul class="hw-specs">
+                    <li>Pre-configured appliance</li>
+                    <li>NetMon + basic services</li>
+                    <li>Compact desktop form</li>
+                    <li>1yr license included</li>
+                </ul>
+                <a href="https://buy.stripe.com/fZucN59GnaRN96w967frW04" class="hw-buy" target="_blank">Buy Now →</a>
+            </div>
+            <div class="hw-card">
+                <div class="hw-badge">Mid-Size</div>
+                <h3>Sentinel</h3>
+                <div class="hw-price">$999</div>
+                <ul class="hw-specs">
+                    <li>Full suite pre-installed</li>
+                    <li>Expandable storage</li>
+                    <li>2yr license included</li>
+                    <li>Priority support</li>
+                </ul>
+                <a href="https://buy.stripe.com/cNi4gz9Gn3pl0A0fuvfrW06" class="hw-buy" target="_blank">Buy Now →</a>
+            </div>
+            <div class="hw-card">
+                <div class="hw-badge">Enterprise</div>
+                <h3>Fortress</h3>
+                <div class="hw-price">$1,799</div>
+                <ul class="hw-specs">
+                    <li>Enterprise-grade hardware</li>
+                    <li>Full stack + SIEM + AI</li>
+                    <li>3yr license included</li>
+                    <li>White-glove setup</li>
+                </ul>
+                <a href="https://buy.stripe.com/00wbJ18CjaRN0A02HJfrW0b" class="hw-buy" target="_blank">Buy Now →</a>
+            </div>
+            <div class="hw-card featured">
+                <div class="hw-badge pop">Flagship</div>
+                <h3>Citadel AI NAS</h3>
+                <div class="hw-price">$5,499</div>
+                <ul class="hw-specs">
+                    <li>MINISFORUM AI NAS N5 Pro-P370</li>
+                    <li>5-bay NAS + NVMe cache</li>
+                    <li>GPU-accelerated AI inference</li>
+                    <li>3yr license included</li>
+                    <li>Full suite + all services</li>
+                </ul>
+                <a href="https://buy.stripe.com/6oU14n05Ne3Z4Qg5TVfrW0h" class="hw-buy" target="_blank">Buy Now →</a>
+            </div>
+        </div>
+
+        <!-- Rack -->
+        <h3 class="hw-category" style="margin-top:60px">Rack NAS <span class="coming-soon-badge">Coming Soon</span></h3>
+        <p class="hw-category-desc">Data center grade. When your closet becomes a NOC.</p>
+        <div class="hardware-grid">
+            <div class="hw-card">
+                <div class="hw-badge">1U</div>
+                <h3>R4</h3>
+                <div class="hw-price">From $2,999</div>
+                <ul class="hw-specs">
+                    <li>4-bay rack mount</li>
+                    <li>1U form factor</li>
+                    <li>Hot-swap drives</li>
+                    <li>10GbE option ($3,499)</li>
+                </ul>
+            </div>
+            <div class="hw-card">
+                <div class="hw-badge">2U</div>
+                <h3>R8</h3>
+                <div class="hw-price">From $5,499</div>
+                <ul class="hw-specs">
+                    <li>8-bay rack mount</li>
+                    <li>2U form factor</li>
+                    <li>128GB RAM option</li>
+                    <li>NVMe cache tier</li>
+                </ul>
+            </div>
+            <div class="hw-card">
+                <div class="hw-badge">3U</div>
+                <h3>R16</h3>
+                <div class="hw-price">From $9,999</div>
+                <ul class="hw-specs">
+                    <li>16-bay rack mount</li>
+                    <li>3U form factor</li>
+                    <li>Dual CPU option</li>
+                    <li>GPU transcoding ($14,999)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Field / Industrial -->
+        <h3 class="hw-category" style="margin-top:60px">Field & Industrial</h3>
+        <p class="hw-category-desc">Built to survive. MIL-STD-810H. DIN-rail. NEMA 4X. For when "rugged" isn't just marketing copy.</p>
+        <div class="hardware-grid">
+            <div class="hw-card">
+                <div class="hw-badge">Field</div>
+                <h3>Citadel Field Laptop</h3>
+                <div class="hw-price">From $3,499</div>
+                <ul class="hw-specs">
+                    <li>MIL-STD-810H hardened</li>
+                    <li>Wi-Fi mapping suite</li>
+                    <li>MyClover Desktop pre-installed</li>
+                    <li>IT Field Toolkit INCLUDED FREE</li>
+                </ul>
+            </div>
+            <div class="hw-card">
+                <div class="hw-badge">Industrial</div>
+                <h3>Industrial Puck</h3>
+                <div class="hw-price">$999</div>
+                <ul class="hw-specs">
+                    <li>DIN-rail / NEMA 4X</li>
+                    <li>-40°C to +85°C operating</li>
+                    <li>Isolated serial (Modbus/DNP3)</li>
+                    <li>SCADA/ICS monitoring</li>
+                </ul>
+            </div>
+            <div class="hw-card">
+                <div class="hw-badge">Industrial</div>
+                <h3>Industrial Edge</h3>
+                <div class="hw-price">$1,999</div>
+                <ul class="hw-specs">
+                    <li>MIL-STD-810H rated</li>
+                    <li>OT protocol monitoring</li>
+                    <li>NERC CIP compliance</li>
+                    <li>SCADA AI anomaly detection</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Drone -->
+        <h3 class="hw-category" style="margin-top:60px">Drone & UAV <span class="coming-soon-badge">Coming Soon</span></h3>
+        <div class="hw-grid">
+            <div class="hw-card">
+                <div class="hw-badge">Ground Station</div>
+                <h3>Drone Ground Station Kit</h3>
+                <div class="hw-price">$1,299</div>
+                <ul class="hw-specs">
+                    <li>Edge Pro + gamepad controller</li>
+                    <li>FPV display + antennas</li>
+                    <li>QGroundControl pre-installed</li>
+                    <li>CloverDrone Pilot license included</li>
+                </ul>
+            </div>
+            <div class="hw-card">
+                <div class="hw-badge">Field</div>
+                <h3>Field Drone Pack</h3>
+                <div class="hw-price">$3,999</div>
+                <ul class="hw-specs">
+                    <li>Citadel Field Laptop</li>
+                    <li>QGroundControl + CloverDrone</li>
+                    <li>Long-range antenna kit</li>
+                    <li>Mission planning + AI video</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Mesh Radio -->
+        <h3 class="hw-category" style="margin-top:60px">LoRa Mesh Radio <span class="coming-soon-badge">Coming Soon</span></h3>
+        <div class="hw-grid">
+            <div class="hw-card">
+                <div class="hw-badge">Starter</div>
+                <h3>Meshtastic Node Kit (5-pack)</h3>
+                <div class="hw-price">$199</div>
+                <ul class="hw-specs">
+                    <li>5× Heltec V3 / RAK WisBlock nodes</li>
+                    <li>Pre-flashed Meshtastic firmware</li>
+                    <li>Antennas + weatherproof cases</li>
+                    <li>CloverMesh Radio license included</li>
+                </ul>
+            </div>
+            <div class="hw-card">
+                <div class="hw-badge">Long Range</div>
+                <h3>Long-Range Relay Node</h3>
+                <div class="hw-price">$149</div>
+                <ul class="hw-specs">
+                    <li>Solar-powered outdoor enclosure</li>
+                    <li>High-gain antenna (10+ mile range)</li>
+                    <li>Pre-configured as relay/router</li>
+                    <li>Mount-anywhere bracket kit</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Software / Pricing -->
+<section id="software">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">💻 Software</div>
+            <h2 class="section-title">Software-Only? We Got You.</h2>
+            <p class="section-desc">
+                Don't need hardware? Grab the software subscriptions and run on your own gear. 
+                Or start with the free Community tier — no credit card, no time limit, no catch.
+            </p>
+        </div>
+
+        <div id="pricing" class="pricing-grid">
+            <!-- NetMon -->
+            <div class="price-card">
+                <h3>NetMon</h3>
+                <p class="price-desc">Network monitoring & discovery</p>
+                <div class="price-tiers">
+                    <div class="price-tier">
+                        <span class="tier-name">Community</span>
+                        <span class="tier-price">Free</span>
+                        <span class="tier-note">10 devices</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Pro</span>
+                        <span class="tier-price">$15/mo</span>
+                        <span class="tier-note">or $150/yr</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Enterprise</span>
+                        <span class="tier-price">$39/mo</span>
+                        <span class="tier-note">or $390/yr</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SentryLog -->
+            <div class="price-card">
+                <h3>SentryLog</h3>
+                <p class="price-desc">Log management & analysis</p>
+                <div class="price-tiers">
+                    <div class="price-tier">
+                        <span class="tier-name">Pro</span>
+                        <span class="tier-price">$15/mo</span>
+                        <span class="tier-note">or $150/yr</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Enterprise</span>
+                        <span class="tier-price">$39/mo</span>
+                        <span class="tier-note">or $390/yr</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MyCloverVault -->
+            <div class="price-card featured">
+                <div class="price-featured-badge">New</div>
+                <h3>MyCloverVault</h3>
+                <p class="price-desc">Password manager (Suite add-on)</p>
+                <div class="price-tiers">
+                    <div class="price-tier">
+                        <span class="tier-name">Pro</span>
+                        <span class="tier-price">$9/mo</span>
+                        <span class="tier-note">or $90/yr</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Enterprise</span>
+                        <span class="tier-price">$25/mo</span>
+                        <span class="tier-note">or $250/yr</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vault Standalone -->
+            <div class="price-card featured">
+                <div class="price-featured-badge">New</div>
+                <h3>MyCloverVault Standalone</h3>
+                <p class="price-desc">Cross-platform, no suite required</p>
+                <div class="price-tiers">
+                    <div class="price-tier">
+                        <span class="tier-name">Personal</span>
+                        <span class="tier-price">$5/mo</span>
+                        <span class="tier-note">or $50/yr</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Family (6 users)</span>
+                        <span class="tier-price">$9/mo</span>
+                        <span class="tier-note">or $90/yr</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suite Bundle -->
+            <div class="price-card bundle">
+                <div class="price-featured-badge">Best Value</div>
+                <h3>Full Suite Bundle</h3>
+                <p class="price-desc">NetMon + SentryLog + Vault + AI + everything</p>
+                <div class="price-tiers">
+                    <div class="price-tier">
+                        <span class="tier-name">Pro</span>
+                        <span class="tier-price">$25/mo</span>
+                        <span class="tier-note">or $250/yr — save 40%+</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Enterprise</span>
+                        <span class="tier-price">$59/mo</span>
+                        <span class="tier-note">or $590/yr</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CloverDrone -->
+            <div class="price-card featured">
+                <div class="price-featured-badge">New</div>
+                <h3>CloverDrone</h3>
+                <p class="price-desc">UAV control, FPV video & autonomous missions</p>
+                <div class="price-tiers">
+                    <div class="price-tier">
+                        <span class="tier-name">Pilot</span>
+                        <span class="tier-price">$29/mo</span>
+                        <span class="tier-note">1 drone, ground station, FPV</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Fleet</span>
+                        <span class="tier-price">$79/mo</span>
+                        <span class="tier-note">Unlimited drones, AI video, automation</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Enterprise</span>
+                        <span class="tier-price">$149/mo</span>
+                        <span class="tier-note">BVLOS, compliance, multi-site mesh</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CloverMesh Radio -->
+            <div class="price-card featured">
+                <div class="price-featured-badge">New</div>
+                <h3>CloverMesh Radio</h3>
+                <p class="price-desc">LoRa mesh networking — off-grid comms & telemetry</p>
+                <div class="price-tiers">
+                    <div class="price-tier">
+                        <span class="tier-name">Radio</span>
+                        <span class="tier-price">$19/mo</span>
+                        <span class="tier-note">10 nodes, MQTT bridge, NetMon</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Field</span>
+                        <span class="tier-price">$49/mo</span>
+                        <span class="tier-note">Unlimited nodes, drone telemetry, logging</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Enterprise</span>
+                        <span class="tier-price">$99/mo</span>
+                        <span class="tier-note">Multi-site federation, compliance, API</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MSP -->
+            <div class="price-card">
+                <h3>MSP Licensing</h3>
+                <p class="price-desc">Per-customer pricing for managed service providers</p>
+                <div class="price-tiers">
+                    <div class="price-tier">
+                        <span class="tier-name">Pro / customer</span>
+                        <span class="tier-price">$5/mo</span>
+                        <span class="tier-note">15% off 25+ | 25% off 100+</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Enterprise / customer</span>
+                        <span class="tier-price">$12/mo</span>
+                        <span class="tier-note">Volume discounts available</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Full Suite / customer</span>
+                        <span class="tier-price">$18/mo</span>
+                        <span class="tier-note">Everything, per endpoint</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bundle Pricing -->
+        <div class="section-header center" style="margin-top:80px">
+            <div class="section-label">📦 Bundles</div>
+            <h2 class="section-title" style="font-size:1.8rem">Save More With Bundles</h2>
+            <p class="section-desc">Combine products and save. Unlimited devices on every bundle. Annual pricing saves ~20%.</p>
+        </div>
+        <div class="pricing-grid">
+            <div class="price-card">
+                <h3>Starter Pack</h3>
+                <p class="price-desc">NetMon Pro + Backup Agent</p>
+                <div class="price-tiers">
+                    <div class="price-tier">
+                        <span class="tier-name">Monthly</span>
+                        <span class="tier-price">$49/mo</span>
+                        <span class="tier-note">Unlimited devices</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Annual</span>
+                        <span class="tier-price">$469/yr</span>
+                        <span class="tier-note">Save 20%</span>
+                    </div>
+                </div>
+                <a href="https://buy.stripe.com/4gM5kD8Cj4tp82s3LNfrW0M" class="product-link" target="_blank" style="margin-top:14px;display:block">Subscribe Monthly →</a>
+            </div>
+
+            <div class="price-card featured">
+                <div class="price-featured-badge">Best Value</div>
+                <h3>Professional Suite</h3>
+                <p class="price-desc">NetMon Enterprise + SentryLog + Backup Agent</p>
+                <div class="price-tiers">
+                    <div class="price-tier">
+                        <span class="tier-name">Monthly</span>
+                        <span class="tier-price">$129/mo</span>
+                        <span class="tier-note">Unlimited devices</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Annual</span>
+                        <span class="tier-price">$1,249/yr</span>
+                        <span class="tier-note">Save 19%</span>
+                    </div>
+                </div>
+                <a href="https://buy.stripe.com/7sYfZhcSz0d91E4gyzfrW0O" class="product-link" target="_blank" style="margin-top:14px;display:block">Subscribe Monthly →</a>
+            </div>
+
+            <div class="price-card bundle">
+                <div class="price-featured-badge">Everything</div>
+                <h3>Full Stack</h3>
+                <p class="price-desc">Every product. Enterprise tier. All features.</p>
+                <div class="price-tiers">
+                    <div class="price-tier">
+                        <span class="tier-name">Monthly</span>
+                        <span class="tier-price">$199/mo</span>
+                        <span class="tier-note">Unlimited everything</span>
+                    </div>
+                    <div class="price-tier">
+                        <span class="tier-name">Annual</span>
+                        <span class="tier-price">$1,899/yr</span>
+                        <span class="tier-note">Save 21%</span>
+                    </div>
+                </div>
+                <a href="https://buy.stripe.com/14A5kD9GnbVR4Qg2HJfrW0Q" class="product-link" target="_blank" style="margin-top:14px;display:block">Subscribe Monthly →</a>
+            </div>
+        </div>
+
+        <!-- Comparison Table -->
+        <div style="margin-top:60px">
+            <h3 style="text-align:center;margin-bottom:24px;font-size:1.4rem;font-weight:800">How We Compare</h3>
+            <div style="overflow-x:auto">
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th style="color:var(--green)">MyClover.Tech</th>
+                            <th>SolarWinds</th>
+                            <th>PRTG</th>
+                            <th>Datadog</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>50-device monitoring</td><td class="highlight">$49/mo flat</td><td>$1,500+/yr</td><td>$1,750/yr</td><td>$750+/yr</td></tr>
+                        <tr><td>Self-hosted</td><td class="highlight">Yes (always)</td><td>Yes</td><td>Yes (Windows)</td><td class="dim">No (cloud)</td></tr>
+                        <tr><td>Per-device pricing</td><td class="highlight">Never</td><td class="dim">Yes</td><td class="dim">Per-sensor</td><td class="dim">Per-host</td></tr>
+                        <tr><td>Built-in security scanner</td><td class="highlight">6 modules</td><td class="dim">Separate $</td><td class="dim">No</td><td class="dim">Separate $</td></tr>
+                        <tr><td>Local AI engine</td><td class="highlight">Included</td><td class="dim">No</td><td class="dim">No</td><td>Cloud AI only</td></tr>
+                        <tr><td>Password vault</td><td class="highlight">Included</td><td class="dim">No</td><td class="dim">No</td><td class="dim">No</td></tr>
+                        <tr><td>Deploy time</td><td class="highlight">15 minutes</td><td class="dim">Hours–days</td><td>30 minutes</td><td>Minutes (cloud)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 90-Day Free Trial -->
+<section id="trial">
+    <div class="container">
+        <div class="cta-card" style="border-color:rgba(34,197,94,.3);box-shadow:0 0 60px rgba(34,197,94,.08)">
+            <div style="font-size:3rem;margin-bottom:16px">🍀</div>
+            <h2>Try Enterprise Free for 90 Days</h2>
+            <p style="margin-bottom:12px">Unlimited devices. Full security scanner. All features unlocked.<br>No credit card. No strings. Just enter your email.</p>
+            <form class="trial-form" onsubmit="requestTrial(event)" style="display:flex;gap:12px;max-width:480px;margin:24px auto 0;flex-wrap:wrap;justify-content:center">
+                <input type="email" name="email" placeholder="you@company.com" required style="flex:1;min-width:200px;padding:13px 18px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.95rem;font-family:var(--font)">
+                <button type="submit" class="btn btn-primary" style="white-space:nowrap">Start Free Trial →</button>
+            </form>
+            <div id="trial-result" style="display:none;margin-top:20px;padding:16px;background:var(--green-g);border:1px solid rgba(34,197,94,.3);border-radius:10px;max-width:480px;margin-left:auto;margin-right:auto">
+                <p style="color:var(--green);font-weight:600;margin-bottom:8px">✅ Trial Activated!</p>
+                <code id="trial-key" style="display:block;background:var(--bg);padding:12px;border-radius:6px;color:var(--cyan);word-break:break-all;font-size:.85rem;font-family:var(--mono)"></code>
+                <p style="color:var(--muted);font-size:.82rem;margin-top:8px">Enter this key in netmon → Settings → License Key</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Blog -->
+<section id="blog" class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">📝 Blog</div>
+            <h2 class="section-title">From the MyClover.Tech Team</h2>
+            <p class="section-desc">Engineering deep-dives, honest comparisons, and thoughts on building a self-hosted IT platform.</p>
+        </div>
+        <div class="features-grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))">
+            <a href="https://github.com/jonfulk805-og/MyClover.Tech.NetMon#readme" target="_blank" class="feature-card" style="text-decoration:none;color:var(--text)">
+                <div style="font-size:.72rem;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Founder Story</div>
+                <h3>Why We Built MyClover.Tech.netmon</h3>
+                <p>"Because we got tired of paying per sensor just to know if our servers were alive."</p>
+            </a>
+            <a href="https://github.com/jonfulk805-og/MyClover.Tech.NetMon#readme" target="_blank" class="feature-card" style="text-decoration:none;color:var(--text)">
+                <div style="font-size:.72rem;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Comparison</div>
+                <h3>netmon vs Nagios vs PRTG vs Zabbix</h3>
+                <p>An honest breakdown of how we compare to the big names. Including where they win.</p>
+            </a>
+            <a href="https://github.com/jonfulk805-og/myclover.tech.sentrylog#readme" target="_blank" class="feature-card" style="text-decoration:none;color:var(--text)">
+                <div style="font-size:.72rem;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Guide</div>
+                <h3>SentryLog — Log Management for Small IT Teams</h3>
+                <p>You're the entire IT department. Here's how to manage logs without losing your mind.</p>
+            </a>
+            <a href="pages/cloverbot.html" class="feature-card" style="text-decoration:none;color:var(--text)">
+                <div style="font-size:.72rem;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">AI</div>
+                <h3>CloverBot — Self-Hosted AI Support Agent</h3>
+                <p>RAG-powered support bot with personality. Runs on your hardware with Ollama, or connect OpenAI. Your data stays yours.</p>
+            </a>
+            <a href="https://github.com/jonfulk805-og/cloverbot#readme" target="_blank" class="feature-card" style="text-decoration:none;color:var(--text)">
+                <div style="font-size:.72rem;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">Tutorial</div>
+                <h3>Getting Started with CloverBot in 5 Minutes</h3>
+                <p>From zero to AI support agent. Clone, configure, embed. Full quickstart on GitHub.</p>
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Accessories -->
+<section id="accessories" class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">🔧 Accessories</div>
+            <h2 class="section-title">The Gear That Makes It All Work</h2>
+        </div>
+        <div class="accessories-grid">
+            <div class="acc-card">
+                <div class="acc-icon">🧰</div>
+                <h3>IT Field Toolkit</h3>
+                <p>Heavy-duty branded tool bag. Cable tester, crimper, screwdrivers, USB diagnostics, Wi-Fi adapter, ESD gear, and more. $500 value — FREE with Citadel Field Laptop.</p>
+                <div class="acc-price">$499</div>
+                <a href="https://buy.stripe.com/dRm3cv9Gn1hdgyY0zBfrW0D" class="product-link" target="_blank">Buy Standalone →</a>
+            </div>
+            <div class="acc-card">
+                <div class="acc-icon">🔌</div>
+                <h3>Branded Cables & Networking</h3>
+                <p>Cat6/Cat6A patch cables, USB-C, SFP+ DAC, console cables. Cable management kits and rack hardware kits. All branded.</p>
+                <div class="acc-price">Coming Soon</div>
+            </div>
+            <div class="acc-card">
+                <div class="acc-icon">📺</div>
+                <h3>AV / Pro Install</h3>
+                <p>HDMI 2.1, DisplayPort, WirelessCast wireless HDMI, ScreenBridge Miracast, HDMI-over-IP extenders, wall plates & keystones.</p>
+                <div class="acc-price">Coming Soon</div>
+            </div>
+            <div class="acc-card">
+                <div class="acc-icon">👕</div>
+                <h3>Apparel & Merch</h3>
+                <p>Branded polo shirts, hoodies, drinkware, field notebooks. Because looking professional while crawling under desks matters.</p>
+                <div class="acc-price">Coming Soon</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Password Generator Promo -->
+<section id="keygen-promo">
+    <div class="container">
+        <div class="keygen-promo-card">
+            <div class="keygen-icon">🔑</div>
+            <h2>MyClover KeyGen</h2>
+            <p>Free password generator. Strong, random, customizable. No signup. No tracking. Just good passwords.</p>
+            <a href="/keygen" class="btn btn-primary">Launch KeyGen →</a>
+        </div>
+    </div>
+</section>
+
+<!-- Open Source Credits -->
+<section id="credits">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">💚 Open Source</div>
+            <h2 class="section-title">Built On The Shoulders Of Giants</h2>
+            <p class="section-desc">
+                We didn't reinvent every wheel — we picked the best open-source wheels and made them roll together. 
+                Every project below deserves your star on GitHub.
+            </p>
+        </div>
+        <div class="credits-grid-full">
+            <a href="https://graylog.org" class="credit-card" target="_blank"><strong>Graylog</strong><span>Log Management</span></a>
+            <a href="https://wazuh.com" class="credit-card" target="_blank"><strong>Wazuh</strong><span>Security / SIEM</span></a>
+            <a href="https://github.com/dani-garcia/vaultwarden" class="credit-card" target="_blank"><strong>Vaultwarden</strong><span>Password Vault</span></a>
+            <a href="https://www.wireguard.com" class="credit-card" target="_blank"><strong>WireGuard</strong><span>VPN</span></a>
+            <a href="https://rustdesk.com" class="credit-card" target="_blank"><strong>RustDesk</strong><span>Remote Desktop</span></a>
+            <a href="https://guacamole.apache.org" class="credit-card" target="_blank"><strong>Apache Guacamole</strong><span>Web Remote Access</span></a>
+            <a href="https://zammad.org" class="credit-card" target="_blank"><strong>Zammad</strong><span>Ticketing</span></a>
+            <a href="https://snipeitapp.com" class="credit-card" target="_blank"><strong>Snipe-IT</strong><span>Asset Management</span></a>
+            <a href="https://gitea.io" class="credit-card" target="_blank"><strong>Gitea</strong><span>Git Server</span></a>
+            <a href="https://min.io" class="credit-card" target="_blank"><strong>MinIO</strong><span>Object Storage</span></a>
+            <a href="https://restic.net" class="credit-card" target="_blank"><strong>Restic</strong><span>Backup</span></a>
+            <a href="https://ollama.com" class="credit-card" target="_blank"><strong>Ollama</strong><span>AI Inference</span></a>
+            <a href="https://github.com/open-webui/open-webui" class="credit-card" target="_blank"><strong>Open WebUI</strong><span>AI Chat</span></a>
+            <a href="https://www.portainer.io" class="credit-card" target="_blank"><strong>Portainer</strong><span>Containers</span></a>
+            <a href="https://traefik.io" class="credit-card" target="_blank"><strong>Traefik</strong><span>Reverse Proxy</span></a>
+            <a href="https://fastapi.tiangolo.com" class="credit-card" target="_blank"><strong>FastAPI</strong><span>CloverBot API</span></a>
+            <a href="https://www.trychroma.com" class="credit-card" target="_blank"><strong>ChromaDB</strong><span>Vector Search</span></a>
+            <a href="http://qgroundcontrol.com" class="credit-card" target="_blank"><strong>QGroundControl</strong><span>Drone Station</span></a>
+            <a href="https://ardupilot.org" class="credit-card" target="_blank"><strong>ArduPilot</strong><span>Flight Control</span></a>
+            <a href="https://openhdfpv.org" class="credit-card" target="_blank"><strong>OpenHD</strong><span>FPV Video</span></a>
+            <a href="https://dronekit-python.readthedocs.io" class="credit-card" target="_blank"><strong>DroneKit</strong><span>Drone Scripting</span></a>
+            <a href="https://meshtastic.org" class="credit-card" target="_blank"><strong>Meshtastic</strong><span>LoRa Mesh</span></a>
+        </div>
+    </div>
+</section>
+
+<!-- Partner Network CTA -->
+<section id="partners" class="section-alt" style="padding:60px 0">
+    <div class="container">
+        <div style="max-width:800px;margin:0 auto;text-align:center">
+            <div class="section-label">🤝 Partner Network</div>
+            <h2 style="font-size:2rem;margin-bottom:12px">Are You a Tech, MSP, or Installer?</h2>
+            <p style="color:var(--muted);font-size:1.05rem;margin-bottom:28px;max-width:600px;margin-left:auto;margin-right:auto">
+                Join the CloverStack Partner Network. Get discovered by clients who need CloverStack installed, configured, or managed. Free to list. MSP bulk pricing available.
+            </p>
+            <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
+                <a href="pages/partners.html" class="btn btn-primary" style="padding:14px 32px;font-size:1rem">Find an Installer →</a>
+                <a href="pages/partners.html#register" class="btn btn-outline" style="padding:14px 32px;font-size:1rem">Become a Partner →</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Contact / CTA -->
+<section id="contact">
+    <div class="container">
+        <div class="cta-card">
+            <h2>Ready to Own Your Infrastructure?</h2>
+            <p>Questions? Custom builds? MSP partnerships? We're humans who answer emails.</p>
+            <div class="cta-actions">
+                <a href="mailto:inforequest@myclover.tech" class="btn btn-primary">📧 inforequest@myclover.tech</a>
+                <a href="https://github.com/jonfulk805-og/MyClover.Tech.NetMon" class="btn btn-secondary" target="_blank">⭐ Star on GitHub</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="/assets/logo.webp" alt="MyClover.Tech" width="32" height="32" onerror="this.style.display='none'">
+                <span>My<span class="green">Clover</span>.Tech</span>
+            </div>
+            <div class="footer-links">
+                <a href="#products">Products</a>
+                <a href="#hardware">Hardware</a>
+                <a href="#pricing">Pricing</a>
+                <a href="#trial">Free Trial</a>
+                <a href="#blog">Blog</a>
+                <a href="pages/partners.html">Partners</a>
+                <a href="/keygen">KeyGen</a>
+                <a href="pages/cloverbot.html">CloverBot</a>
+                <a href="pages/cloverdrone.html">CloverDrone</a>
+                <a href="pages/clovermesh-radio.html">CloverMesh Radio</a>
+                <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+                <a href="mailto:inforequest@myclover.tech">Contact</a>
+            </div>
+            <div class="footer-copy">
+                &copy; 2026 MyClover Technologies. All rights reserved.<br>
+                <span class="dim">Making IT infrastructure accessible, secure, and self-hosted.</span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="js/main.js"></script>
+<script>
+async function requestTrial(e) {
+    e.preventDefault();
+    var email = e.target.email.value;
+    var btn = e.target.querySelector('button');
+    btn.textContent = 'Generating...';
+    btn.disabled = true;
+    try {
+        var res = await fetch('/api/trial/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email })
+        });
+        var data = await res.json();
+        if (data.key) {
+            document.getElementById('trial-key').textContent = data.key;
+            document.getElementById('trial-result').style.display = 'block';
+            e.target.style.display = 'none';
+        }
+    } catch (err) {
+        alert('Could not generate trial. Please try again or contact inforequest@myclover.tech');
+    }
+    btn.textContent = 'Start Free Trial \u2192';
+    btn.disabled = false;
+}
+</script>
+<!-- CloverBot AI Support Widget -->
+<script src="/static/cloverbot.js" data-api-url=""></script>
+</body>
+</html>
