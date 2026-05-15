@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloverStrike — Self-Hosted Penetration Testing &amp; Security Audit | MyClover.Tech</title>
+    <meta name="description" content="Self-hosted penetration testing and security audit suite. Network, web, wireless pentesting, phishing simulation, Red/Blue/Purple team mode — all with AI assistance.">
+    <meta property="og:title" content="CloverStrike — Know Your Weaknesses Before They Do">
+    <meta property="og:description" content="Full offensive security platform. Self-hosted, AI-assisted, compliance-ready. Included with Enterprise.">
+    <meta property="og:image" content="/assets/og-cloverstrike.png">
+    <meta property="og:url" content="https://myclover.tech/pages/cloverstrike.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .strike-accent { color: #ef4444; }
+        .strike-gradient { background: linear-gradient(135deg, #ef4444, #f97316, #eab308); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+        .attack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px; margin-top: 32px; }
+        .attack-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 32px; transition: all .3s; }
+        .attack-card:hover { border-color: #ef4444; box-shadow: 0 0 40px rgba(239,68,68,.12); transform: translateY(-3px); }
+        .attack-icon { font-size: 2.2rem; margin-bottom: 14px; }
+        .attack-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+        .attack-card p { font-size: .85rem; color: var(--dim); line-height: 1.7; }
+
+        .team-tabs { display: flex; gap: 12px; margin-bottom: 24px; justify-content: center; flex-wrap: wrap; }
+        .team-tab { padding: 12px 28px; border-radius: 12px; font-weight: 700; font-size: .9rem; cursor: default; transition: all .3s; border: 2px solid var(--border); }
+        .team-red { background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.4); color: #ef4444; }
+        .team-blue { background: rgba(59,130,246,.1); border-color: rgba(59,130,246,.4); color: #3b82f6; }
+        .team-purple { background: rgba(168,85,247,.1); border-color: rgba(168,85,247,.4); color: #a855f7; }
+
+        .team-desc { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .team-card { background: var(--card); border-radius: 16px; padding: 28px; }
+        .team-card.red-card { border: 1px solid rgba(239,68,68,.3); }
+        .team-card.blue-card { border: 1px solid rgba(59,130,246,.3); }
+        .team-card.purple-card { border: 1px solid rgba(168,85,247,.3); }
+        .team-card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+        .team-card.red-card h4 { color: #ef4444; }
+        .team-card.blue-card h4 { color: #3b82f6; }
+        .team-card.purple-card h4 { color: #a855f7; }
+        .team-card p { font-size: .85rem; color: var(--dim); line-height: 1.7; }
+
+        .compliance-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-top: 32px; }
+        .compliance-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 16px; text-align: center; transition: all .25s; }
+        .compliance-card:hover { border-color: #ef4444; transform: translateY(-3px); box-shadow: 0 0 30px rgba(239,68,68,.1); }
+        .compliance-card .comp-icon { font-size: 1.6rem; margin-bottom: 8px; }
+        .compliance-card span { font-size: .82rem; font-weight: 700; color: var(--dim); }
+
+        .safety-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; margin-top: 32px; }
+        .safety-card { background: linear-gradient(135deg, var(--card), rgba(34,197,94,.04)); border: 1px solid rgba(34,197,94,.2); border-radius: 16px; padding: 28px; }
+        .safety-card h4 { font-size: .95rem; font-weight: 700; color: var(--green); margin-bottom: 8px; }
+        .safety-card p { font-size: .82rem; color: var(--dim); line-height: 1.6; }
+
+        .ai-features { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 32px; }
+        .ai-card { background: linear-gradient(135deg, var(--card), rgba(239,68,68,.05)); border: 1px solid rgba(239,68,68,.2); border-radius: 16px; padding: 28px; }
+        .ai-card h4 { font-size: .95rem; font-weight: 700; color: #ef4444; margin-bottom: 8px; }
+        .ai-card p { font-size: .82rem; color: var(--dim); line-height: 1.6; }
+
+        .integration-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .int-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; transition: all .3s; }
+        .int-card:hover { border-color: var(--green); box-shadow: 0 0 40px var(--green-g); transform: translateY(-3px); }
+        .int-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .int-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+        .int-card p { font-size: .82rem; color: var(--dim); line-height: 1.6; }
+
+        .scenario-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; margin-top: 32px; }
+        .scenario-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 32px; }
+        .scenario-card h4 { font-size: 1.05rem; font-weight: 700; margin-bottom: 4px; }
+        .scenario-type { font-size: .78rem; color: #ef4444; font-weight: 600; margin-bottom: 12px; }
+        .scenario-card p { font-size: .85rem; color: var(--dim); line-height: 1.7; }
+
+        .enterprise-banner { background: linear-gradient(135deg, rgba(239,68,68,.08), rgba(249,115,22,.08)); border: 2px solid rgba(239,68,68,.3); border-radius: 24px; padding: 48px; text-align: center; margin-top: 40px; }
+        .enterprise-banner h3 { font-size: 1.8rem; font-weight: 900; margin-bottom: 12px; }
+        .enterprise-banner .ent-price { font-size: 1.2rem; color: var(--dim); margin-bottom: 8px; }
+        .enterprise-banner .ent-price strong { font-size: 2.4rem; font-weight: 900; color: #ef4444; }
+        .enterprise-banner .ent-note { font-size: .85rem; color: var(--dim); margin-bottom: 24px; }
+
+        @media (max-width: 768px) {
+            .compliance-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- Navigation -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="/" class="nav-logo">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="36" height="36">
+            <span>My<span class="green">Clover</span>.Tech</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/">Home</a>
+            <a href="/#products">Products</a>
+            <a href="/#hardware">Hardware</a>
+            <a href="#pricing">Pricing</a>
+            <a href="/#blog">Blog</a>
+            <a href="/keygen">KeyGen</a>
+            <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+            <a href="/#trial" class="nav-cta">Free 90-Day Trial</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-badge">
+            <span class="pulse"></span>
+            New Product &mdash; CloverStrike
+        </div>
+        <h1>
+            Know Your Weaknesses.<br>
+            <span class="strike-gradient">Before They Do.</span>
+        </h1>
+        <p>
+            Self-hosted penetration testing and security audit suite. Network, web, wireless, password cracking,
+            phishing simulation, Red/Blue/Purple team mode &mdash; all with Chappie &amp; Clover AI assistance.
+            Built into mycloverOS. Enterprise-grade offensive security on your own hardware.
+        </p>
+        <div class="hero-actions">
+            <a href="#pricing" class="btn btn-primary">See Pricing</a>
+            <a href="#capabilities" class="btn btn-secondary">Explore Capabilities</a>
+            <a href="/#trial" class="btn btn-secondary">Free 90-Day Trial</a>
+        </div>
+    </div>
+</section>
+
+<!-- Stats -->
+<div class="container">
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-number" style="color:#ef4444">100%</div>
+            <div class="stat-label">Self-Hosted</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" style="color:#ef4444">AI</div>
+            <div class="stat-label">Assisted Testing</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" style="color:#ef4444">&infin;</div>
+            <div class="stat-label">Unlimited Targets</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number" style="color:#ef4444">6</div>
+            <div class="stat-label">Compliance Frameworks</div>
+        </div>
+    </div>
+</div>
+
+<!-- Capabilities -->
+<section id="capabilities">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Capabilities</div>
+            <h2 class="section-title">The Complete Offensive Security Toolkit</h2>
+            <p class="section-desc">
+                Everything you need to test your defenses. Network, web, wireless, credentials, phishing &mdash;
+                all managed from a premium dashboard with AI guidance. No more juggling 15 CLI tools.
+            </p>
+        </div>
+
+        <div class="attack-grid">
+            <div class="attack-card">
+                <div class="attack-icon">&#128752;</div>
+                <h3>Network Penetration Testing</h3>
+                <p>Automated discovery &amp; enumeration, port scanning with service/version detection, vulnerability scanning against the CVE database (auto-updated), wireless auditing (WPA2/WPA3, rogue APs), Bluetooth &amp; BLE recon.</p>
+            </div>
+            <div class="attack-card">
+                <div class="attack-icon">&#127760;</div>
+                <h3>Web Application Testing</h3>
+                <p>OWASP Top 10 automated scanning. SQLi, XSS, CSRF, SSRF detection. Directory enumeration. API fuzzing (REST &amp; GraphQL). SSL/TLS audit. CMS-specific scanners for WordPress, Joomla, Drupal.</p>
+            </div>
+            <div class="attack-card">
+                <div class="attack-icon">&#128273;</div>
+                <h3>Password &amp; Credential Audit</h3>
+                <p>GPU-accelerated hash cracking on Citadel hardware. Active Directory / LDAP password policy audit. Default credential checking. Password spray simulation. Credential stuffing testing.</p>
+            </div>
+            <div class="attack-card">
+                <div class="attack-icon">&#128231;</div>
+                <h3>Phishing Simulator</h3>
+                <p>Create email + landing page phishing campaigns. Track open rates, click rates, credential submissions. USB drop simulation tracking. Employee awareness scoring &amp; reporting over time.</p>
+            </div>
+            <div class="attack-card">
+                <div class="attack-icon">&#128196;</div>
+                <h3>Compliance Reporting</h3>
+                <p>Auto-generated branded PDF reports. Executive summary + technical detail. CVSS scoring with remediation priority. Historical comparison for progress tracking. Exportable evidence packages.</p>
+            </div>
+            <div class="attack-card">
+                <div class="attack-icon">&#129302;</div>
+                <h3>AI-Assisted Testing</h3>
+                <p>Chappie or Clover guides you through findings: exploit suggestions, attack path mapping, remediation prioritization, compliance mapping, report narration. Your AI-powered offensive security partner.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Red / Blue / Purple Team -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Team Modes</div>
+            <h2 class="section-title">Red. Blue. Purple. Your Call.</h2>
+            <p class="section-desc">
+                Three operational modes, one dashboard. Attack, defend, or do both simultaneously.
+            </p>
+        </div>
+
+        <div class="team-tabs">
+            <div class="team-tab team-red">&#128308; Red Team</div>
+            <div class="team-tab team-blue">&#128309; Blue Team</div>
+            <div class="team-tab team-purple">&#128995; Purple Team</div>
+        </div>
+
+        <div class="team-desc">
+            <div class="team-card red-card">
+                <h4>&#128308; Red Team &mdash; Offense</h4>
+                <p>Full offensive toolkit. Attack playbooks. Metasploit + Sliver C2 framework integration. Lateral movement. Privilege escalation. Data exfiltration testing. Phishing campaigns. The attacker's perspective, fully instrumented.</p>
+            </div>
+            <div class="team-card blue-card">
+                <h4>&#128309; Blue Team &mdash; Defense</h4>
+                <p>Defensive monitoring dashboard. Real-time alert feed from Wazuh + SentryLog. Incident response tracking. Detection rule validation. Threat hunting queries. The defender's war room.</p>
+            </div>
+            <div class="team-card purple-card">
+                <h4>&#128995; Purple Team &mdash; Combined</h4>
+                <p>Attack runs on the left, detections on the right. Real-time gap analysis auto-generated. "We ran this exploit &mdash; did SentryLog catch it?" Fix detection gaps on the spot. The ultimate security improvement loop.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Dashboard -->
+<section>
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Dashboard</div>
+            <h2 class="section-title">Premium UI. Same Design Language as NetMon &amp; SentryLog.</h2>
+            <p class="section-desc">
+                Not a CLI-only toolkit. CloverStrike has a polished web dashboard with the MyClover.Tech look &mdash;
+                dark theme, metallic accents, real-time updates. The security trifecta shares one design language.
+            </p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#128200;</div>
+                <h3>Dashboard Home</h3>
+                <p>Active scans, recent findings, risk score gauge, top vulnerabilities at a glance.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#128270;</div>
+                <h3>Scan Manager</h3>
+                <p>Create, schedule, and monitor scans &mdash; network, web, wireless, password. Drag-and-drop scope builder.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#9888;&#65039;</div>
+                <h3>Findings</h3>
+                <p>All discovered vulnerabilities with CVSS, affected hosts, remediation steps, and exploit availability.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#128163;</div>
+                <h3>Exploit Lab</h3>
+                <p>Suggested exploits with safe sandbox testing. Proof-of-concept runner. AI-guided exploitation.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#128231;</div>
+                <h3>Phishing Campaigns</h3>
+                <p>Create, send, track. View click rates, credential submissions, awareness scores.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#128196;</div>
+                <h3>Reports</h3>
+                <p>Generate branded PDFs. Compliance mapping. Historical trends. Evidence packages for auditors.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- AI Features -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">AI-Powered</div>
+            <h2 class="section-title">Chappie &amp; Clover &mdash; Your AI Security Partners</h2>
+            <p class="section-desc">
+                Choose Chappie (direct, technical) or Clover (warm, conversational) &mdash; or name your own.
+                Same Ollama engine, different personality. Both know offensive security inside and out.
+            </p>
+        </div>
+
+        <div class="ai-features">
+            <div class="ai-card">
+                <h4>&#128269; Vulnerability Analysis</h4>
+                <p>"This RDP service is running an outdated version. BlueKeep (CVE-2019-0708) is a critical risk. Recommend immediate patching and network segmentation."</p>
+            </div>
+            <div class="ai-card">
+                <h4>&#128736;&#65039; Attack Path Mapping</h4>
+                <p>AI traces lateral movement paths: "From this web server, pivot through SMB to reach the domain controller in 3 hops. Here's the attack chain."</p>
+            </div>
+            <div class="ai-card">
+                <h4>&#128200; Remediation Priority</h4>
+                <p>"Based on CVSS scores and your network topology, patch these 5 hosts first. Here's the order and the specific CVEs to address."</p>
+            </div>
+            <div class="ai-card">
+                <h4>&#128196; Report Narration</h4>
+                <p>AI writes the executive summary and technical narrative. Translates security jargon into business language for leadership. Human reviews and approves.</p>
+            </div>
+            <div class="ai-card">
+                <h4>&#127919; Live Guidance</h4>
+                <p>"Try default credentials admin:admin on this Tomcat manager page." "This host responds to SNMP community string 'public' — enumerate it."</p>
+            </div>
+            <div class="ai-card">
+                <h4>&#128203; Compliance Mapping</h4>
+                <p>"This finding violates PCI-DSS Requirement 6.2 and NIST 800-53 SI-2. Here's the remediation guidance for both frameworks."</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Compliance -->
+<section>
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Compliance</div>
+            <h2 class="section-title">Maps to Every Major Framework</h2>
+            <p class="section-desc">
+                Auto-map findings to compliance controls. Generate auditor-ready evidence packages.
+            </p>
+        </div>
+
+        <div class="compliance-grid">
+            <div class="compliance-card">
+                <div class="comp-icon">&#128179;</div>
+                <span>PCI-DSS</span>
+            </div>
+            <div class="compliance-card">
+                <div class="comp-icon">&#127973;</div>
+                <span>HIPAA</span>
+            </div>
+            <div class="compliance-card">
+                <div class="comp-icon">&#128274;</div>
+                <span>SOC 2</span>
+            </div>
+            <div class="compliance-card">
+                <div class="comp-icon">&#127959;&#65039;</div>
+                <span>NIST 800-53</span>
+            </div>
+            <div class="compliance-card">
+                <div class="comp-icon">&#128737;&#65039;</div>
+                <span>CIS Controls</span>
+            </div>
+            <div class="compliance-card">
+                <div class="comp-icon">&#9889;</div>
+                <span>NERC CIP</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Safety & Legal -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Safety First</div>
+            <h2 class="section-title">Powerful Tools. Responsible Controls.</h2>
+            <p class="section-desc">
+                Offensive security tools demand responsible use. CloverStrike has built-in guardrails.
+            </p>
+        </div>
+
+        <div class="safety-grid">
+            <div class="safety-card">
+                <h4>&#127919; Scope Locking</h4>
+                <p>Define allowed IP ranges and domains before any scan starts. CloverStrike cannot scan outside scope.</p>
+            </div>
+            <div class="safety-card">
+                <h4>&#9997;&#65039; Authorization Workflow</h4>
+                <p>Requires signed digital authorization before aggressive scans. Pre-built pentest authorization forms and NDAs.</p>
+            </div>
+            <div class="safety-card">
+                <h4>&#128203; Full Audit Trail</h4>
+                <p>Every action logged with timestamp, user, and target. Non-deletable for legal protection and evidence.</p>
+            </div>
+            <div class="safety-card">
+                <h4>&#128290; Rate Limiting</h4>
+                <p>Configurable scan intensity to avoid disrupting production networks. Safe defaults out of the box.</p>
+            </div>
+            <div class="safety-card">
+                <h4>&#128721; Kill Switch</h4>
+                <p>Instant stop all active scans with one button. Emergency halt when things need to stop immediately.</p>
+            </div>
+            <div class="safety-card">
+                <h4>&#128220; Legal Templates</h4>
+                <p>Pre-built pentest authorization forms, rules of engagement, NDA templates. Ready for client engagements.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CloverStack Integrations -->
+<section>
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Ecosystem</div>
+            <h2 class="section-title">The Security Trifecta: NetMon + SentryLog + CloverStrike</h2>
+            <p class="section-desc">
+                Monitor (NetMon), log &amp; detect (SentryLog), and test (CloverStrike). Three products, one unified security platform.
+            </p>
+        </div>
+
+        <div class="integration-grid">
+            <div class="int-card">
+                <div class="int-icon">&#128202;</div>
+                <h3>NetMon</h3>
+                <p>Auto-import discovered hosts into pentest scope. Correlate monitoring data with vulnerabilities. One view of your network.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128196;</div>
+                <h3>SentryLog</h3>
+                <p>Feed pentest activity into log analysis. Blue team sees red team actions in real-time. Test detection rules live.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128737;&#65039;</div>
+                <h3>Wazuh (via SentryLog)</h3>
+                <p>Run attacks, check if Wazuh detects them. Auto-generate gap analysis reports. Find blind spots in your SIEM.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128274;</div>
+                <h3>MyCloverVault</h3>
+                <p>Secure storage for pentest credentials, API keys, and client data. Encrypted vault for sensitive engagement data.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128752;</div>
+                <h3>CloverGuard</h3>
+                <p>Test proxy bypass techniques. Validate content filter rules. Make sure your web proxy actually blocks what it should.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128752;</div>
+                <h3>CloverMesh</h3>
+                <p>Distributed scanning from multiple nodes. Run multi-site pentests from different vantage points across your network.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Competition -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Comparison</div>
+            <h2 class="section-title">More Features. Less Money. Real AI.</h2>
+        </div>
+
+        <div class="comparison-section">
+            <table class="comparison-table" style="width:100%">
+                <thead>
+                    <tr>
+                        <th style="text-align:left">Feature</th>
+                        <th class="pos-col">CloverStrike</th>
+                        <th>Kali Linux</th>
+                        <th>Nessus/Tenable</th>
+                        <th>Burp Suite Pro</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Premium web UI</td><td class="pos-col">&#10003;</td><td class="competitor-col">CLI only</td><td class="pos-col">&#10003;</td><td>Web (limited)</td></tr>
+                    <tr><td>All-in-one (net+web+wireless+phishing)</td><td class="pos-col">&#10003;</td><td>Manual setup</td><td class="competitor-col">Network only</td><td class="competitor-col">Web only</td></tr>
+                    <tr><td>AI assistant</td><td class="pos-col">&#10003; Chappie/Clover</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>Red/Blue/Purple team</td><td class="pos-col">&#10003;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>Phishing simulation</td><td class="pos-col">&#10003;</td><td>Manual setup</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>Integrated with monitoring</td><td class="pos-col">&#10003; (NetMon/SentryLog)</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>Branded reports</td><td class="pos-col">&#10003;</td><td class="competitor-col">&#10007;</td><td class="pos-col">&#10003;</td><td class="pos-col">&#10003;</td></tr>
+                    <tr><td>Flat price (no per-IP)</td><td class="pos-col">&#10003;</td><td>Free (no support)</td><td class="competitor-col">Per-IP $$</td><td class="competitor-col">Per-user $$</td></tr>
+                    <tr><td>GPU password cracking</td><td class="pos-col">&#10003;</td><td>Manual Hashcat</td><td class="competitor-col">&#10007;</td><td class="competitor-col">&#10007;</td></tr>
+                    <tr><td>Self-hosted</td><td class="pos-col">&#10003;</td><td class="pos-col">&#10003;</td><td>Hybrid</td><td class="pos-col">&#10003;</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div style="text-align:center;margin-top:24px;padding:20px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:16px">
+            <p style="font-size:.95rem;font-weight:700;color:#ef4444;margin-bottom:4px">
+                Nessus Professional: $4,990/yr for 1 scanner. Tenable.io: per-asset pricing that scales fast.
+            </p>
+            <p style="font-size:.85rem;color:var(--dim)">
+                CloverStrike: <strong style="color:var(--green)">included with Enterprise at $149/mo ($1,429/yr)</strong> &mdash; unlimited targets + AI + phishing + the entire offensive toolkit.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing -->
+<section id="pricing">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Pricing</div>
+            <h2 class="section-title">Enterprise-Grade Security. Enterprise-Only Access.</h2>
+            <p class="section-desc">
+                CloverStrike is a serious offensive security tool. It's included with the Enterprise license
+                and Full Stack Bundle &mdash; keeping it in the right hands.
+            </p>
+        </div>
+
+        <div class="enterprise-banner">
+            <h3>Included with Enterprise</h3>
+            <div class="ent-price">Enterprise Suite: <strong>$149</strong>/mo</div>
+            <div class="ent-note">$1,429/yr &middot; Also included in Full Stack Bundle ($199/mo) &middot; Standalone: $79/mo</div>
+            <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+                <a href="/#trial" class="btn btn-primary">Start Free 90-Day Trial</a>
+                <a href="/" class="btn btn-secondary">See All Plans</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Use Cases -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Use Cases</div>
+            <h2 class="section-title">Who Uses CloverStrike</h2>
+        </div>
+
+        <div class="scenario-grid">
+            <div class="scenario-card">
+                <h4>MSP Security Service</h4>
+                <div class="scenario-type">Managed Services &middot; Enterprise Tier</div>
+                <p>Offer pentest-as-a-service to your clients. Branded reports with your logo. Automated quarterly assessments. New revenue stream with zero tool licensing costs per client.</p>
+            </div>
+            <div class="scenario-card">
+                <h4>Internal IT Security Team</h4>
+                <div class="scenario-type">Corporate Security &middot; Enterprise Tier</div>
+                <p>Regular vulnerability assessments of your own network. Automated weekly scans. Track remediation progress over time. Purple team exercises with your SOC.</p>
+            </div>
+            <div class="scenario-card">
+                <h4>Compliance Audit Prep</h4>
+                <div class="scenario-type">Regulatory &middot; Enterprise Tier</div>
+                <p>Run PCI-DSS, HIPAA, or SOC 2 checks before the auditor arrives. Auto-map findings to compliance controls. Generate evidence packages that auditors actually want to see.</p>
+            </div>
+            <div class="scenario-card">
+                <h4>Employee Security Training</h4>
+                <div class="scenario-type">Awareness &middot; Enterprise Tier</div>
+                <p>Phishing simulations + awareness scoring. Track improvement over time. "Your click rate dropped from 34% to 8% in 6 months." Hard data for the security budget conversation.</p>
+            </div>
+            <div class="scenario-card">
+                <h4>Red Team Exercise</h4>
+                <div class="scenario-type">Offensive Security &middot; Enterprise Tier</div>
+                <p>Full adversary simulation. C2 framework. Lateral movement. Credential harvesting. Data exfiltration testing. The real attacker experience &mdash; on a scope-locked, audit-trailed platform.</p>
+            </div>
+            <div class="scenario-card">
+                <h4>Sales Demo &mdash; Close the Deal</h4>
+                <div class="scenario-type">Business Development &middot; Enterprise Tier</div>
+                <p>Run a quick scan during a prospect call. Show them their own vulnerabilities on screen. "Want us to fix all of this?" Nothing sells security services like seeing the problem live.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Tech Stack -->
+<section>
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Under the Hood</div>
+            <h2 class="section-title">Open-Source Arsenal. Premium Execution.</h2>
+            <p class="section-desc">
+                Built on the same tools the pros use &mdash; wrapped in a dashboard that doesn't require a CS degree.
+            </p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#128270;</div>
+                <h3>Nmap + Masscan</h3>
+                <p>Network scanning backbone. Port discovery, service detection, OS fingerprinting. <a href="https://nmap.org/" target="_blank">GPL-2.0</a></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#128163;</div>
+                <h3>Metasploit Framework</h3>
+                <p>The world's most used penetration testing framework. Exploit library, payload generation, post-exploitation. <a href="https://github.com/rapid7/metasploit-framework" target="_blank">BSD-3</a></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#127760;</div>
+                <h3>OWASP ZAP</h3>
+                <p>Web application security scanner. OWASP Top 10 coverage. Automated and manual testing. <a href="https://www.zaproxy.org/" target="_blank">Apache-2.0</a></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#128273;</div>
+                <h3>Hashcat + John</h3>
+                <p>GPU-accelerated password cracking. Every hash type. Citadel GPUs make this fly. <a href="https://hashcat.net/" target="_blank">MIT</a></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#128231;</div>
+                <h3>GoPhish</h3>
+                <p>Phishing simulation framework. Create campaigns, track results, measure awareness. <a href="https://getgophish.com/" target="_blank">MIT</a></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background:rgba(239,68,68,.1)">&#129302;</div>
+                <h3>Ollama AI</h3>
+                <p>Local LLMs powering Chappie &amp; Clover. Vulnerability analysis, attack path mapping, report narration. <a href="https://ollama.com/" target="_blank">MIT</a></p>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:32px;padding:24px;background:var(--card);border:1px solid var(--border);border-radius:16px">
+            <p style="font-size:.85rem;color:var(--dim)">
+                &#128156; Built on open-source software by legendary security researchers. We always credit, always link, always contribute back.
+                <br>Nmap by <a href="https://nmap.org/" target="_blank">Gordon Lyon (Fyodor)</a> (GPL-2.0) &middot;
+                OpenVAS by <a href="https://www.greenbone.net/" target="_blank">Greenbone AG</a> (GPL-2.0) &middot;
+                Metasploit by <a href="https://www.rapid7.com/" target="_blank">Rapid7/HD Moore</a> (BSD-3) &middot;
+                OWASP ZAP by <a href="https://owasp.org/" target="_blank">OWASP Foundation</a> (Apache-2.0)
+                <br>Hashcat by <a href="https://hashcat.net/" target="_blank">hashcat team</a> (MIT) &middot;
+                GoPhish by <a href="https://getgophish.com/" target="_blank">Jordan Wright</a> (MIT) &middot;
+                BloodHound by <a href="https://specterops.io/" target="_blank">SpecterOps</a> (Apache-2.0) &middot;
+                Sliver by <a href="https://bishopfox.com/" target="_blank">BishopFox</a> (GPL-3.0)
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="section-alt">
+    <div class="container">
+        <div class="cta-card" style="border-color:rgba(239,68,68,.3)">
+            <h2>Ready to Test Your Defenses?</h2>
+            <p>Start with the 90-day free Enterprise trial. Full CloverStrike access. Unlimited targets. AI assistance. Compliance reporting. If it doesn't find vulnerabilities, your network is tighter than you think.</p>
+            <div class="cta-actions">
+                <a href="/#trial" class="btn btn-primary">Start Free 90-Day Trial</a>
+                <a href="/" class="btn btn-secondary">See All Plans</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="container footer-inner">
+        <div class="footer-brand">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="24" height="24">
+            My<span class="green">Clover</span>.Tech
+        </div>
+        <div class="footer-links">
+            <a href="/">Home</a>
+            <a href="/#products">Products</a>
+            <a href="/#hardware">Hardware</a>
+            <a href="#pricing">Pricing</a>
+            <a href="/#blog">Blog</a>
+            <a href="/keygen">KeyGen</a>
+            <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+        </div>
+        <div class="footer-copy">
+            &copy; 2025 MyClover Technologies. All rights reserved.<br>
+            CloverStrike, CloverStack, NetMon, SentryLog, Chappie AI, Clover AI &mdash; MyClover.Tech<br>
+            Built on open-source. Powered by the security community.
+        </div>
+    </div>
+</footer>
+
+<!-- Scripts -->
+<script src="../js/main.js"></script>
+</body>
+</html>
