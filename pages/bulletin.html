@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulletin Board — MyClover.Tech</title>
+    <meta name="description" content="Latest developments, creator content, app launches, and product updates from the MyClover.Tech ecosystem.">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* Bulletin Board Specific Styles */
+        .bulletin-hero{padding:140px 0 60px;text-align:center;position:relative}
+        .bulletin-hero h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:900;margin-bottom:12px;letter-spacing:-.03em}
+        .bulletin-hero p{color:var(--dim);font-size:1.05rem;max-width:560px;margin:0 auto 32px}
+
+        /* Filter Pills */
+        .filter-bar{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:48px}
+        .filter-pill{padding:7px 18px;border-radius:999px;font-size:.78rem;font-weight:600;border:1px solid var(--border);background:transparent;color:var(--dim);cursor:pointer;transition:all .2s;font-family:var(--font)}
+        .filter-pill:hover{border-color:var(--green);color:var(--text)}
+        .filter-pill.active{background:var(--green);color:#000;border-color:var(--green)}
+
+        /* Bulletin Timeline */
+        .bulletin-timeline{position:relative;max-width:900px;margin:0 auto}
+        .bulletin-timeline::before{content:'';position:absolute;left:28px;top:0;bottom:0;width:2px;background:linear-gradient(180deg,var(--green),var(--border),transparent)}
+
+        /* Bulletin Card */
+        .bulletin-card{position:relative;margin-bottom:32px;margin-left:60px;background:var(--card);border:1px solid var(--border);border-radius:18px;padding:32px;transition:all .3s}
+        .bulletin-card:hover{border-color:var(--green);box-shadow:0 0 50px var(--green-g);transform:translateX(4px)}
+        .bulletin-card::before{content:'';position:absolute;left:-44px;top:36px;width:14px;height:14px;border-radius:50%;border:3px solid var(--green);background:var(--bg)}
+        .bulletin-card.featured::before{background:var(--green);box-shadow:0 0 12px rgba(34,197,94,.5)}
+
+        .bulletin-date{font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+        .bulletin-category{display:inline-block;font-size:.6rem;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.04em}
+        .cat-product{background:rgba(34,197,94,.12);color:var(--green)}
+        .cat-app{background:rgba(59,130,246,.12);color:var(--blue)}
+        .cat-creator{background:rgba(168,85,247,.12);color:var(--purple)}
+        .cat-community{background:rgba(249,115,22,.12);color:var(--orange)}
+        .cat-crypto{background:rgba(234,179,8,.12);color:var(--yellow)}
+
+        .bulletin-card h3{font-size:1.2rem;font-weight:800;margin-bottom:8px;line-height:1.3}
+        .bulletin-card h3 a{color:var(--text);text-decoration:none;transition:color .2s}
+        .bulletin-card h3 a:hover{color:var(--green)}
+        .bulletin-body{font-size:.88rem;color:var(--dim);line-height:1.7;margin-bottom:16px}
+        .bulletin-body strong{color:var(--text);font-weight:600}
+        .bulletin-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+        .bulletin-tag{font-size:.68rem;font-weight:500;padding:3px 10px;border-radius:6px;background:var(--bg);border:1px solid var(--border-l);color:var(--muted)}
+        .bulletin-link{display:inline-flex;align-items:center;gap:6px;font-size:.85rem;font-weight:600;color:var(--green)}
+        .bulletin-link:hover{color:var(--green-l)}
+
+        /* Featured / Pinned Banner */
+        .bulletin-card.featured{border-color:rgba(34,197,94,.3);background:linear-gradient(135deg,var(--card),rgba(34,197,94,.05))}
+        .featured-badge{display:inline-flex;align-items:center;gap:4px;font-size:.65rem;font-weight:700;padding:3px 8px;border-radius:4px;background:var(--green);color:#000;text-transform:uppercase;margin-bottom:12px}
+
+        /* Creator Card (special variant) */
+        .creator-spotlight{display:flex;gap:20px;align-items:flex-start;margin-top:14px;padding:16px;background:var(--bg);border-radius:12px;border:1px solid var(--border-l)}
+        .creator-avatar{width:48px;height:48px;border-radius:12px;background:var(--green-g);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
+        .creator-info h4{font-size:.9rem;font-weight:700;margin-bottom:2px}
+        .creator-info p{font-size:.78rem;color:var(--muted);line-height:1.5}
+
+        /* Stats strip on cards */
+        .bulletin-stats{display:flex;gap:20px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border-l)}
+        .bulletin-stat{font-size:.75rem;color:var(--muted)}
+        .bulletin-stat strong{color:var(--text);font-weight:700}
+
+        @media(max-width:768px){
+            .bulletin-timeline::before{left:16px}
+            .bulletin-card{margin-left:40px}
+            .bulletin-card::before{left:-32px;width:10px;height:10px}
+            .bulletin-hero{padding:120px 0 40px}
+            .creator-spotlight{flex-direction:column;gap:12px}
+        }
+    </style>
+</head>
+<body>
+
+<!-- News Ticker -->
+<div class="news-ticker">
+    <div class="ticker-track">
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="#citadel-grooming">🧼 Citadel Grooming Co. — Premium Soap Line Launched</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge hot">HOT</span><a href="#clovercoin">🍀 CloverCoin Claim Portal Live — Every Bar = Crypto</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge live">LIVE</span><a href="#game-arcade">🎮 MyClover Game Arcade — 34 Games Available</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="#inkforge">📚 InkForge — AI Book & Story Creator</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge live">LIVE</span><a href="#clovermint">💎 CloverMint — Meme Coin Generator</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge soon">SOON</span><a href="#creator-brands">🎨 Creator Brands Platform — Launch Your Own Brand</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="#eel-arena">⚡ Eel Arena v2.0 — Electric Eel Power-Up Mode</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge hot">HOT</span><a href="#creator-program">🚀 Creator Program Open — Free Tools for Creators</a><span class="ticker-dot"></span></div>
+        <!-- Duplicate for infinite scroll -->
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="#citadel-grooming">🧼 Citadel Grooming Co. — Premium Soap Line Launched</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge hot">HOT</span><a href="#clovercoin">🍀 CloverCoin Claim Portal Live — Every Bar = Crypto</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge live">LIVE</span><a href="#game-arcade">🎮 MyClover Game Arcade — 34 Games Available</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="#inkforge">📚 InkForge — AI Book & Story Creator</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge live">LIVE</span><a href="#clovermint">💎 CloverMint — Meme Coin Generator</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge soon">SOON</span><a href="#creator-brands">🎨 Creator Brands Platform — Launch Your Own Brand</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="#eel-arena">⚡ Eel Arena v2.0 — Electric Eel Power-Up Mode</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge hot">HOT</span><a href="#creator-program">🚀 Creator Program Open — Free Tools for Creators</a><span class="ticker-dot"></span></div>
+    </div>
+</div>
+
+<!-- Background effects -->
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- Navigation -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="/" class="nav-logo">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="36" height="36">
+            <span>My<span class="green">Clover</span>.Tech</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/">Home</a>
+            <a href="/#products">Products</a>
+            <a href="bulletin.html" style="color:var(--green)">📋 Bulletin</a>
+            <a href="partners.html">Partners</a>
+            <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+            <a href="/#trial" class="nav-cta">Free 90-Day Trial</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- Bulletin Hero -->
+<section class="bulletin-hero">
+    <div class="container">
+        <div class="hero-badge">
+            <span class="pulse"></span>
+            Live Updates
+        </div>
+        <h1>
+            The <span class="gradient">Bulletin Board</span>
+        </h1>
+        <p>
+            Every launch, every feature, every creator project — all in one place. 
+            The living pulse of the MyClover.Tech ecosystem.
+        </p>
+
+        <!-- Filter Pills -->
+        <div class="filter-bar">
+            <button class="filter-pill active" data-filter="all">All Updates</button>
+            <button class="filter-pill" data-filter="product">🧼 Products</button>
+            <button class="filter-pill" data-filter="app">🎮 Apps</button>
+            <button class="filter-pill" data-filter="creator">🎨 Creator Content</button>
+            <button class="filter-pill" data-filter="crypto">💎 Crypto / CloverCoin</button>
+            <button class="filter-pill" data-filter="community">🚀 Community</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bulletin Timeline -->
+<section style="padding-top:0">
+    <div class="container">
+        <div class="bulletin-timeline">
+
+            <!-- ===== PINNED: Citadel Grooming Co. ===== -->
+            <div class="bulletin-card featured" id="citadel-grooming" data-category="product">
+                <span class="featured-badge">📌 Featured Launch</span>
+                <div class="bulletin-date">
+                    May 15, 2026
+                    <span class="bulletin-category cat-product">Product</span>
+                </div>
+                <h3><a href="#">🧼 Citadel Grooming Co. — "Built Different. Wash Different."</a></h3>
+                <div class="bulletin-body">
+                    <p>Premium men's soap line powered by MyClover.Tech. <strong>12 signature scents</strong> across 4 collections — Overclocked, Basecamp, Citadel, and OG. Handcrafted in Montana by Botanie Soap. Every bar includes a <strong>CloverCoin insert card</strong> — scan the QR, claim your crypto.</p>
+                    <p style="margin-top:10px">This is the <strong>first MyClover Creator Brand</strong> — a proof of concept that any creator can launch a physical product with built-in crypto rewards, zero inventory, and full automation.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">White-Label</span>
+                    <span class="bulletin-tag">CloverCoin</span>
+                    <span class="bulletin-tag">XRPL</span>
+                    <span class="bulletin-tag">12 Scents</span>
+                    <span class="bulletin-tag">Autopilot</span>
+                </div>
+                <div class="bulletin-stats">
+                    <div class="bulletin-stat"><strong>12</strong> Scents</div>
+                    <div class="bulletin-stat"><strong>4</strong> Collections</div>
+                    <div class="bulletin-stat"><strong>$8.99</strong> / bar</div>
+                    <div class="bulletin-stat"><strong>72%</strong> Margin</div>
+                </div>
+            </div>
+
+            <!-- ===== CloverCoin Claim Portal ===== -->
+            <div class="bulletin-card" id="clovercoin" data-category="crypto">
+                <div class="bulletin-date">
+                    May 15, 2026
+                    <span class="bulletin-category cat-crypto">Crypto</span>
+                </div>
+                <h3><a href="#">🍀 CloverCoin Claim Portal — Every Bar Comes With Crypto</a></h3>
+                <div class="bulletin-body">
+                    <p>Scan the QR code inside any Citadel Grooming Co. box, enter your XRPL wallet address, and <strong>receive CloverCoin instantly</strong>. Mobile-first claim page with collection-themed designs. Admin dashboard for generating codes, tracking distributions, and exporting data.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">XRPL</span>
+                    <span class="bulletin-tag">QR Codes</span>
+                    <span class="bulletin-tag">Xaman Wallet</span>
+                    <span class="bulletin-tag">Auto-Distribution</span>
+                </div>
+                <div class="bulletin-stats">
+                    <div class="bulletin-stat"><strong>10</strong> Coins / Bar</div>
+                    <div class="bulletin-stat"><strong>175</strong> Coins / 12-Pack</div>
+                    <div class="bulletin-stat"><strong>5</strong> Tier Levels</div>
+                </div>
+            </div>
+
+            <!-- ===== Game Arcade ===== -->
+            <div class="bulletin-card" id="game-arcade" data-category="app">
+                <div class="bulletin-date">
+                    May 15, 2026
+                    <span class="bulletin-category cat-app">App</span>
+                </div>
+                <h3><a href="#">🎮 MyClover Game Arcade — 34 Games & Apps</a></h3>
+                <div class="bulletin-body">
+                    <p>Full game arcade with <strong>34 self-contained titles</strong> across 5 categories: Fidget/Sensory, Science/Physics, Tetris Hybrids, Educational, and Bonus. Includes flagship Garden Lab app. All playable in-browser, no downloads. <strong>10 free hook games</strong> and 24 pro-tier games for subscribers.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">HTML5 Games</span>
+                    <span class="bulletin-tag">Free Tier</span>
+                    <span class="bulletin-tag">Pro Tier</span>
+                    <span class="bulletin-tag">5 Categories</span>
+                </div>
+                <div class="bulletin-stats">
+                    <div class="bulletin-stat"><strong>34</strong> Titles</div>
+                    <div class="bulletin-stat"><strong>10</strong> Free</div>
+                    <div class="bulletin-stat"><strong>5</strong> Categories</div>
+                </div>
+            </div>
+
+            <!-- ===== InkForge ===== -->
+            <div class="bulletin-card" id="inkforge" data-category="app">
+                <div class="bulletin-date">
+                    May 15, 2026
+                    <span class="bulletin-category cat-app">App</span>
+                </div>
+                <h3><a href="#">📚 InkForge — AI Book & Story Creation Platform</a></h3>
+                <div class="bulletin-body">
+                    <p>"Where Stories Are Forged" — a prompt-to-book engine with <strong>chapter-by-chapter guided writing or AutoForge mode</strong>. 20+ genre templates. AI cover art generation (4 styles). Multi-format export (ePub, MOBI, PDF, audiobook). Amazon KDP, Google Play, Apple Books, IngramSpark integration. <strong>Sellable publishing businesses</strong> for creators.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">AI Writing</span>
+                    <span class="bulletin-tag">Amazon KDP</span>
+                    <span class="bulletin-tag">Print-on-Demand</span>
+                    <span class="bulletin-tag">Cover Art</span>
+                    <span class="bulletin-tag">Audiobook</span>
+                </div>
+                <a href="#" class="bulletin-link">Explore InkForge →</a>
+            </div>
+
+            <!-- ===== Eel Arena v2.0 ===== -->
+            <div class="bulletin-card" id="eel-arena" data-category="app">
+                <div class="bulletin-date">
+                    May 15, 2026
+                    <span class="bulletin-category cat-app">App</span>
+                </div>
+                <h3><a href="#">⚡ Eel Arena v2.0 — Electric Eel Transformation</a></h3>
+                <div class="bulletin-body">
+                    <p>The OG Eel Arena gets a massive upgrade. <strong>Fast fish with flee behavior</strong>, lionfish power-up, and the new <strong>electric eel transformation</strong> — 30 seconds of invincible + deadly mode. Smarter bot AI. The first game in the MyClover Game Arcade.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">TypeScript</span>
+                    <span class="bulletin-tag">HTML5 Canvas</span>
+                    <span class="bulletin-tag">Multiplayer AI</span>
+                </div>
+            </div>
+
+            <!-- ===== CloverMint ===== -->
+            <div class="bulletin-card" id="clovermint" data-category="crypto">
+                <div class="bulletin-date">
+                    May 15, 2026
+                    <span class="bulletin-category cat-crypto">Crypto</span>
+                </div>
+                <h3><a href="#">💎 CloverMint — Meme Coin Generator</a></h3>
+                <div class="bulletin-body">
+                    <p>Create your own meme coin in minutes. <strong>Name it, design it, launch it.</strong> PumpFun-style functionality but built into the MyClover ecosystem. Auto-generated coin pages at <code style="font-size:.82rem;color:var(--green);background:var(--bg);padding:2px 6px;border-radius:4px">{ticker}.mint.myclover.tech</code>. Creators can generate, park, or list coins — instant business ownership.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">XRPL</span>
+                    <span class="bulletin-tag">Auto-Design</span>
+                    <span class="bulletin-tag">Creator Tool</span>
+                    <span class="bulletin-tag">Subdomain Sites</span>
+                </div>
+            </div>
+
+            <!-- ===== Creator Brands Platform ===== -->
+            <div class="bulletin-card" id="creator-brands" data-category="creator">
+                <div class="bulletin-date">
+                    Coming Soon
+                    <span class="bulletin-category cat-creator">Creator</span>
+                </div>
+                <h3><a href="#">🎨 MyClover Creator Brands — Launch Your Own Product Line</a></h3>
+                <div class="bulletin-body">
+                    <p>The Citadel Grooming Co. blueprint, available to every creator. <strong>White-label physical products + CloverCoin + auto-generated storefront</strong> = instant brand. Zero inventory, zero shipping — dropship autopilot. Plus monthly <strong>branding contests</strong> where the community votes with CloverCoin and the winning design gets produced.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">White-Label</span>
+                    <span class="bulletin-tag">Dropship</span>
+                    <span class="bulletin-tag">Branding Contests</span>
+                    <span class="bulletin-tag">Zero Labor</span>
+                </div>
+                <a href="#" class="bulletin-link">Join Waitlist →</a>
+            </div>
+
+            <!-- ===== Creator Program ===== -->
+            <div class="bulletin-card" id="creator-program" data-category="community">
+                <div class="bulletin-date">
+                    May 2026
+                    <span class="bulletin-category cat-community">Community</span>
+                </div>
+                <h3><a href="creator-signup.html">🚀 Creator Program — Free Tools, Real Revenue</a></h3>
+                <div class="bulletin-body">
+                    <p>Sign up, describe your project, and Viktor AI builds your custom environment — <strong>website, domain, VPS, forked mycloverOS</strong>. Full tool access: InkForge, CloverMint, Game Arcade, CloverDesign, Creator Brands, and more. <strong>$19/mo Creator Bundle</strong> includes everything. Your customers become CloverCoin holders. Your project becomes part of the MCT ecosystem.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">Free Tier</span>
+                    <span class="bulletin-tag">AI Builder</span>
+                    <span class="bulletin-tag">CloverCoin</span>
+                    <span class="bulletin-tag">Full Stack</span>
+                </div>
+                <a href="creator-signup.html" class="bulletin-link">Join the Creator Program →</a>
+            </div>
+
+            <!-- ===== CloverDesign ===== -->
+            <div class="bulletin-card" data-category="app">
+                <div class="bulletin-date">
+                    May 2026
+                    <span class="bulletin-category cat-app">App</span>
+                </div>
+                <h3><a href="cloverdesign.html">🎨 CloverDesign — AI Design & Engineering Studio</a></h3>
+                <div class="bulletin-body">
+                    <p>Two AI agents: <strong>Designer Bot</strong> (floor plans, renders, mood boards) and <strong>Engineer Bot</strong> (blueprints, specs, BOMs, code compliance). Self-hosted with ComfyUI + FreeCAD + Ollama. From concept sketches to construction-ready documents.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">AI Agents</span>
+                    <span class="bulletin-tag">Self-Hosted</span>
+                    <span class="bulletin-tag">Blueprints</span>
+                    <span class="bulletin-tag">3D Rendering</span>
+                </div>
+                <a href="cloverdesign.html" class="bulletin-link">Learn More →</a>
+            </div>
+
+            <!-- ===== CloverBot ===== -->
+            <div class="bulletin-card" data-category="app">
+                <div class="bulletin-date">
+                    May 2026
+                    <span class="bulletin-category cat-app">App</span>
+                </div>
+                <h3><a href="cloverbot.html">🤖 CloverBot — AI Support Chatbot with RAG</a></h3>
+                <div class="bulletin-body">
+                    <p>Embeddable AI support widget with <strong>RAG knowledge base</strong>, lead capture, and Slack escalation. One JS file to embed. FastAPI backend, ChromaDB, OpenAI or Ollama. Every creator can add AI support to their site.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">Embeddable</span>
+                    <span class="bulletin-tag">RAG</span>
+                    <span class="bulletin-tag">Lead Capture</span>
+                    <span class="bulletin-tag">Ollama</span>
+                </div>
+            </div>
+
+            <!-- ===== CloverPOS ===== -->
+            <div class="bulletin-card" data-category="product">
+                <div class="bulletin-date">
+                    May 2026
+                    <span class="bulletin-category cat-product">Product</span>
+                </div>
+                <h3><a href="cloverpos.html">💳 CloverPOS — Self-Hosted Point of Sale</a></h3>
+                <div class="bulletin-body">
+                    <p>POS + inventory for any retail vertical. <strong>Zero transaction fees</strong> (BYO processor). ERPNext under the hood. Kiosk mode. Chappie AI for demand forecasting. <strong>Saves $11,700/yr</strong> vs Square on $500K revenue. Terminal Kit hardware available.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">Zero Fees</span>
+                    <span class="bulletin-tag">Multi-Vertical</span>
+                    <span class="bulletin-tag">AI Forecasting</span>
+                    <span class="bulletin-tag">Hardware Kit</span>
+                </div>
+            </div>
+
+            <!-- ===== CloverDrone ===== -->
+            <div class="bulletin-card" data-category="product">
+                <div class="bulletin-date">
+                    May 2026
+                    <span class="bulletin-category cat-product">Product</span>
+                </div>
+                <h3><a href="cloverdrone.html">🚁 CloverDrone — UAV Control & FPV</a></h3>
+                <div class="bulletin-body">
+                    <p>Drone control, FPV video, and autonomous missions. QGroundControl + MAVLink/ArduPilot + OpenHD. <strong>Pilot, Fleet, and Enterprise tiers.</strong> Ground Station Kit and Field Drone Pack hardware available.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">MAVLink</span>
+                    <span class="bulletin-tag">FPV</span>
+                    <span class="bulletin-tag">Autonomous</span>
+                    <span class="bulletin-tag">Ground Station</span>
+                </div>
+            </div>
+
+            <!-- ===== CloverMesh Radio ===== -->
+            <div class="bulletin-card" data-category="product">
+                <div class="bulletin-date">
+                    May 2026
+                    <span class="bulletin-category cat-product">Product</span>
+                </div>
+                <h3><a href="clovermesh-radio.html">📡 CloverMesh Radio — LoRa Mesh Networking</a></h3>
+                <div class="bulletin-body">
+                    <p>Off-grid encrypted comms via Meshtastic. GPS tracking, sensor telemetry, multi-hop mesh. <strong>Node Kit 5-pack $199</strong>. Works without internet, cell service, or infrastructure.</p>
+                </div>
+                <div class="bulletin-tags">
+                    <span class="bulletin-tag">LoRa</span>
+                    <span class="bulletin-tag">Meshtastic</span>
+                    <span class="bulletin-tag">Off-Grid</span>
+                    <span class="bulletin-tag">Encrypted</span>
+                </div>
+            </div>
+
+        </div><!-- /bulletin-timeline -->
+    </div>
+</section>
+
+<!-- CTA -->
+<section>
+    <div class="container">
+        <div class="cta-card">
+            <h2>Build With Us</h2>
+            <p>Creators, developers, tinkerers — the MyClover.Tech ecosystem is open. Join as a creator, launch a brand, build an app, or just grab the free tools.</p>
+            <div class="cta-actions">
+                <a href="creator-signup.html" class="btn btn-primary">🍀 Join as a Creator</a>
+                <a href="/" class="btn btn-secondary">Explore the Stack</a>
+                <a href="https://github.com/jonfulk805-og" class="btn btn-secondary" target="_blank">⭐ GitHub</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="/assets/logo.webp" alt="MyClover.Tech" width="32" height="32" onerror="this.style.display='none'">
+                <span>My<span class="green">Clover</span>.Tech</span>
+            </div>
+            <div class="footer-links">
+                <a href="/">Home</a>
+                <a href="/#products">Products</a>
+                <a href="bulletin.html">Bulletin</a>
+                <a href="partners.html">Partners</a>
+                <a href="/keygen">KeyGen</a>
+                <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+                <a href="mailto:inforequest@myclover.tech">Contact</a>
+            </div>
+            <div class="footer-copy">
+                &copy; 2026 MyClover Technologies. All rights reserved.<br>
+                <span class="dim">Making IT infrastructure accessible, secure, and self-hosted.</span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+// Navigation
+const nav = document.getElementById('nav');
+const mobileToggle = document.getElementById('mobileToggle');
+const navLinks = document.getElementById('navLinks');
+window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 40));
+if (mobileToggle) {
+    mobileToggle.addEventListener('click', () => {
+        navLinks.classList.toggle('open');
+        mobileToggle.textContent = navLinks.classList.contains('open') ? '✕' : '☰';
+    });
+}
+
+// Filter system
+const filterPills = document.querySelectorAll('.filter-pill');
+const bulletinCards = document.querySelectorAll('.bulletin-card');
+
+filterPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+        // Update active state
+        filterPills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+
+        const filter = pill.dataset.filter;
+
+        bulletinCards.forEach(card => {
+            if (filter === 'all' || card.dataset.category === filter) {
+                card.style.display = '';
+                card.style.opacity = '0';
+                card.style.transform = 'translateX(-20px)';
+                requestAnimationFrame(() => {
+                    card.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateX(0)';
+                });
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+});
+
+// Scroll-in animation for cards
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.style.opacity = '1';
+            entry.target.style.transform = 'translateX(0)';
+            observer.unobserve(entry.target);
+        }
+    });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+bulletinCards.forEach(card => {
+    card.style.opacity = '0';
+    card.style.transform = 'translateX(-20px)';
+    card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    observer.observe(card);
+});
+
+// Smooth scroll to anchored items
+if (window.location.hash) {
+    setTimeout(() => {
+        const target = document.querySelector(window.location.hash);
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+}
+</script>
+</body>
+</html>

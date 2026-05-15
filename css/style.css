@@ -34,8 +34,25 @@ section{position:relative;z-index:1;padding:100px 0}
 .bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(34,197,94,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(34,197,94,.03) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0}
 .bg-glow{position:fixed;top:-30%;left:50%;transform:translateX(-50%);width:900px;height:900px;background:radial-gradient(circle,var(--green-glow),transparent 70%);pointer-events:none;z-index:0}
 
+/* --- News Ticker --- */
+.news-ticker{position:fixed;top:0;left:0;right:0;z-index:101;background:linear-gradient(90deg,rgba(34,197,94,.12),rgba(10,14,23,.95),rgba(34,197,94,.12));border-bottom:1px solid rgba(34,197,94,.2);height:36px;overflow:hidden;backdrop-filter:blur(12px)}
+.ticker-track{display:flex;animation:tickerScroll 60s linear infinite;white-space:nowrap;height:100%;align-items:center}
+.ticker-track:hover{animation-play-state:paused}
+@keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ticker-item{display:inline-flex;align-items:center;gap:6px;padding:0 32px;font-size:.75rem;font-weight:500;color:var(--dim);flex-shrink:0;transition:color .2s}
+.ticker-item:hover{color:var(--green-l)}
+.ticker-item a{color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.ticker-item a:hover{color:var(--green-l)}
+.ticker-dot{width:4px;height:4px;border-radius:50%;background:var(--green);opacity:.6;flex-shrink:0}
+.ticker-badge{font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.04em}
+.ticker-badge.new{background:rgba(34,197,94,.15);color:var(--green)}
+.ticker-badge.hot{background:rgba(249,115,22,.15);color:var(--orange)}
+.ticker-badge.live{background:rgba(239,68,68,.15);color:var(--red)}
+.ticker-badge.soon{background:rgba(234,179,8,.15);color:var(--yellow)}
+body{padding-top:36px}
+
 /* --- Navigation --- */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:14px 0;background:rgba(10,14,23,.88);backdrop-filter:blur(16px);border-bottom:1px solid transparent;transition:border-color .3s}
+nav{position:fixed;top:36px;left:0;right:0;z-index:100;padding:14px 0;background:rgba(10,14,23,.88);backdrop-filter:blur(16px);border-bottom:1px solid transparent;transition:border-color .3s}
 nav.scrolled{border-bottom-color:var(--border)}
 .nav-inner{display:flex;align-items:center;justify-content:space-between}
 .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.1rem;color:var(--text)}
@@ -47,6 +64,7 @@ nav.scrolled{border-bottom-color:var(--border)}
 .nav-cta{background:var(--green)!important;color:#000!important;padding:7px 18px;border-radius:8px;font-weight:600!important;font-size:.82rem!important;transition:all .2s}
 .nav-cta:hover{background:var(--green-l)!important;transform:translateY(-1px)}
 .mobile-toggle{display:none;background:none;border:none;color:var(--text);cursor:pointer;font-size:1.5rem}
+.nav-bulletin{color:var(--green)!important;font-weight:600!important}
 
 /* --- Section Headers --- */
 .section-label{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px}
