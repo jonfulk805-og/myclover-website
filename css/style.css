@@ -49,10 +49,10 @@ section{position:relative;z-index:1;padding:100px 0}
 .ticker-badge.hot{background:rgba(249,115,22,.15);color:var(--orange)}
 .ticker-badge.live{background:rgba(239,68,68,.15);color:var(--red)}
 .ticker-badge.soon{background:rgba(234,179,8,.15);color:var(--yellow)}
-body{padding-top:36px}
+body{padding-top:0}
 
 /* --- Navigation --- */
-nav{position:fixed;top:36px;left:0;right:0;z-index:100;padding:14px 0;background:rgba(10,14,23,.88);backdrop-filter:blur(16px);border-bottom:1px solid transparent;transition:border-color .3s}
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:14px 0;background:rgba(10,14,23,.88);backdrop-filter:blur(16px);border-bottom:1px solid transparent;transition:border-color .3s}
 nav.scrolled{border-bottom-color:var(--border)}
 .nav-inner{display:flex;align-items:center;justify-content:space-between}
 .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.1rem;color:var(--text)}
