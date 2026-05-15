@@ -138,8 +138,10 @@
             .hero-creator .hero-actions { flex-direction: column; align-items: center; }
             .turnkey-teaser { padding: 28px; }
             .nav-links { display: none; }
-            .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 56px; right: 24px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 24px; gap: 14px; z-index: 200; }
+            .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: rgba(10,14,23,.98); backdrop-filter: blur(20px); padding: 16px; gap: 2px; z-index: 200; border-bottom: 1px solid var(--border); }
             .mobile-toggle { display: block; }
+            .nav-dropdown-menu { position: static; opacity: 1; visibility: visible; transform: none; border: none; background: transparent; box-shadow: none; padding: 0 0 0 16px; min-width: 0; backdrop-filter: none; }
+            .nav-dropdown.mobile-closed .nav-dropdown-menu { display: none; }
         }
     </style>
 </head>
@@ -160,12 +162,19 @@
             <a href="#tools">Creator Tools</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#pricing">Pricing</a>
-            <a href="#stack">The Stack</a>
             <a href="pages/turnkey.html">Turnkey Businesses</a>
-            <a href="pages/bulletin.html" class="nav-bulletin">📋 Bulletin</a>
-            <a href="pages/partners.html">Partners</a>
-            <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
-            <a href="pages/creator-signup.html" class="nav-cta">🍀 Become a Creator</a>
+            <div class="nav-dropdown" id="navDropdown">
+                <button class="nav-dropdown-btn" aria-expanded="false" aria-haspopup="true">
+                    More <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <div class="nav-dropdown-menu">
+                    <a href="#stack">The Stack</a>
+                    <a href="pages/bulletin.html">Bulletin Board</a>
+                    <a href="pages/partners.html">Partners</a>
+                    <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener">GitHub</a>
+                </div>
+            </div>
+            <a href="pages/creator-signup.html" class="nav-cta">Become a Creator</a>
         </div>
         <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
     </div>
