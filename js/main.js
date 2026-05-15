@@ -41,7 +41,7 @@ if (navDropdown) {
         if (dropdownMenu && window.innerWidth > 768) {
             dropdownMenu.style.opacity = '1';
             dropdownMenu.style.visibility = 'visible';
-            dropdownMenu.style.transform = 'translateY(0)';
+            dropdownMenu.style.transform = 'translateX(-50%) translateY(0)';
         }
     }
     function closeDropdown() {
@@ -50,7 +50,7 @@ if (navDropdown) {
         if (dropdownMenu && window.innerWidth > 768) {
             dropdownMenu.style.opacity = '0';
             dropdownMenu.style.visibility = 'hidden';
-            dropdownMenu.style.transform = 'translateY(-4px)';
+            dropdownMenu.style.transform = 'translateX(-50%) translateY(-4px)';
         }
     }
 
