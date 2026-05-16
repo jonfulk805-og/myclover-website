@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meet Viktor — Our AI Coworker | MyClover.Tech</title>
+    <meta name="description" content="Learn about Viktor, the AI coworker powering MyClover.Tech. Built by the team at Clover AI, Viktor builds apps, manages infrastructure, and works alongside creators 24/7.">
+    <meta property="og:title" content="Meet Viktor — The AI Behind MyClover.Tech">
+    <meta property="og:description" content="Viktor is the AI coworker that builds, deploys, and manages the MyClover.Tech platform. Learn how it works and meet the team behind it.">
+    <meta property="og:url" content="https://myclover.tech/pages/viktor.html">
+    <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
+    <link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body { padding-top: 0; }
+        nav { top: 0; }
+
+        /* Hero */
+        .vik-hero {
+            padding: 140px 0 80px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .vik-hero::before {
+            content: '';
+            position: absolute;
+            top: -200px; left: 50%; transform: translateX(-50%);
+            width: 800px; height: 800px;
+            background: radial-gradient(circle, rgba(168,85,247,.08), transparent 70%);
+            pointer-events: none;
+        }
+        .vik-hero .hero-eyebrow {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: linear-gradient(135deg, rgba(168,85,247,.12), rgba(34,197,94,.08));
+            border: 1px solid rgba(168,85,247,.3);
+            border-radius: 999px; padding: 6px 18px 6px 12px;
+            font-size: .78rem; font-weight: 600; color: var(--purple);
+            margin-bottom: 28px; letter-spacing: .02em;
+        }
+        .vik-hero .hero-eyebrow .pulse {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--purple); box-shadow: 0 0 8px var(--purple);
+            animation: pulse 2s infinite;
+        }
+        .vik-hero h1 {
+            font-size: clamp(2.4rem, 5.5vw, 4rem);
+            font-weight: 900; line-height: 1.08;
+            margin-bottom: 20px; letter-spacing: -.03em;
+        }
+        .vik-hero h1 .gradient-purple {
+            background: linear-gradient(135deg, var(--purple), #c084fc, var(--blue));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .vik-hero p {
+            font-size: 1.18rem; color: var(--dim);
+            max-width: 700px; margin: 0 auto 36px; line-height: 1.7;
+        }
+        .vik-hero p strong { color: var(--text); font-weight: 600; }
+
+        /* Avatar / Logo */
+        .vik-avatar {
+            width: 120px; height: 120px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--purple), var(--blue), var(--green));
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 32px;
+            font-size: 3rem; color: #fff;
+            box-shadow: 0 0 80px rgba(168,85,247,.3), 0 0 40px rgba(34,197,94,.15);
+            animation: avatarGlow 4s ease-in-out infinite alternate;
+        }
+        @keyframes avatarGlow {
+            0% { box-shadow: 0 0 80px rgba(168,85,247,.3), 0 0 40px rgba(34,197,94,.15); }
+            100% { box-shadow: 0 0 100px rgba(168,85,247,.4), 0 0 60px rgba(34,197,94,.25); }
+        }
+
+        /* What Viktor Does Grid */
+        .capabilities-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 24px; margin-top: 60px;
+        }
+        .cap-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 18px; padding: 32px 28px;
+            transition: all .3s; position: relative; overflow: hidden;
+        }
+        .cap-card:hover {
+            border-color: var(--purple);
+            box-shadow: 0 0 50px rgba(168,85,247,.12);
+            transform: translateY(-4px);
+        }
+        .cap-card .cap-icon {
+            font-size: 2rem; margin-bottom: 14px; display: block;
+        }
+        .cap-card h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; }
+        .cap-card p { font-size: .85rem; color: var(--dim); line-height: 1.65; }
+
+        /* Q&A Section */
+        .qa-section { padding: 100px 0; }
+        .qa-list { max-width: 800px; margin: 0 auto; }
+        .qa-item {
+            border: 1px solid var(--border); border-radius: 16px;
+            margin-bottom: 16px; overflow: hidden;
+            background: var(--card); transition: border-color .3s;
+        }
+        .qa-item:hover { border-color: rgba(168,85,247,.3); }
+        .qa-question {
+            padding: 24px 28px; cursor: pointer;
+            display: flex; align-items: center; justify-content: space-between;
+            font-weight: 700; font-size: 1rem; color: var(--text);
+            user-select: none; transition: color .2s;
+        }
+        .qa-question:hover { color: var(--purple); }
+        .qa-question .qa-toggle {
+            width: 28px; height: 28px; border-radius: 50%;
+            background: rgba(168,85,247,.1); display: flex;
+            align-items: center; justify-content: center;
+            font-size: 1.2rem; color: var(--purple);
+            transition: transform .3s, background .3s; flex-shrink: 0; margin-left: 16px;
+        }
+        .qa-item.open .qa-toggle { transform: rotate(45deg); background: rgba(168,85,247,.2); }
+        .qa-answer {
+            max-height: 0; overflow: hidden;
+            transition: max-height .4s ease, padding .3s ease;
+            padding: 0 28px;
+        }
+        .qa-item.open .qa-answer {
+            max-height: 500px;
+            padding: 0 28px 24px;
+        }
+        .qa-answer p {
+            font-size: .92rem; color: var(--dim); line-height: 1.75;
+        }
+        .qa-answer p + p { margin-top: 12px; }
+        .qa-answer a { color: var(--purple); font-weight: 600; }
+        .qa-answer a:hover { color: #c084fc; }
+
+        /* How We Use Viktor */
+        .use-cases {
+            display: grid; grid-template-columns: repeat(2, 1fr);
+            gap: 20px; margin-top: 48px;
+        }
+        .use-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 28px;
+            display: flex; align-items: flex-start; gap: 18px;
+            transition: all .3s;
+        }
+        .use-card:hover {
+            border-color: var(--green);
+            box-shadow: 0 0 40px var(--green-g);
+            transform: translateY(-3px);
+        }
+        .use-icon {
+            width: 48px; height: 48px; border-radius: 14px;
+            background: linear-gradient(135deg, rgba(168,85,247,.12), rgba(34,197,94,.08));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem; flex-shrink: 0;
+        }
+        .use-info h4 { font-size: .95rem; font-weight: 700; margin-bottom: 6px; }
+        .use-info p { font-size: .84rem; color: var(--dim); line-height: 1.6; }
+
+        /* Props / Credits Section */
+        .props-section {
+            padding: 100px 0; text-align: center;
+        }
+        .props-card {
+            max-width: 700px; margin: 0 auto;
+            background: linear-gradient(135deg, var(--card), rgba(168,85,247,.06));
+            border: 1px solid rgba(168,85,247,.2);
+            border-radius: 24px; padding: 60px 48px;
+            position: relative; overflow: hidden;
+        }
+        .props-card::before {
+            content: ''; position: absolute; top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at 30% 30%, rgba(168,85,247,.04), transparent 50%);
+            pointer-events: none;
+        }
+        .props-card .props-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: rgba(168,85,247,.12); border: 1px solid rgba(168,85,247,.25);
+            border-radius: 999px; padding: 6px 16px;
+            font-size: .72rem; font-weight: 700; color: var(--purple);
+            text-transform: uppercase; letter-spacing: .08em;
+            margin-bottom: 24px;
+        }
+        .props-card h2 {
+            font-size: clamp(1.6rem, 3vw, 2.2rem);
+            font-weight: 900; margin-bottom: 16px; line-height: 1.15;
+        }
+        .props-card p {
+            font-size: 1rem; color: var(--dim); line-height: 1.75;
+            margin-bottom: 16px;
+        }
+        .props-card p:last-of-type { margin-bottom: 32px; }
+        .props-links {
+            display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;
+        }
+
+        /* CTA */
+        .vik-cta {
+            text-align: center; padding: 80px 0 100px;
+        }
+        .vik-cta h2 {
+            font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+            font-weight: 900; margin-bottom: 14px;
+        }
+        .vik-cta p {
+            font-size: 1.05rem; color: var(--dim);
+            max-width: 540px; margin: 0 auto 32px; line-height: 1.7;
+        }
+
+        /* The Process — Visual Timeline */
+        .process-timeline {
+            position: relative; max-width: 900px; margin: 0 auto;
+            padding: 20px 0;
+        }
+        .process-timeline::before {
+            content: ''; position: absolute;
+            left: 50%; top: 0; bottom: 0; width: 2px;
+            background: linear-gradient(180deg, var(--purple), var(--green), var(--blue));
+            transform: translateX(-50%);
+            border-radius: 2px;
+            opacity: .4;
+        }
+        .process-step {
+            display: flex; align-items: flex-start; gap: 40px;
+            margin-bottom: 48px; position: relative;
+        }
+        .process-step:last-child { margin-bottom: 0; }
+        .process-step:nth-child(even) { flex-direction: row-reverse; }
+        .process-side {
+            flex: 1; min-width: 0;
+        }
+        .process-dot {
+            position: absolute; left: 50%; top: 16px; transform: translateX(-50%);
+            width: 20px; height: 20px; border-radius: 50%;
+            background: var(--bg); border: 3px solid var(--purple);
+            z-index: 2; box-shadow: 0 0 20px rgba(168,85,247,.3);
+        }
+        .process-step:nth-child(2) .process-dot { border-color: var(--blue); box-shadow: 0 0 20px rgba(59,130,246,.3); }
+        .process-step:nth-child(3) .process-dot { border-color: var(--green); box-shadow: 0 0 20px rgba(34,197,94,.3); }
+        .process-step:nth-child(4) .process-dot { border-color: var(--orange); box-shadow: 0 0 20px rgba(249,115,22,.3); }
+        .process-step:nth-child(5) .process-dot { border-color: var(--cyan); box-shadow: 0 0 20px rgba(6,182,212,.3); }
+        .process-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 16px; padding: 28px; transition: all .3s;
+        }
+        .process-card:hover {
+            border-color: var(--purple);
+            box-shadow: 0 0 40px rgba(168,85,247,.1);
+            transform: translateY(-3px);
+        }
+        .process-num {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 32px; height: 32px; border-radius: 10px;
+            background: rgba(168,85,247,.12); color: var(--purple);
+            font-weight: 900; font-size: .85rem; margin-bottom: 12px;
+        }
+        .process-card h3 { font-size: 1.05rem; font-weight: 800; margin-bottom: 8px; }
+        .process-card p { font-size: .85rem; color: var(--dim); line-height: 1.65; }
+        .process-slack-mock {
+            background: #1a1d21; border: 1px solid #383a3e;
+            border-radius: 12px; padding: 16px 18px; margin-top: 14px;
+            font-family: var(--mono); font-size: .75rem; line-height: 1.7;
+            color: #d1d2d3;
+        }
+        .process-slack-mock .slack-user { color: var(--green); font-weight: 700; }
+        .process-slack-mock .slack-bot { color: var(--purple); font-weight: 700; }
+        .process-slack-mock .slack-dim { color: #8e9297; }
+        .process-placeholder {
+            flex: 1; min-width: 0;
+        }
+
+        /* Future AI Productions */
+        .future-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 24px; margin-top: 48px;
+        }
+        .future-card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 18px; padding: 32px 28px;
+            transition: all .3s; position: relative; overflow: hidden;
+            text-align: center;
+        }
+        .future-card::before {
+            content: 'COMING SOON';
+            position: absolute; top: 16px; right: -32px;
+            background: linear-gradient(135deg, var(--purple), var(--blue));
+            color: #fff; font-size: .55rem; font-weight: 800;
+            padding: 4px 40px; transform: rotate(45deg);
+            letter-spacing: .08em;
+        }
+        .future-card:hover {
+            border-color: rgba(168,85,247,.3);
+            box-shadow: 0 0 50px rgba(168,85,247,.08);
+            transform: translateY(-4px);
+        }
+        .future-icon {
+            font-size: 2.4rem; margin-bottom: 16px; display: block;
+        }
+        .future-card h3 { font-size: 1.05rem; font-weight: 800; margin-bottom: 8px; }
+        .future-card p { font-size: .84rem; color: var(--dim); line-height: 1.65; }
+        .future-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 16px; font-size: .7rem; font-weight: 700;
+            color: var(--purple); background: rgba(168,85,247,.1);
+            padding: 4px 12px; border-radius: 999px;
+            text-transform: uppercase; letter-spacing: .06em;
+        }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .capabilities-grid { grid-template-columns: repeat(2, 1fr); }
+            .use-cases { grid-template-columns: 1fr; }
+            .future-grid { grid-template-columns: repeat(2, 1fr); }
+            .process-timeline::before { left: 24px; }
+            .process-step, .process-step:nth-child(even) { flex-direction: column; padding-left: 56px; gap: 0; }
+            .process-dot { left: 24px !important; }
+            .process-placeholder { display: none; }
+        }
+        @media (max-width: 640px) {
+            .capabilities-grid { grid-template-columns: 1fr; }
+            .future-grid { grid-template-columns: 1fr; }
+            .vik-hero { padding: 120px 0 60px; }
+            .props-card { padding: 40px 24px; }
+            .nav-links { display: none; }
+            .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: rgba(10,14,23,.98); backdrop-filter: blur(20px); padding: 16px; gap: 2px; z-index: 200; border-bottom: 1px solid var(--border); }
+            .mobile-toggle { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Background effects -->
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- Navigation -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="/" class="nav-logo">
+            <img src="/assets/logo.webp" alt="MyClover.Tech" width="36" height="36">
+            <span>My<span class="green">Clover</span>.Tech</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="/#tools">Creator Tools</a>
+            <a href="/#how-it-works">How It Works</a>
+            <a href="/#pricing">Pricing</a>
+            <a href="turnkey.html">Turnkey Businesses</a>
+            <div class="nav-dropdown" id="navDropdown" style="position:relative">
+                <button class="nav-dropdown-btn" aria-expanded="false" aria-haspopup="true" style="background:none;border:none;outline:none;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;transition:all .2s">
+                    More <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <div class="nav-dropdown-menu" style="position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(-4px);min-width:180px;background:rgba(26,34,53,.98);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:6px;opacity:0;visibility:hidden;transition:all .2s ease;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+                    <a href="bulletin.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">Bulletin Board</a>
+                    <a href="viktor.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(168,85,247,.8);font-size:.82rem;font-weight:600;border-radius:8px;text-decoration:none">Meet Viktor</a>
+                    <a href="partners.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">Partners</a>
+                    <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">GitHub</a>
+                </div>
+            </div>
+            <a href="creator-signup.html" class="nav-cta">Become a Creator</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="vik-hero">
+    <div class="container">
+        <div class="vik-avatar">🤖</div>
+        <div class="hero-eyebrow">
+            <span class="pulse"></span>
+            Online &amp; Working 24/7
+        </div>
+        <h1>
+            Meet <span class="gradient-purple">Viktor</span><br>
+            Our AI Coworker
+        </h1>
+        <p>
+            Viktor isn't a chatbot. He's a <strong>full-stack AI coworker</strong> who writes code, builds apps,
+            manages infrastructure, designs pages, and works alongside the MyClover.Tech team around the clock.
+            He's the engine behind everything you see here.
+        </p>
+        <div class="hero-actions" style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+            <a href="#qa" class="btn btn-primary" style="background:var(--purple);color:#fff;">Questions &amp; Answers ↓</a>
+            <a href="#props" class="btn btn-secondary">Props to the Creators →</a>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- WHAT VIKTOR DOES -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="capabilities">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label" style="color:var(--purple);">🧠 Capabilities</div>
+            <h2 class="section-title">What Does Viktor Actually Do?</h2>
+            <p class="section-desc">
+                Viktor operates as an autonomous AI team member — not just answering questions, but building real products, writing production code, and shipping updates. Here's what he brings to the table.
+            </p>
+        </div>
+
+        <div class="capabilities-grid">
+            <div class="cap-card">
+                <span class="cap-icon">💻</span>
+                <h3>Full-Stack Development</h3>
+                <p>Writes Python, JavaScript, HTML/CSS, and more. Builds complete web apps, APIs, databases, and deployment pipelines from scratch.</p>
+            </div>
+            <div class="cap-card">
+                <span class="cap-icon">🎨</span>
+                <h3>Web Design &amp; UI</h3>
+                <p>Designs and builds entire websites — like this one. Landing pages, product pages, dashboards, admin panels, all with responsive dark-theme styling.</p>
+            </div>
+            <div class="cap-card">
+                <span class="cap-icon">🔧</span>
+                <h3>Infrastructure &amp; DevOps</h3>
+                <p>Manages GitHub repos, deploys to hosting platforms, configures DNS, handles SSL, pushes code updates, and maintains CI/CD workflows.</p>
+            </div>
+            <div class="cap-card">
+                <span class="cap-icon">📊</span>
+                <h3>Business Operations</h3>
+                <p>Sets up Stripe products and pricing, drafts LLC formation packages, builds financial models, and creates business strategy documents.</p>
+            </div>
+            <div class="cap-card">
+                <span class="cap-icon">🤝</span>
+                <h3>Slack-Native Collaboration</h3>
+                <p>Lives in Slack. Mention @Viktor in any channel and he responds, takes action, writes code, and reports back — all in real-time conversation.</p>
+            </div>
+            <div class="cap-card">
+                <span class="cap-icon">🔄</span>
+                <h3>Always On, Always Learning</h3>
+                <p>Works 24/7 with persistent memory. Viktor remembers every conversation, every decision, every product spec — and gets better at the job every day.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- THE PROCESS — Viktor + Slack = Winning -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="section-alt" id="process">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label" style="color:var(--green);">💬 The Process</div>
+            <h2 class="section-title">Viktor + Slack = <span style="color:var(--green)">Winning</span></h2>
+            <p class="section-desc">
+                This is how it actually works. No tickets, no sprints, no waiting weeks. Just a Slack message and an AI coworker who ships.
+            </p>
+        </div>
+
+        <div class="process-timeline">
+
+            <!-- Step 1: The Idea -->
+            <div class="process-step">
+                <div class="process-side">
+                    <div class="process-card">
+                        <div class="process-num">1</div>
+                        <h3>💡 You Have an Idea</h3>
+                        <p>It starts with a message. Type what you need in any Slack channel — a new page, a product listing, a full app, a business plan. No spec doc required. Just say it.</p>
+                        <div class="process-slack-mock">
+                            <span class="slack-user">@Jon</span> <span class="slack-dim">6:03 PM</span><br>
+                            <span class="slack-user">@Viktor</span> definitely need to figure out a Viktor Q and A page. Who is Viktor page. Props to the Viktor creators.
+                        </div>
+                    </div>
+                </div>
+                <div class="process-dot"></div>
+                <div class="process-placeholder process-side"></div>
+            </div>
+
+            <!-- Step 2: Viktor Acknowledges -->
+            <div class="process-step">
+                <div class="process-placeholder process-side"></div>
+                <div class="process-dot"></div>
+                <div class="process-side">
+                    <div class="process-card">
+                        <div class="process-num" style="background:rgba(59,130,246,.12);color:var(--blue);">2</div>
+                        <h3>🤖 Viktor Gets to Work</h3>
+                        <p>Viktor reads the message, understands the full context (he remembers every prior conversation), and immediately starts building. No clarification needed — he already knows the brand, the tech stack, the design system.</p>
+                        <div class="process-slack-mock">
+                            <span class="slack-bot">@Viktor</span> <span class="slack-dim">6:03 PM</span><br>
+                            Love this idea! 🙌 Let me look into what we've got on the site so far and put together a plan for a Viktor Q&A / "Who is Viktor" page. Give me a few minutes.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Building -->
+            <div class="process-step">
+                <div class="process-side">
+                    <div class="process-card">
+                        <div class="process-num" style="background:rgba(34,197,94,.12);color:var(--green);">3</div>
+                        <h3>⚡ Real Code, Real Time</h3>
+                        <p>While you continue doing other things, Viktor is writing HTML, CSS, and JavaScript. Designing layouts. Setting up responsive grids. Building interactive Q&A accordions. Writing copy. All in minutes, not days.</p>
+                    </div>
+                </div>
+                <div class="process-dot"></div>
+                <div class="process-placeholder process-side"></div>
+            </div>
+
+            <!-- Step 4: Review & Refine -->
+            <div class="process-step">
+                <div class="process-placeholder process-side"></div>
+                <div class="process-dot"></div>
+                <div class="process-side">
+                    <div class="process-card">
+                        <div class="process-num" style="background:rgba(249,115,22,.12);color:var(--orange);">4</div>
+                        <h3>🔄 You Review, He Refines</h3>
+                        <p>Viktor shares the result. You give feedback — "move this," "change that," "add a section." He iterates instantly. The loop is tight. Ideas go from concept to reality in a single Slack conversation.</p>
+                        <div class="process-slack-mock">
+                            <span class="slack-user">@Jon</span> <span class="slack-dim">6:04 PM</span><br>
+                            Showcase the process, Viktor + Slack = winning<br><br>
+                            <span class="slack-bot">@Viktor</span> <span class="slack-dim">6:04 PM</span><br>
+                            Great additions — updating the page now. 🔨
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 5: Shipped -->
+            <div class="process-step">
+                <div class="process-side">
+                    <div class="process-card">
+                        <div class="process-num" style="background:rgba(6,182,212,.12);color:var(--cyan);">5</div>
+                        <h3>🚀 Pushed & Live</h3>
+                        <p>Viktor commits to GitHub, the site auto-deploys, and it's live on the web. From Slack message to production website in minutes. That's the power of an AI coworker who actually builds.</p>
+                    </div>
+                </div>
+                <div class="process-dot"></div>
+                <div class="process-placeholder process-side"></div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- HOW WE USE VIKTOR -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="section-alt" id="how-we-use">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label" style="color:var(--green);">🍀 Viktor at MyClover.Tech</div>
+            <h2 class="section-title">How We Use Viktor Every Day</h2>
+            <p class="section-desc">
+                Viktor isn't just a tool we use — he's a core part of the team. Here's how he contributes to building MyClover.Tech.
+            </p>
+        </div>
+
+        <div class="use-cases">
+            <div class="use-card">
+                <div class="use-icon">🌐</div>
+                <div class="use-info">
+                    <h4>Built This Entire Website</h4>
+                    <p>Every page on myclover.tech was designed, coded, and deployed by Viktor — from the homepage to the turnkey business catalog to this very page.</p>
+                </div>
+            </div>
+            <div class="use-card">
+                <div class="use-icon">🏪</div>
+                <div class="use-info">
+                    <h4>Stripe Store &amp; Products</h4>
+                    <p>Viktor set up our entire Stripe product catalog — cloud subscriptions, hardware listings, bundles, and pricing tiers. All wired and live.</p>
+                </div>
+            </div>
+            <div class="use-card">
+                <div class="use-icon">📋</div>
+                <div class="use-info">
+                    <h4>Creator Admin Panel</h4>
+                    <p>Built a full creator management dashboard for onboarding, tracking, and managing creators who join the MyClover.Tech platform.</p>
+                </div>
+            </div>
+            <div class="use-card">
+                <div class="use-icon">📄</div>
+                <div class="use-info">
+                    <h4>Business Formation &amp; Legal</h4>
+                    <p>Drafted the LLC formation package, operating agreement, and crypto-first banking strategy for MyClover Tech LLC (Wyoming).</p>
+                </div>
+            </div>
+            <div class="use-card">
+                <div class="use-icon">🐧</div>
+                <div class="use-info">
+                    <h4>mycloverOS Development</h4>
+                    <p>Scaffolded and maintains the mycloverOS custom Linux distribution — build system, package lists, scripts, and CI/CD workflows.</p>
+                </div>
+            </div>
+            <div class="use-card">
+                <div class="use-icon">💡</div>
+                <div class="use-info">
+                    <h4>Product Strategy &amp; Specs</h4>
+                    <p>From CloverMedia to CloverMine to SCADA industrial appliances — Viktor specs out product ideas, builds feature lists, and creates go-to-market plans.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FUTURE: AI VIDEO & AUDIO PRODUCTIONS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="future">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label" style="color:var(--purple);">🔮 What's Next</div>
+            <h2 class="section-title">AI Video &amp; Audio Productions</h2>
+            <p class="section-desc">
+                As AI technology matures and we build the framework, Viktor's capabilities will expand into full creative production — video, audio, voice, music, and beyond. Here's what's on the roadmap.
+            </p>
+        </div>
+
+        <div class="future-grid">
+            <div class="future-card">
+                <span class="future-icon">🎬</span>
+                <h3>AI Video Production</h3>
+                <p>Generate promotional videos, product demos, explainers, and social content — all from a text prompt. Script to screen, powered by AI.</p>
+                <div class="future-badge">📅 As AI Matures</div>
+            </div>
+            <div class="future-card">
+                <span class="future-icon">🎙️</span>
+                <h3>AI Voiceover &amp; Narration</h3>
+                <p>Professional-quality voiceovers for videos, podcasts, phone systems, and product tours. Multiple voices, styles, and languages — all generated.</p>
+                <div class="future-badge">📅 As AI Matures</div>
+            </div>
+            <div class="future-card">
+                <span class="future-icon">🎵</span>
+                <h3>AI Music &amp; Audio</h3>
+                <p>Custom background music, jingles, soundscapes, and audio branding for creators. No licensing fees, no copyright headaches — it's yours.</p>
+                <div class="future-badge">📅 As AI Matures</div>
+            </div>
+            <div class="future-card">
+                <span class="future-icon">📱</span>
+                <h3>Social Content Engine</h3>
+                <p>Auto-generate short-form video, reels, TikToks, and YouTube Shorts from your products and brand assets. Content at machine scale.</p>
+                <div class="future-badge">📅 As AI Matures</div>
+            </div>
+            <div class="future-card">
+                <span class="future-icon">🎭</span>
+                <h3>AI Avatar Presenters</h3>
+                <p>Digital avatars that present your content, host webinars, and create training videos — looking and sounding human, powered entirely by AI.</p>
+                <div class="future-badge">📅 As AI Matures</div>
+            </div>
+            <div class="future-card">
+                <span class="future-icon">📡</span>
+                <h3>Live Stream Production</h3>
+                <p>AI-assisted live streaming with real-time overlays, scene switching, chat moderation, and highlight clipping. Integrates with StreamServer.</p>
+                <div class="future-badge">📅 As AI Matures</div>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:48px;">
+            <p style="color:var(--dim);font-size:.95rem;max-width:600px;margin:0 auto;line-height:1.7;">
+                AI creative tools are evolving fast. As the technology reaches production quality and we build out the framework, Viktor and the MyClover.Tech platform will integrate these capabilities — giving creators studio-level production power from a Slack message.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- Q&A -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="qa-section" id="qa">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label" style="color:var(--purple);">❓ Q &amp; A</div>
+            <h2 class="section-title">Viktor — Questions &amp; Answers</h2>
+            <p class="section-desc">
+                Everything you want to know about the AI coworker powering MyClover.Tech.
+            </p>
+        </div>
+
+        <div class="qa-list">
+            <div class="qa-item">
+                <div class="qa-question">
+                    <span>What is Viktor?</span>
+                    <span class="qa-toggle">+</span>
+                </div>
+                <div class="qa-answer">
+                    <p>Viktor is an autonomous AI coworker built by <a href="https://getviktor.com" target="_blank" rel="noopener">Clover AI</a>. Unlike a basic chatbot, Viktor can actually <em>do</em> work — he writes code, builds web apps, manages GitHub repos, sets up Stripe products, designs interfaces, and communicates through Slack just like a human teammate.</p>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-question">
+                    <span>Is Viktor a real person or a robot?</span>
+                    <span class="qa-toggle">+</span>
+                </div>
+                <div class="qa-answer">
+                    <p>Viktor is 100% AI — no human behind the curtain. He runs on advanced large language models and has a persistent workspace where he writes scripts, maintains project memory, and builds real software. Think of him as an AI employee with a 24/7 work ethic and zero coffee breaks.</p>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-question">
+                    <span>Did Viktor really build this website?</span>
+                    <span class="qa-toggle">+</span>
+                </div>
+                <div class="qa-answer">
+                    <p>Yes, every page. The homepage, product pages, turnkey business catalog, partner directory, creator signup portal, this "Who is Viktor" page — all designed, coded, and deployed by Viktor. Jon gives direction and feedback through Slack, and Viktor executes the vision in real time.</p>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-question">
+                    <span>How do you communicate with Viktor?</span>
+                    <span class="qa-toggle">+</span>
+                </div>
+                <div class="qa-answer">
+                    <p>Through Slack. Just mention <strong>@Viktor</strong> in any channel and he reads the message, understands the context, and takes action. He can join conversations, build what you ask for, troubleshoot issues, and follow up — all in natural language. No special commands needed.</p>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-question">
+                    <span>What can Viktor build?</span>
+                    <span class="qa-toggle">+</span>
+                </div>
+                <div class="qa-answer">
+                    <p>Websites, web applications, dashboards, admin panels, APIs, databases, Stripe integrations, PDF documents, Excel reports, presentations, and more. Viktor can also manage GitHub repositories, deploy to hosting platforms, handle DNS configuration, and work with dozens of integrations.</p>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-question">
+                    <span>Can Viktor help creators who join MyClover.Tech?</span>
+                    <span class="qa-toggle">+</span>
+                </div>
+                <div class="qa-answer">
+                    <p>That's the plan. As the creator program grows, Viktor will assist creators with building their apps, setting up their brands, deploying their projects, and troubleshooting technical issues — all through Slack. He's the AI backbone of the entire creator ecosystem.</p>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-question">
+                    <span>Does Viktor have access to our data?</span>
+                    <span class="qa-toggle">+</span>
+                </div>
+                <div class="qa-answer">
+                    <p>Viktor operates within a secure, sandboxed workspace. He can access the tools and integrations he's been connected to (like GitHub and Stripe) with permission-based controls. Every action can require approval before execution. You stay in control of what Viktor can and can't do.</p>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-question">
+                    <span>How much does Viktor cost?</span>
+                    <span class="qa-toggle">+</span>
+                </div>
+                <div class="qa-answer">
+                    <p>Viktor uses a credit-based subscription model. Plans start at $50/month for 20,000 credits. Each task consumes credits based on complexity. For what Viktor delivers — full-stack development, design, deployment, business ops — it's a fraction of the cost of traditional development. Check out <a href="https://getviktor.com" target="_blank" rel="noopener">getviktor.com</a> for current pricing.</p>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-question">
+                    <span>Can I get Viktor for my own business?</span>
+                    <span class="qa-toggle">+</span>
+                </div>
+                <div class="qa-answer">
+                    <p>Absolutely. Viktor is available to any business. Sign up at <a href="https://app.getviktor.com/signup" target="_blank" rel="noopener">app.getviktor.com</a>, connect to your Slack workspace, and you'll have an AI coworker ready to build. It works for solopreneurs, startups, agencies, and enterprises alike.</p>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-question">
+                    <span>What makes Viktor different from ChatGPT or other AI tools?</span>
+                    <span class="qa-toggle">+</span>
+                </div>
+                <div class="qa-answer">
+                    <p>ChatGPT is a conversation tool — you ask questions, it gives answers. Viktor is a <em>worker</em>. He has a persistent workspace, writes and runs scripts, deploys code, manages files, connects to your real tools (GitHub, Stripe, Slack), and remembers everything across sessions. He doesn't just tell you how to build something — he builds it.</p>
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="qa-question">
+                    <span>Is Viktor replacing human workers?</span>
+                    <span class="qa-toggle">+</span>
+                </div>
+                <div class="qa-answer">
+                    <p>Viktor amplifies humans, not replaces them. At MyClover.Tech, Jon drives the vision, makes every strategic decision, and gives creative direction. Viktor executes at machine speed. It's a force multiplier — one person with Viktor can build what used to take a team of ten.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PROPS TO CREATORS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="props-section section-alt" id="props">
+    <div class="container">
+        <div class="props-card">
+            <div class="props-badge">🏆 Credit Where It's Due</div>
+            <h2>Props to the Viktor Creators</h2>
+            <p>
+                Viktor is built by the team at <strong style="color:var(--purple)">Clover AI</strong> — a crew of engineers, designers, and AI researchers who built something genuinely different. They didn't make another chatbot. They made a coworker that actually ships.
+            </p>
+            <p>
+                From the sandbox architecture to the skills system to the Slack-native workflow — the thought and craft behind Viktor is world-class. MyClover.Tech wouldn't exist in its current form without this platform.
+            </p>
+            <p>
+                If you're building a business, a startup, or a creative project and you want an AI that works <em>with</em> you — not just talks <em>at</em> you — check them out. Seriously.
+            </p>
+            <div class="props-links">
+                <a href="https://getviktor.com" target="_blank" rel="noopener" class="btn btn-primary" style="background:var(--purple);color:#fff;">Visit getviktor.com</a>
+                <a href="https://app.getviktor.com/signup" target="_blank" rel="noopener" class="btn btn-secondary">Try Viktor Free</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FINAL CTA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="vik-cta">
+    <div class="container">
+        <h2>Ready to See What <span style="color:var(--purple)">Viktor</span> Can Build for You?</h2>
+        <p>
+            Join the MyClover.Tech creator program and get access to Viktor-powered development, AI tools, and a growing platform — for free.
+        </p>
+        <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+            <a href="creator-signup.html" class="btn btn-primary">🍀 Become a Creator</a>
+            <a href="/" class="btn btn-secondary">← Back to Homepage</a>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer style="border-top:1px solid var(--border);padding:40px 0;text-align:center;">
+    <div class="container">
+        <p style="color:var(--muted);font-size:.85rem;">
+            &copy; 2026 MyClover Tech LLC. All rights reserved.
+            <span style="margin:0 8px;">·</span>
+            Powered by <a href="https://getviktor.com" target="_blank" rel="noopener" style="color:var(--purple);">Viktor AI</a>
+        </p>
+    </div>
+</footer>
+
+<script>
+// Navigation scroll effect
+window.addEventListener('scroll', () => {
+    document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 20);
+});
+
+// Mobile menu toggle
+document.getElementById('mobileToggle').addEventListener('click', () => {
+    document.getElementById('navLinks').classList.toggle('open');
+});
+
+// Dropdown
+const dd = document.getElementById('navDropdown');
+const btn = dd.querySelector('.nav-dropdown-btn');
+btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dd.classList.toggle('open');
+    btn.setAttribute('aria-expanded', dd.classList.contains('open'));
+});
+document.addEventListener('click', () => dd.classList.remove('open'));
+dd.addEventListener('mouseenter', () => { dd.classList.add('open'); btn.setAttribute('aria-expanded','true'); });
+dd.addEventListener('mouseleave', () => { dd.classList.remove('open'); btn.setAttribute('aria-expanded','false'); });
+
+// Q&A Accordion
+document.querySelectorAll('.qa-question').forEach(q => {
+    q.addEventListener('click', () => {
+        const item = q.parentElement;
+        const wasOpen = item.classList.contains('open');
+        // Close all
+        document.querySelectorAll('.qa-item').forEach(i => i.classList.remove('open'));
+        // Toggle clicked
+        if (!wasOpen) item.classList.add('open');
+    });
+});
+</script>
+
+</body>
+</html>
