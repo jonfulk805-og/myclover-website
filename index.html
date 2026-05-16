@@ -62,11 +62,11 @@
         /* --- Logo Badge (centered below nav) --- */
         .logo-badge-wrap{display:flex;justify-content:center;padding:80px 0 0;position:relative;z-index:1}
         .logo-badge{position:relative;display:block}
-        .logo-badge .glow{position:absolute;inset:-16px;border-radius:50%;background:linear-gradient(135deg,rgba(34,197,94,.25),rgba(168,85,247,.15),rgba(245,158,11,.2));filter:blur(28px);transform:scale(1.5);pointer-events:none;animation:glowPulse 4s ease-in-out infinite alternate}
-        @keyframes glowPulse{0%{opacity:.6;transform:scale(1.4)}100%{opacity:1;transform:scale(1.6)}}
-        .logo-badge .badge{position:relative;width:100px;height:100px;border-radius:24px;background:linear-gradient(145deg,#18181b,#27272a);border:1px solid rgba(255,255,255,.1);box-shadow:0 25px 60px rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:12px;transition:transform .4s,box-shadow .4s}
-        .logo-badge:hover .badge{transform:scale(1.08);box-shadow:0 25px 60px rgba(0,0,0,.6),0 0 40px rgba(34,197,94,.2)}
-        .logo-badge .badge img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 12px rgba(0,0,0,.4))}
+        .logo-badge .glow{position:absolute;inset:-20px;border-radius:50%;background:radial-gradient(circle,rgba(34,197,94,.3),rgba(34,197,94,.08) 60%,transparent 75%);filter:blur(20px);transform:scale(1.3);pointer-events:none;animation:glowPulse 4s ease-in-out infinite alternate}
+        @keyframes glowPulse{0%{opacity:.5;transform:scale(1.2)}100%{opacity:1;transform:scale(1.4)}}
+        .logo-badge .badge{position:relative;width:160px;height:160px;border-radius:50%;background:transparent;border:none;box-shadow:none;display:flex;align-items:center;justify-content:center;padding:0;transition:transform .4s,box-shadow .4s}
+        .logo-badge:hover .badge{transform:scale(1.08)}
+        .logo-badge .badge img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 4px 20px rgba(34,197,94,.3))}
 
         /* --- Hero Section --- */
         .hero{position:relative;z-index:1;padding:40px 0 60px;text-align:center}
@@ -90,6 +90,9 @@
         .btn{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;border-radius:12px;font-weight:700;font-size:1rem;transition:all .25s;cursor:pointer;border:none;font-family:var(--font);text-decoration:none}
         .btn-primary{background:var(--green);color:#000;box-shadow:0 4px 24px rgba(34,197,94,.3)}
         .btn-primary:hover{background:var(--green-l);color:#000;transform:translateY(-2px);box-shadow:0 8px 32px rgba(34,197,94,.4)}
+        .btn-round{display:inline-flex;align-items:center;justify-content:center;width:140px;height:140px;border-radius:50%;background:linear-gradient(145deg,#22c55e,#16a34a);color:#000;font-weight:900;font-size:1.1rem;letter-spacing:.02em;text-decoration:none;box-shadow:0 0 40px rgba(34,197,94,.4),0 0 80px rgba(34,197,94,.15),inset 0 2px 4px rgba(255,255,255,.2);transition:all .35s;border:2px solid rgba(255,255,255,.15);text-align:center;line-height:1.2;font-family:var(--font);cursor:pointer;animation:roundBtnPulse 3s ease-in-out infinite}
+        .btn-round:hover{transform:scale(1.1);box-shadow:0 0 60px rgba(34,197,94,.5),0 0 120px rgba(34,197,94,.2),inset 0 2px 4px rgba(255,255,255,.25);color:#000;background:linear-gradient(145deg,#4ade80,#22c55e)}
+        @keyframes roundBtnPulse{0%,100%{box-shadow:0 0 40px rgba(34,197,94,.4),0 0 80px rgba(34,197,94,.15),inset 0 2px 4px rgba(255,255,255,.2)}50%{box-shadow:0 0 50px rgba(34,197,94,.5),0 0 100px rgba(34,197,94,.25),inset 0 2px 4px rgba(255,255,255,.2)}}
         .btn-secondary{background:transparent;color:var(--text);border:1px solid var(--border-l)}
         .btn-secondary:hover{border-color:var(--muted);background:rgba(255,255,255,.03)}
         .hero .no-cc{font-size:.8rem;color:var(--muted);margin-bottom:48px}
@@ -241,7 +244,7 @@
     <a href="/" class="logo-badge">
         <div class="glow"></div>
         <div class="badge">
-            <img src="/assets/myclover-logo-512.png" alt="MyClover.Tech">
+            <img src="/assets/myclover-3d-badge.png" alt="MyClover.Tech">
         </div>
     </a>
 </div>
@@ -297,11 +300,13 @@
             </div>
         </div>
 
-        <div class="hero-ctas">
-            <a href="https://viktor.com" target="_blank" rel="noopener" class="btn btn-primary">Start Free &rarr;</a>
-            <a href="pages/creators.html" class="btn btn-secondary">Explore Creator Tools &rarr;</a>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-bottom:8px">
+            <a href="https://viktor.com" target="_blank" rel="noopener" class="btn-round">Start<br>Free</a>
         </div>
         <div class="no-cc">No credit card required.</div>
+        <div style="margin-top:8px">
+            <a href="pages/creators.html" class="btn btn-secondary" style="font-size:.88rem;padding:10px 24px">Explore Creator Tools &rarr;</a>
+        </div>
     </div>
 </section>
 
