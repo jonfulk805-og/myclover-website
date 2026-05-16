@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyClover.Tech — For Creators | Build. Brand. Launch.</title>
+    <meta name="description" content="Join MyClover.Tech and turn your ideas into businesses. Free creator tools, AI-powered apps, turnkey business templates, and a full IT infrastructure you can rebrand as your own.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="MyClover.Tech — The Creator Platform | Build. Brand. Launch.">
+    <meta property="og:description" content="The creator platform where anyone can build apps, launch brands, and start businesses — powered by AI and a full IT infrastructure you can rebrand as your own.">
+    <meta property="og:image" content="https://myclover.tech/assets/og-image-logo.png">
+    <meta property="og:url" content="https://myclover.tech">
+    <meta property="og:site_name" content="MyClover.Tech">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* --- Creator-specific overrides --- */
+        body { padding-top: 0; }
+        nav { top: 0; }
+
+        /* Hero creator-specific */
+        .hero-creator { padding: 140px 0 80px; text-align: center; }
+        .hero-creator .hero-eyebrow {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: linear-gradient(135deg, rgba(34,197,94,.12), rgba(168,85,247,.08));
+            border: 1px solid rgba(34,197,94,.25);
+            border-radius: 999px; padding: 6px 18px 6px 12px;
+            font-size: .78rem; font-weight: 600; color: var(--green);
+            margin-bottom: 28px; letter-spacing: .02em;
+        }
+        .hero-creator .hero-eyebrow .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+        .hero-creator h1 { font-size: clamp(2.4rem,5.5vw,4rem); font-weight: 900; line-height: 1.08; margin-bottom: 20px; letter-spacing: -.03em; }
+        .hero-creator h1 .gradient { background: linear-gradient(135deg,var(--green),#4ade80,#86efac); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero-creator h1 .gradient-purple { background: linear-gradient(135deg,var(--purple),#c084fc,var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero-creator p { font-size: 1.18rem; color: var(--dim); max-width: 700px; margin: 0 auto 36px; line-height: 1.7; }
+        .hero-creator p strong { color: var(--text); font-weight: 600; }
+        .hero-creator .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+        /* Value props row */
+        .value-strip { display: flex; flex-wrap: wrap; justify-content: center; gap: 32px; margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--border); }
+        .value-strip .vp { display: flex; align-items: center; gap: 10px; font-size: .88rem; color: var(--dim); }
+        .value-strip .vp-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: var(--green-g); border-radius: 10px; font-size: 1.1rem; flex-shrink: 0; }
+
+        /* Creator tools grid */
+        .tools-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .tool-card { background: var(--card); border: 1px solid var(--border); border-radius: 18px; padding: 32px 28px; transition: all .3s; position: relative; overflow: hidden; }
+        .tool-card:hover { border-color: var(--green); box-shadow: 0 0 50px var(--green-g); transform: translateY(-4px); }
+        .tool-card .tool-icon { font-size: 2rem; margin-bottom: 14px; display: block; }
+        .tool-card h3 { font-size: 1.1rem; font-weight: 800; margin-bottom: 6px; }
+        .tool-card .tool-sub { font-size: .82rem; font-weight: 600; color: var(--green); margin-bottom: 12px; }
+        .tool-card p { font-size: .85rem; color: var(--dim); line-height: 1.6; }
+        .tool-card .tool-badge { position: absolute; top: 16px; right: 16px; font-size: .6rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+        .tool-badge.free { background: rgba(34,197,94,.12); color: var(--green); }
+        .tool-badge.pro { background: rgba(59,130,246,.12); color: var(--blue); }
+        .tool-badge.new { background: rgba(249,115,22,.12); color: var(--orange); }
+
+        /* How it works */
+        .steps-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 28px; counter-reset: step; }
+        .step-card { text-align: center; position: relative; counter-increment: step; }
+        .step-card::before { content: counter(step); display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; background: var(--green-g); border: 2px solid var(--green); border-radius: 50%; font-weight: 900; font-size: 1.2rem; color: var(--green); margin: 0 auto 18px; }
+        .step-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+        .step-card p { font-size: .85rem; color: var(--dim); line-height: 1.5; }
+        .step-connector { display: none; }
+
+        /* Turnkey teaser */
+        .turnkey-teaser { background: linear-gradient(135deg, var(--card), rgba(168,85,247,.06)); border: 1px solid rgba(168,85,247,.2); border-radius: 24px; padding: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center; }
+        .turnkey-teaser h2 { font-size: 2rem; font-weight: 900; margin-bottom: 12px; line-height: 1.15; }
+        .turnkey-teaser p { color: var(--dim); font-size: 1rem; line-height: 1.7; margin-bottom: 24px; }
+        .turnkey-examples { display: flex; flex-direction: column; gap: 14px; }
+        .turnkey-ex { display: flex; align-items: center; gap: 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; transition: all .2s; }
+        .turnkey-ex:hover { border-color: var(--purple); }
+        .turnkey-ex .tex-icon { font-size: 1.4rem; flex-shrink: 0; }
+        .turnkey-ex .tex-info h4 { font-size: .92rem; font-weight: 700; }
+        .turnkey-ex .tex-info span { font-size: .78rem; color: var(--muted); }
+
+        /* Creator pricing */
+        .creator-pricing { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .cp-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 36px 28px; text-align: center; transition: all .3s; position: relative; }
+        .cp-card:hover { border-color: var(--green); transform: translateY(-4px); }
+        .cp-card.featured { border-color: var(--green); box-shadow: 0 0 60px var(--green-g); }
+        .cp-card .cp-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--green); color: #000; font-size: .65rem; font-weight: 700; padding: 4px 14px; border-radius: 999px; text-transform: uppercase; white-space: nowrap; }
+        .cp-card .cp-tier { font-size: .82rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+        .cp-card.featured .cp-tier { color: var(--green); }
+        .cp-card .cp-price { font-size: 2.6rem; font-weight: 900; margin-bottom: 4px; }
+        .cp-card .cp-price .mo { font-size: 1rem; font-weight: 500; color: var(--muted); }
+        .cp-card .cp-desc { font-size: .85rem; color: var(--dim); margin-bottom: 22px; line-height: 1.5; }
+        .cp-card ul { list-style: none; text-align: left; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+        .cp-card ul li { font-size: .82rem; color: var(--dim); display: flex; align-items: flex-start; gap: 8px; line-height: 1.4; }
+        .cp-card ul li .ck { color: var(--green); flex-shrink: 0; font-weight: 700; }
+        .cp-card .cp-btn { display: block; width: 100%; text-align: center; padding: 12px; border-radius: 10px; font-weight: 600; font-size: .88rem; transition: all .2s; text-decoration: none; }
+        .cp-btn-primary { background: var(--green); color: #000; }
+        .cp-btn-primary:hover { background: var(--green-l); color: #000; transform: translateY(-1px); }
+        .cp-btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+        .cp-btn-secondary:hover { border-color: var(--muted); color: var(--text); }
+
+
+
+        /* Bottom ticker */
+        .bottom-ticker { position: relative; z-index: 1; background: linear-gradient(90deg,rgba(34,197,94,.12),rgba(10,14,23,.95),rgba(34,197,94,.12)); border-top: 1px solid rgba(34,197,94,.2); border-bottom: 1px solid rgba(34,197,94,.2); height: 36px; overflow: hidden; }
+        .bottom-ticker .ticker-track { display: flex; animation: tickerScroll 60s linear infinite; white-space: nowrap; height: 100%; align-items: center; }
+        .bottom-ticker .ticker-track:hover { animation-play-state: paused; }
+        .bottom-ticker .ticker-item { display: inline-flex; align-items: center; gap: 6px; padding: 0 32px; font-size: .75rem; font-weight: 500; color: var(--dim); flex-shrink: 0; transition: color .2s; }
+        .bottom-ticker .ticker-item:hover { color: var(--green-l); }
+        .bottom-ticker .ticker-item a { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+        .bottom-ticker .ticker-item a:hover { color: var(--green-l); }
+
+        /* CTA section */
+        .final-cta { text-align: center; padding: 100px 0; }
+        .final-cta .clover-big { font-size: 4rem; display: block; margin-bottom: 20px; }
+        .final-cta h2 { font-size: clamp(1.8rem,4vw,2.8rem); font-weight: 900; margin-bottom: 14px; }
+        .final-cta p { font-size: 1.1rem; color: var(--dim); max-width: 520px; margin: 0 auto 36px; line-height: 1.7; }
+
+        /* Responsive */
+        @media (max-width: 968px) {
+            .tools-grid { grid-template-columns: repeat(2, 1fr); }
+            .steps-row { grid-template-columns: repeat(2, 1fr); }
+            .turnkey-teaser { grid-template-columns: 1fr; padding: 40px; }
+            .creator-pricing { grid-template-columns: repeat(2, 1fr); }
+
+        }
+        @media (max-width: 640px) {
+            .tools-grid { grid-template-columns: 1fr; }
+            .steps-row { grid-template-columns: 1fr; }
+            .creator-pricing { grid-template-columns: 1fr; max-width: 380px; margin-left: auto; margin-right: auto; }
+
+            .value-strip { gap: 18px; }
+            .hero-creator { padding: 120px 0 60px; }
+            .hero-creator .hero-actions { flex-direction: column; align-items: center; }
+            .turnkey-teaser { padding: 28px; }
+            .nav-links { display: none; }
+            .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: rgba(10,14,23,.98); backdrop-filter: blur(20px); padding: 16px; gap: 2px; z-index: 200; border-bottom: 1px solid var(--border); }
+            .mobile-toggle { display: block; }
+            .nav-dropdown-menu { position: static !important; opacity: 1 !important; visibility: visible !important; transform: none !important; border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 0 0 16px !important; min-width: 0 !important; backdrop-filter: none !important; }
+            .nav-dropdown.mobile-closed .nav-dropdown-menu { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Background effects -->
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- Navigation -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <div style="width:36px"></div>
+        <div class="nav-links" id="navLinks">
+            <a href="../">Home</a>
+            <a href="#tools">Creator Tools</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="#pricing">Pricing</a>
+            <a href="turnkey.html">Turnkey Businesses</a>
+            <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" style="color:rgba(34,197,94,.85);font-weight:600">MCTVS Method</a>
+            <a href="https://ethical-hacker-cb9a9f5c.viktor.space" target="_blank" rel="noopener" style="color:rgba(239,68,68,.85);font-weight:600">Ethical Hacker</a>
+            <a href="https://clover-academy-85af4dbe.viktor.space" target="_blank" rel="noopener" style="color:rgba(59,130,246,.85);font-weight:600">AI Academy</a>
+            <div class="nav-dropdown" id="navDropdown" style="position:relative">
+                <button class="nav-dropdown-btn" aria-expanded="false" aria-haspopup="true" style="background:none;border:none;outline:none;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;transition:all .2s">
+                    More <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <div class="nav-dropdown-menu" style="position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(-4px);min-width:180px;background:rgba(26,34,53,.98);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:6px;opacity:0;visibility:hidden;transition:all .2s ease;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+                    <a href="bulletin.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">Bulletin Board</a>
+                    <a href="viktor.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(168,85,247,.8);font-size:.82rem;font-weight:600;border-radius:8px;text-decoration:none">Meet Viktor</a>
+                    <a href="partners.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">Partners</a>
+                    <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">GitHub</a>
+                </div>
+            </div>
+            <a href="creator-signup.html" class="nav-cta">Become a Creator</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ═══════════════ LOGO BADGE ═══════════════ -->
+<div style="display:flex;justify-content:center;padding:80px 0 20px">
+    <a href="../" style="display:block;position:relative">
+        <div style="position:absolute;inset:-12px;border-radius:50%;background:linear-gradient(135deg,rgba(34,197,94,.2),rgba(139,92,246,.15),rgba(245,158,11,.2));filter:blur(20px);transform:scale(1.5);pointer-events:none"></div>
+        <div style="position:relative;width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,#18181b,#27272a);border:1px solid rgba(255,255,255,.1);box-shadow:0 25px 50px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:10px;transition:transform .3s,box-shadow .3s"
+             onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 25px 50px rgba(0,0,0,.5),0 0 30px rgba(34,197,94,.2)'"
+             onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 25px 50px rgba(0,0,0,.5)'">
+            <img src="../assets/myclover-logo-512.png" alt="MyClover.Tech" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">
+        </div>
+    </a>
+</div>
+
+<!-- HERO — Creator First -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="hero-creator">
+    <div class="container">
+        <div class="hero-eyebrow">
+            <span class="pulse"></span>
+            Creator Program Open — Start Free Today
+        </div>
+        <h1>
+            Your Ideas. Your Brand.<br>
+            <span class="gradient">We Build It With You.</span>
+        </h1>
+        <p>
+            MyClover.Tech is a <strong>creator platform</strong> where anyone can launch apps, brands, games, memecoins, books, and entire businesses — powered by AI and a full-stack IT infrastructure you can rebrand as your own.
+        </p>
+        <div class="hero-actions">
+            <a href="creator-signup.html" class="btn btn-primary">🍀 Get Started Free</a>
+            <a href="#tools" class="btn btn-secondary">See Creator Tools →</a>
+            <a href="turnkey.html" class="btn btn-secondary">Buy a Business →</a>
+        </div>
+
+        <div class="value-strip">
+            <div class="vp">
+                <div class="vp-icon">💰</div>
+                <span>$0 to start — no credit card</span>
+            </div>
+            <div class="vp">
+                <div class="vp-icon">🤖</div>
+                <span>AI builds with you</span>
+            </div>
+            <div class="vp">
+                <div class="vp-icon">🏪</div>
+                <span>Your brand, your revenue</span>
+            </div>
+            <div class="vp">
+                <div class="vp-icon">🔧</div>
+                <span>All tools included</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats -->
+<div class="container">
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-number">15+</div>
+            <div class="stat-label">Creator Tools</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">18+</div>
+            <div class="stat-label">Integrated Services</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">$0</div>
+            <div class="stat-label">Free Tier</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">15+</div>
+            <div class="stat-label">Turnkey Businesses</div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- CREATOR TOOLS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="tools">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">🍀 Creator Toolkit</div>
+            <h2 class="section-title">Everything You Need to<br>Build, Brand & Launch</h2>
+            <p class="section-desc">
+                From game studios to soap brands to memecoins — creators get access to a growing library of tools, templates, and AI-powered workflows. All included with your creator account.
+            </p>
+        </div>
+
+        <div class="tools-grid">
+            <div class="tool-card">
+                <span class="tool-badge free">Free</span>
+                <span class="tool-icon">🎮</span>
+                <h3>Game Arcade</h3>
+                <div class="tool-sub">34 Games & Apps</div>
+                <p>Fidget, science, Tetris hybrids, educational games — all ready to rebrand and publish. Free hook games + premium packs.</p>
+            </div>
+
+            <div class="tool-card">
+                <span class="tool-badge new">New</span>
+                <span class="tool-icon">💎</span>
+                <h3>CloverMint</h3>
+                <div class="tool-sub">Memecoin Launchpad</div>
+                <p>Mint your own XRPL token in 60 seconds. Auto-generated coin page, swap widget, tokenomics — instant crypto business.</p>
+            </div>
+
+            <div class="tool-card">
+                <span class="tool-badge new">New</span>
+                <span class="tool-icon">📚</span>
+                <h3>InkForge</h3>
+                <div class="tool-sub">AI Book & Story Creator</div>
+                <p>Guide each chapter or auto-generate entire books. Connect to Amazon, sell on the platform, or offer it as a service.</p>
+            </div>
+
+            <div class="tool-card">
+                <span class="tool-badge new">New</span>
+                <span class="tool-icon">🧼</span>
+                <h3>Creator Brands</h3>
+                <div class="tool-sub">White-Label Products</div>
+                <p>Launch your own branded product line — soap, merch, supplements. Third-party fulfilled. CloverCoin in every product.</p>
+            </div>
+
+            <div class="tool-card">
+                <span class="tool-badge free">Free</span>
+                <span class="tool-icon">🤖</span>
+                <h3>CloverBot</h3>
+                <div class="tool-sub">AI Support Agent</div>
+                <p>Embed an AI chatbot on your site. RAG-powered, trainable on your data, with lead capture and Slack escalation.</p>
+            </div>
+
+            <div class="tool-card">
+                <span class="tool-badge pro">Pro</span>
+                <span class="tool-icon">🚁</span>
+                <h3>CloverDrone</h3>
+                <div class="tool-sub">Drone Services Platform</div>
+                <p>UAV control, FPV video, autonomous missions. Launch a drone services business with pre-built website and marketing.</p>
+            </div>
+
+            <div class="tool-card">
+                <span class="tool-badge pro">Pro</span>
+                <span class="tool-icon">📡</span>
+                <h3>CloverMesh Radio</h3>
+                <div class="tool-sub">Off-Grid Comms</div>
+                <p>LoRa mesh networking with Meshtastic. Sell pre-configured nodes, build a mesh brand, or offer installation services.</p>
+            </div>
+
+            <div class="tool-card">
+                <span class="tool-badge pro">Pro</span>
+                <span class="tool-icon">🏪</span>
+                <h3>CloverPOS</h3>
+                <div class="tool-sub">Point of Sale System</div>
+                <p>Rebrandable POS for restaurants and retail. Your brand, your clients, your revenue. Full Stripe integration.</p>
+            </div>
+
+            <div class="tool-card">
+                <span class="tool-badge free">Free</span>
+                <span class="tool-icon">🍀</span>
+                <h3>CloverCoin</h3>
+                <div class="tool-sub">Creator Economy Token</div>
+                <p>Built into every product. Earn from referrals, sales, and engagement. The currency of the MyClover.Tech ecosystem.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- HOW IT WORKS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="how-it-works" class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">🚀 How It Works</div>
+            <h2 class="section-title">From Zero to Launched<br>in Four Steps</h2>
+            <p class="section-desc">
+                No coding experience needed. No upfront cost. Just your idea and our platform.
+            </p>
+        </div>
+
+        <div class="steps-row">
+            <div class="step-card">
+                <h3>Sign Up Free</h3>
+                <p>Create your creator account. Connect Viktor AI. Join the Slack community. Zero cost, instant access.</p>
+            </div>
+            <div class="step-card">
+                <h3>Pick Your Tools</h3>
+                <p>Choose from games, memecoins, books, brands, apps, or any combination. Use our templates or start from scratch.</p>
+            </div>
+            <div class="step-card">
+                <h3>Build & Brand</h3>
+                <p>AI helps you build. Customize with your brand name, colors, and domain. Everything is rebrandable and yours to own.</p>
+            </div>
+            <div class="step-card">
+                <h3>Launch & Earn</h3>
+                <p>Publish to your audience. Accept payments via Stripe. Earn CloverCoin on every sale. Scale with the ecosystem.</p>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:48px">
+            <a href="creator-signup.html" class="btn btn-primary" style="font-size:1.05rem;padding:16px 36px">🍀 Start Creating — It's Free</a>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TURNKEY BUSINESS TEASER -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="turnkey">
+    <div class="container">
+        <div class="turnkey-teaser">
+            <div>
+                <div class="section-label">🏭 Turnkey Businesses</div>
+                <h2>Buy a Pre-Built Business.<br>Rebrand It. <span style="color:var(--purple)">Own It.</span></h2>
+                <p>
+                    Don't want to build from scratch? Purchase a complete, ready-to-launch digital business — website, marketing kit, legal templates, supplier contacts, and a 30-day launch playbook included. Just add your brand name and go.
+                </p>
+                <div style="display:flex;gap:14px;flex-wrap:wrap">
+                    <a href="turnkey.html" class="btn btn-primary">Browse Businesses →</a>
+                    <a href="turnkey.html#how" class="btn btn-secondary">How It Works</a>
+                </div>
+            </div>
+            <div class="turnkey-examples">
+                <div class="turnkey-ex">
+                    <span class="tex-icon">📚</span>
+                    <div class="tex-info">
+                        <h4>AI Book Publishing</h4>
+                        <span>From $499 · Pure digital · $84K/yr potential</span>
+                    </div>
+                </div>
+                <div class="turnkey-ex">
+                    <span class="tex-icon">🚁</span>
+                    <div class="tex-info">
+                        <h4>Drone Services</h4>
+                        <span>From $1,499 · $58B market · 25% CAGR</span>
+                    </div>
+                </div>
+                <div class="turnkey-ex">
+                    <span class="tex-icon">📡</span>
+                    <div class="tex-info">
+                        <h4>Off-Grid Mesh Radio</h4>
+                        <span>From $999 · 72% margins · Exploding market</span>
+                    </div>
+                </div>
+                <div class="turnkey-ex">
+                    <span class="tex-icon">➕</span>
+                    <div class="tex-info">
+                        <h4>12+ More Coming Soon</h4>
+                        <span>POS, VR, Game Studio, IT/MSP, Memecoin &amp; more</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PRICING -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section id="pricing" class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">💰 Creator Plans</div>
+            <h2 class="section-title">Start Free. Scale When Ready.</h2>
+            <p class="section-desc">
+                Every plan includes AI assistance, the creator toolkit, and access to the MyClover.Tech ecosystem. Free tier has no time limit.
+            </p>
+        </div>
+
+        <div class="creator-pricing">
+            <div class="cp-card">
+                <div class="cp-tier">Free</div>
+                <div class="cp-price">$0</div>
+                <div class="cp-desc">Perfect for exploring and building your first project.</div>
+                <ul>
+                    <li><span class="ck">✓</span> Creator account + Slack access</li>
+                    <li><span class="ck">✓</span> Viktor AI assistant</li>
+                    <li><span class="ck">✓</span> Free-tier game templates</li>
+                    <li><span class="ck">✓</span> CloverCoin earning</li>
+                    <li><span class="ck">✓</span> Community support</li>
+                </ul>
+                <a href="creator-signup.html" class="cp-btn cp-btn-secondary">Get Started</a>
+            </div>
+
+            <div class="cp-card featured">
+                <div class="cp-badge">Most Popular</div>
+                <div class="cp-tier">Creator</div>
+                <div class="cp-price">$19<span class="mo">/mo</span></div>
+                <div class="cp-desc">Everything you need to launch and monetize.</div>
+                <ul>
+                    <li><span class="ck">✓</span> All free features</li>
+                    <li><span class="ck">✓</span> All game packs</li>
+                    <li><span class="ck">✓</span> InkForge book creator</li>
+                    <li><span class="ck">✓</span> CloverMint memecoin tools</li>
+                    <li><span class="ck">✓</span> Custom domains + branding</li>
+                    <li><span class="ck">✓</span> Stripe payment integration</li>
+                    <li><span class="ck">✓</span> Priority support</li>
+                </ul>
+                <a href="creator-signup.html" class="cp-btn cp-btn-primary">Start Creating</a>
+            </div>
+
+            <div class="cp-card">
+                <div class="cp-tier">Studio</div>
+                <div class="cp-price">$49<span class="mo">/mo</span></div>
+                <div class="cp-desc">For creators running multiple brands or storefronts.</div>
+                <ul>
+                    <li><span class="ck">✓</span> All Creator features</li>
+                    <li><span class="ck">✓</span> White-label product brands</li>
+                    <li><span class="ck">✓</span> CloverDrone / Mesh access</li>
+                    <li><span class="ck">✓</span> CloverPOS for retail</li>
+                    <li><span class="ck">✓</span> Multi-brand management</li>
+                    <li><span class="ck">✓</span> API access</li>
+                    <li><span class="ck">✓</span> Dedicated support channel</li>
+                </ul>
+                <a href="creator-signup.html" class="cp-btn cp-btn-secondary">Go Studio</a>
+            </div>
+
+            <div class="cp-card">
+                <div class="cp-tier">Enterprise</div>
+                <div class="cp-price">$99<span class="mo">/mo</span></div>
+                <div class="cp-desc">Full ecosystem access. Build an empire.</div>
+                <ul>
+                    <li><span class="ck">✓</span> All Studio features</li>
+                    <li><span class="ck">✓</span> Full platform access</li>
+                    <li><span class="ck">✓</span> Priority support</li>
+                    <li><span class="ck">✓</span> Turnkey business resale rights</li>
+                    <li><span class="ck">✓</span> Custom integrations</li>
+                    <li><span class="ck">✓</span> White-glove onboarding</li>
+                    <li><span class="ck">✓</span> Revenue share program</li>
+                </ul>
+                <a href="creator-signup.html" class="cp-btn cp-btn-secondary">Go Enterprise</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FINAL CTA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="final-cta">
+    <div class="container">
+        <span class="clover-big">🍀</span>
+        <h2>The New Workforce is <span class="gradient" style="background:linear-gradient(135deg,var(--green),#4ade80,#86efac);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Creators</span></h2>
+        <p>
+            Whether you're building apps, launching brands, or buying a turnkey business — MyClover.Tech gives you the tools, the platform, and the community to make it happen.
+        </p>
+        <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
+            <a href="creator-signup.html" class="btn btn-primary" style="font-size:1.05rem;padding:16px 36px">🍀 Become a Creator — Free</a>
+            <a href="mailto:inforequest@myclover.tech" class="btn btn-secondary">📧 Contact Us</a>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- BOTTOM TICKER (moved from top) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="bottom-ticker">
+    <div class="ticker-track" id="tickerTrack">
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="bulletin.html#citadel-grooming">🧼 Citadel Grooming Co. — Premium Soap Line Launched</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge hot">HOT</span><a href="bulletin.html#clovercoin">🍀 CloverCoin Claim Portal Live — Every Bar = Crypto</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge live">LIVE</span><a href="bulletin.html#game-arcade">🎮 MyClover Game Arcade — 34 Games Available</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="bulletin.html#inkforge">📚 InkForge — AI Book & Story Creator</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge live">LIVE</span><a href="bulletin.html#clovermint">💎 CloverMint — Meme Coin Generator</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge soon">SOON</span><a href="bulletin.html#creator-brands">🎨 Creator Brands Platform — Launch Your Own Brand</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="bulletin.html#eel-arena">⚡ Eel Arena v2.0 — Electric Eel Power-Up Mode</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge hot">HOT</span><a href="bulletin.html#creator-program">🚀 Creator Program Open — Free Tools for Creators</a><span class="ticker-dot"></span></div>
+        <!-- Duplicate set for seamless infinite scroll -->
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="bulletin.html#citadel-grooming">🧼 Citadel Grooming Co. — Premium Soap Line Launched</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge hot">HOT</span><a href="bulletin.html#clovercoin">🍀 CloverCoin Claim Portal Live — Every Bar = Crypto</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge live">LIVE</span><a href="bulletin.html#game-arcade">🎮 MyClover Game Arcade — 34 Games Available</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="bulletin.html#inkforge">📚 InkForge — AI Book & Story Creator</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge live">LIVE</span><a href="bulletin.html#clovermint">💎 CloverMint — Meme Coin Generator</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge soon">SOON</span><a href="bulletin.html#creator-brands">🎨 Creator Brands Platform — Launch Your Own Brand</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge new">NEW</span><a href="bulletin.html#eel-arena">⚡ Eel Arena v2.0 — Electric Eel Power-Up Mode</a><span class="ticker-dot"></span></div>
+        <div class="ticker-item"><span class="ticker-badge hot">HOT</span><a href="bulletin.html#creator-program">🚀 Creator Program Open — Free Tools for Creators</a><span class="ticker-dot"></span></div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="../assets/myclover-logo-512.png" alt="MyClover.Tech" width="32" height="32" style="border-radius:6px;object-fit:contain">
+                <span>My<span class="green">Clover</span>.Tech</span>
+            </div>
+            <div class="footer-links">
+                <a href="#tools">Creator Tools</a>
+                <a href="#pricing">Pricing</a>
+                <a href="turnkey.html">Turnkey Businesses</a>
+
+                <a href="bulletin.html">Bulletin</a>
+                <a href="partners.html">Partners</a>
+                <a href="../keygen">KeyGen</a>
+                <a href="cloverbot.html">CloverBot</a>
+                <a href="cloverdrone.html">CloverDrone</a>
+                <a href="clovermesh-radio.html">CloverMesh Radio</a>
+                <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
+                <a href="mailto:inforequest@myclover.tech">Contact</a>
+            </div>
+            <div class="footer-copy">
+                &copy; 2026 MyClover Technologies. All rights reserved.<br>
+                <span class="dim">The Creator Platform — Build. Brand. Launch.</span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="../js/main.js"></script>
+<!-- CloverBot AI Support Widget -->
+<script src="../static/cloverbot.js" data-api-url=""></script>
+</body>
+</html>
