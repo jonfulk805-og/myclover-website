@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyClover.Tech — Your Idea. AI Builds It. You Profit.</title>
+    <meta name="description" content="MyClover.Tech is the AI platform that builds and launches side hustles for creators. From idea to income in days, not months. Start free.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="MyClover.Tech — Your Idea. AI Builds It. You Profit.">
+    <meta property="og:description" content="The AI platform that builds and launches side hustles for creators. From idea to income in days, not months.">
+    <meta property="og:image" content="https://myclover.tech/assets/og-image-logo.png">
+    <meta property="og:url" content="https://myclover.tech">
+    <meta property="og:site_name" content="MyClover.Tech">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        /* =================================================================
+           MyClover.Tech — New Homepage — Ad-Creative Style
+           ================================================================= */
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        :root{
+            --bg:#060a10;--bg2:#0c1018;--bg3:#111827;
+            --card:rgba(20,28,45,.7);--card-h:rgba(28,38,58,.8);
+            --border:rgba(255,255,255,.06);--border-l:rgba(255,255,255,.1);
+            --text:#f1f5f9;--dim:#94a3b8;--muted:#64748b;
+            --green:#22c55e;--green-d:#16a34a;--green-l:#4ade80;
+            --green-g:rgba(34,197,94,.12);--green-glow:rgba(34,197,94,.08);
+            --purple:#a855f7;--blue:#3b82f6;--orange:#f97316;
+            --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+            --mono:'JetBrains Mono','Fira Code',monospace;
+        }
+        html{scroll-behavior:smooth;font-size:16px}
+        body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+        a{color:var(--green);text-decoration:none;transition:color .2s}
+        a:hover{color:var(--green-l)}
+        img{max-width:100%;height:auto}
+        .container{max-width:1200px;margin:0 auto;padding:0 24px}
+
+        /* --- Ambient BG --- */
+        .bg-ambient{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+        .bg-ambient::before{content:'';position:absolute;top:-20%;left:50%;transform:translateX(-50%);width:800px;height:800px;background:radial-gradient(circle,rgba(34,197,94,.06),transparent 70%)}
+        .bg-ambient::after{content:'';position:absolute;bottom:-10%;right:-5%;width:600px;height:600px;background:radial-gradient(circle,rgba(168,85,247,.04),transparent 70%)}
+        .bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(34,197,94,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(34,197,94,.015) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;z-index:0}
+
+        /* --- Navigation --- */
+        nav{position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(6,10,16,.85);backdrop-filter:blur(24px);border-bottom:1px solid transparent;transition:all .3s}
+        nav.scrolled{border-bottom-color:var(--border-l)}
+        .nav-inner{display:flex;align-items:center;justify-content:center;height:60px;gap:6px}
+        .nav-links{display:flex;gap:4px;align-items:center}
+        .nav-links a{color:var(--dim);font-size:.82rem;font-weight:500;padding:7px 14px;border-radius:8px;transition:all .2s;text-decoration:none}
+        .nav-links a:hover{color:var(--text);background:rgba(255,255,255,.05)}
+        .nav-links .nav-accent{color:rgba(34,197,94,.85);font-weight:600}
+        .nav-cta{background:var(--green)!important;color:#000!important;padding:8px 20px!important;border-radius:8px;font-weight:600!important;font-size:.82rem!important;margin-left:8px}
+        .nav-cta:hover{background:var(--green-l)!important;transform:translateY(-1px);color:#000!important}
+        .mobile-toggle{display:none;background:none;border:none;color:var(--text);cursor:pointer;font-size:1.5rem;padding:8px}
+
+        /* --- Logo Badge (centered below nav) --- */
+        /* badge removed */
+
+        /* --- Hero Section --- */
+        .hero{position:relative;z-index:1;padding:100px 0 60px;text-align:center}
+        .hero-brand-wrap{margin-bottom:28px}
+        .hero-brand-img{width:100%;max-width:680px;height:auto;border-radius:14px;box-shadow:0 8px 40px rgba(34,197,94,.18),0 2px 12px rgba(0,0,0,.4)}
+        .hero h1{font-size:clamp(2.8rem,6vw,5rem);font-weight:900;line-height:1.05;letter-spacing:-.04em;margin-bottom:20px}
+        .hero h1 .line{display:block}
+        .hero h1 .profit{background:linear-gradient(135deg,var(--green),#4ade80,#86efac);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .hero .sub{font-size:clamp(1rem,2vw,1.3rem);color:var(--dim);margin-bottom:40px;font-weight:400}
+        .hero .sub em{font-style:normal;color:var(--text);font-weight:700;text-decoration:underline;text-decoration-color:var(--green);text-underline-offset:3px}
+
+        /* --- Pillars Row --- */
+        .pillars{display:flex;justify-content:center;gap:32px;margin-bottom:48px;flex-wrap:wrap}
+        .pillar{display:flex;align-items:center;gap:12px;padding:12px 22px;background:var(--card);border:1px solid var(--border);border-radius:14px;transition:all .3s}
+        .pillar:hover{border-color:rgba(34,197,94,.3);background:var(--card-h)}
+        .pillar .p-icon{width:42px;height:42px;border-radius:12px;background:var(--green-g);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+        .pillar .p-icon svg{width:20px;height:20px;color:var(--green)}
+        .pillar .p-text{font-size:.88rem;font-weight:600;color:var(--text)}
+        .pillar .p-sub{font-size:.72rem;color:var(--muted);font-weight:400}
+
+        /* --- CTA Row --- */
+        .hero-ctas{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-bottom:16px}
+        .btn{display:inline-flex;align-items:center;gap:8px;padding:14px 32px;border-radius:12px;font-weight:700;font-size:1rem;transition:all .25s;cursor:pointer;border:none;font-family:var(--font);text-decoration:none}
+        .btn-primary{background:var(--green);color:#000;box-shadow:0 4px 24px rgba(34,197,94,.3)}
+        .btn-primary:hover{background:var(--green-l);color:#000;transform:translateY(-2px);box-shadow:0 8px 32px rgba(34,197,94,.4)}
+        .btn-round{display:inline-flex;align-items:center;justify-content:center;width:140px;height:140px;border-radius:50%;background:linear-gradient(145deg,#22c55e,#16a34a);color:#000;font-weight:900;font-size:1.1rem;letter-spacing:.02em;text-decoration:none;box-shadow:0 0 40px rgba(34,197,94,.4),0 0 80px rgba(34,197,94,.15),inset 0 2px 4px rgba(255,255,255,.2);transition:all .35s;border:2px solid rgba(255,255,255,.15);text-align:center;line-height:1.2;font-family:var(--font);cursor:pointer;animation:roundBtnPulse 3s ease-in-out infinite}
+        .btn-round:hover{transform:scale(1.1);box-shadow:0 0 60px rgba(34,197,94,.5),0 0 120px rgba(34,197,94,.2),inset 0 2px 4px rgba(255,255,255,.25);color:#000;background:linear-gradient(145deg,#4ade80,#22c55e)}
+        @keyframes roundBtnPulse{0%,100%{box-shadow:0 0 40px rgba(34,197,94,.4),0 0 80px rgba(34,197,94,.15),inset 0 2px 4px rgba(255,255,255,.2)}50%{box-shadow:0 0 50px rgba(34,197,94,.5),0 0 100px rgba(34,197,94,.25),inset 0 2px 4px rgba(255,255,255,.2)}}
+        .btn-secondary{background:transparent;color:var(--text);border:1px solid var(--border-l)}
+        .btn-secondary:hover{border-color:var(--muted);background:rgba(255,255,255,.03)}
+        .hero .no-cc{font-size:.8rem;color:var(--muted);margin-bottom:48px}
+
+        /* --- Dashboard Mockups Section --- */
+        .mockups{position:relative;z-index:1;padding:0 0 80px}
+        .mockups-grid{display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:20px;align-items:start;max-width:1100px;margin:0 auto}
+        .mock-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;transition:all .4s;overflow:hidden}
+        .mock-card:hover{border-color:rgba(34,197,94,.2);transform:translateY(-4px)}
+        .mock-card.center{transform:translateY(-20px);border-color:rgba(34,197,94,.15);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+        .mock-card.center:hover{transform:translateY(-24px)}
+        .mock-header{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+        .mock-header .dot{width:8px;height:8px;border-radius:50%;background:var(--green)}
+        .mock-header span{font-size:.78rem;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+        .mock-stat{font-size:2.4rem;font-weight:900;color:var(--text);margin-bottom:4px}
+        .mock-change{display:inline-flex;align-items:center;gap:4px;font-size:.78rem;font-weight:600;color:var(--green);margin-bottom:16px}
+        .mock-chart{height:60px;background:linear-gradient(to right,rgba(34,197,94,.05),rgba(34,197,94,.15));border-radius:8px;position:relative;overflow:hidden}
+        .mock-chart::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to top right,transparent 30%,rgba(34,197,94,.4) 70%,rgba(34,197,94,.6));border-radius:0 0 8px 8px;clip-path:polygon(0 100%,5% 80%,10% 85%,15% 60%,20% 65%,25% 50%,30% 55%,35% 40%,40% 45%,45% 30%,50% 35%,55% 25%,60% 28%,65% 20%,70% 22%,75% 15%,80% 18%,85% 10%,90% 12%,95% 5%,100% 8%,100% 100%)}
+        .mock-metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:16px}
+        .mock-metric .mm-label{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+        .mock-metric .mm-val{font-size:1.1rem;font-weight:800;color:var(--text)}
+        .mock-metric .mm-delta{font-size:.65rem;font-weight:600;color:var(--green)}
+
+        /* Store card */
+        .store-preview{display:flex;flex-direction:column;gap:12px}
+        .store-item{display:flex;align-items:center;gap:12px;padding:10px 12px;background:rgba(255,255,255,.03);border-radius:10px;transition:background .2s}
+        .store-item:hover{background:rgba(255,255,255,.06)}
+        .store-item .si-thumb{width:40px;height:40px;border-radius:8px;flex-shrink:0}
+        .store-item .si-name{font-size:.82rem;font-weight:600;color:var(--text)}
+        .store-item .si-price{font-size:.75rem;color:var(--green);font-weight:600}
+        .store-btn{display:block;text-align:center;padding:10px;background:var(--green);color:#000;border-radius:10px;font-weight:600;font-size:.82rem;transition:all .2s;margin-top:8px}
+        .store-btn:hover{background:var(--green-l);color:#000}
+
+        /* Checklist card */
+        .check-list{display:flex;flex-direction:column;gap:10px}
+        .check-item{display:flex;align-items:center;gap:10px;font-size:.85rem;color:var(--dim)}
+        .check-item .ci-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:.7rem;font-weight:700}
+        .check-item .ci-icon.done{background:rgba(34,197,94,.15);color:var(--green)}
+        .check-item .ci-icon.active{background:rgba(59,130,246,.15);color:var(--blue);animation:pulse 2s infinite}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+        .check-item.done span{color:var(--text)}
+        .launch-ready{display:flex;align-items:center;gap:8px;margin-top:8px;padding:10px 14px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);border-radius:10px;font-size:.82rem;font-weight:600;color:var(--green)}
+
+        /* --- How It Works --- */
+        .how-section{position:relative;z-index:1;padding:80px 0;background:var(--bg2)}
+        .section-label{display:flex;align-items:center;gap:8px;font-size:.72rem;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:.12em;margin-bottom:14px;justify-content:center}
+        .section-title{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;text-align:center;margin-bottom:14px;letter-spacing:-.02em}
+        .section-desc{font-size:1rem;color:var(--dim);text-align:center;max-width:580px;margin:0 auto 52px}
+        .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;counter-reset:step}
+        .step{text-align:center;padding:36px 28px;background:var(--card);border:1px solid var(--border);border-radius:18px;counter-increment:step;transition:all .3s;position:relative}
+        .step:hover{border-color:rgba(34,197,94,.25);transform:translateY(-4px)}
+        .step::before{content:counter(step);display:flex;align-items:center;justify-content:center;width:48px;height:48px;background:var(--green-g);border:2px solid rgba(34,197,94,.3);border-radius:50%;font-weight:900;font-size:1.1rem;color:var(--green);margin:0 auto 18px}
+        .step h3{font-size:1rem;font-weight:700;margin-bottom:8px}
+        .step p{font-size:.85rem;color:var(--dim);line-height:1.6}
+
+        /* --- Social Proof / Stats --- */
+        .stats-section{position:relative;z-index:1;padding:60px 0}
+        .stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;background:var(--border);border-radius:18px;overflow:hidden}
+        .stat{background:var(--bg);padding:36px 24px;text-align:center}
+        .stat-num{font-size:2.2rem;font-weight:900;color:var(--green);margin-bottom:4px}
+        .stat-label{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:500}
+
+        /* --- What You Get --- */
+        .features-section{position:relative;z-index:1;padding:80px 0;background:var(--bg2)}
+        .features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+        .feat-card{padding:32px 28px;background:var(--card);border:1px solid var(--border);border-radius:18px;transition:all .3s}
+        .feat-card:hover{border-color:rgba(34,197,94,.25);transform:translateY(-4px)}
+        .feat-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:1.3rem}
+        .feat-icon.green{background:var(--green-g)}
+        .feat-icon.purple{background:rgba(168,85,247,.1)}
+        .feat-icon.blue{background:rgba(59,130,246,.1)}
+        .feat-icon.orange{background:rgba(249,115,22,.1)}
+        .feat-card h3{font-size:1rem;font-weight:700;margin-bottom:6px}
+        .feat-card p{font-size:.85rem;color:var(--dim);line-height:1.6}
+
+        /* --- Bottom CTA --- */
+        .bottom-cta{position:relative;z-index:1;padding:100px 0;text-align:center}
+        .bottom-cta .cta-box{max-width:700px;margin:0 auto;padding:60px 40px;background:linear-gradient(145deg,rgba(34,197,94,.06),rgba(168,85,247,.04));border:1px solid rgba(34,197,94,.15);border-radius:28px;position:relative;overflow:hidden}
+        .bottom-cta .cta-box::before{content:'';position:absolute;inset:-2px;border-radius:30px;background:linear-gradient(135deg,rgba(34,197,94,.2),transparent,rgba(168,85,247,.15));z-index:-1;filter:blur(1px)}
+        .bottom-cta h2{font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:900;margin-bottom:14px;letter-spacing:-.02em}
+        .bottom-cta p{font-size:1.05rem;color:var(--dim);max-width:480px;margin:0 auto 32px;line-height:1.7}
+        .bottom-cta .brand-bar{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:32px}
+        .bottom-cta .brand-bar img{width:28px;height:28px;border-radius:6px}
+        .bottom-cta .brand-bar span{font-size:1.1rem;font-weight:700}
+        .bottom-cta .brand-bar .g{color:var(--green)}
+        .bottom-cta .tagline{font-size:.78rem;color:var(--muted);margin-top:8px;letter-spacing:.04em}
+
+        /* --- Footer --- */
+        footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:40px 0 24px;background:var(--bg)}
+        .footer-inner{display:flex;flex-direction:column;align-items:center;gap:20px}
+        .footer-brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1rem}
+        .footer-brand img{width:28px;height:28px;border-radius:6px;object-fit:contain}
+        .footer-links{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:center}
+        .footer-links a{color:var(--muted);font-size:.78rem;font-weight:500;transition:color .2s}
+        .footer-links a:hover{color:var(--green)}
+        .footer-copy{font-size:.72rem;color:var(--muted);text-align:center}
+
+        /* --- Responsive --- */
+        @media(max-width:968px){
+            .mockups-grid{grid-template-columns:1fr;max-width:500px}
+            .mock-card.center{transform:none}
+            .steps{grid-template-columns:1fr}
+            .features-grid{grid-template-columns:1fr}
+            .stats-bar{grid-template-columns:repeat(2,1fr)}
+            .pillars{gap:12px}
+            .pillar{padding:10px 16px}
+        }
+        @media(max-width:640px){
+            .nav-links{display:none}
+            .nav-links.open{display:flex;flex-direction:column;position:absolute;top:60px;left:0;right:0;background:rgba(6,10,16,.98);backdrop-filter:blur(20px);padding:16px;gap:2px;z-index:200;border-bottom:1px solid var(--border)}
+            .mobile-toggle{display:block}
+            .hero h1{font-size:2.4rem}
+            .pillars{flex-direction:column;align-items:center}
+            .hero-ctas{flex-direction:column;align-items:center}
+            .mockups-grid{gap:16px}
+            .stats-bar{grid-template-columns:1fr 1fr}
+        }
+    </style>
+</head>
+<body>
+
+<!-- Ambient background -->
+<div class="bg-ambient"></div>
+<div class="bg-grid"></div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- NAVIGATION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <div class="nav-links" id="navLinks">
+            <a href="pages/creators.html">For Creators</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="pages/turnkey.html">Turnkey Businesses</a>
+            <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" class="nav-accent">MCTVS Method</a>
+            <a href="pages/viktor.html">Meet Viktor</a>
+            <a href="pages/bulletin.html">Bulletin</a>
+            <a href="pages/partners.html">Partners</a>
+            <a href="https://viktor.com" target="_blank" rel="noopener" class="nav-cta">Start Free</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="hero">
+    <div class="container">
+        <div class="hero-brand-wrap">
+            <img src="/assets/hero-brand-logo.png" alt="MyClover.Tech — Your Data. Your Stack. Your Rules." class="hero-brand-img">
+        </div>
+        <h1>
+            <span class="line">Your Idea.</span>
+            <span class="line">AI Builds It.</span>
+            <span class="line profit">You Profit.</span>
+        </h1>
+        <p class="sub">Launch your side hustle in <em>days</em>, not months.</p>
+
+        <div class="pillars">
+            <div class="pillar">
+                <div class="p-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                </div>
+                <div>
+                    <div class="p-text">AI-Powered Build</div>
+                    <div class="p-sub">Store, brand, products</div>
+                </div>
+            </div>
+            <div class="pillar">
+                <div class="p-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <div>
+                    <div class="p-text">Launch Faster</div>
+                    <div class="p-sub">Idea to live in days</div>
+                </div>
+            </div>
+            <div class="pillar">
+                <div class="p-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                </div>
+                <div>
+                    <div class="p-text">Grow & Scale</div>
+                    <div class="p-sub">Smart tools + analytics</div>
+                </div>
+            </div>
+            <div class="pillar">
+                <div class="p-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div>
+                    <div class="p-text">Profit on Your Terms</div>
+                    <div class="p-sub">You keep the revenue</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-bottom:8px">
+            <a href="https://viktor.com" target="_blank" rel="noopener" class="btn-round">Start<br>Free</a>
+        </div>
+        <div class="no-cc">No credit card required.</div>
+        <div style="margin-top:8px">
+            <a href="pages/creators.html" class="btn btn-secondary" style="font-size:.88rem;padding:10px 24px">Explore Creator Tools &rarr;</a>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- DASHBOARD MOCKUPS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="mockups">
+    <div class="container">
+        <div class="mockups-grid">
+            <!-- Left: Store Preview -->
+            <div class="mock-card">
+                <div class="mock-header">
+                    <div class="dot"></div>
+                    <span>Your Storefront</span>
+                </div>
+                <div style="font-size:.88rem;font-weight:700;margin-bottom:4px">Digital Tools for Creators</div>
+                <div style="font-size:.75rem;color:var(--muted);margin-bottom:16px">Premium templates. Instant download. Made by AI.</div>
+                <div class="store-preview">
+                    <div class="store-item">
+                        <div class="si-thumb" style="background:linear-gradient(135deg,#1a2a3a,#2a3a4a)"></div>
+                        <div style="flex:1">
+                            <div class="si-name">Content Planner</div>
+                            <div class="si-price">$29</div>
+                        </div>
+                    </div>
+                    <div class="store-item">
+                        <div class="si-thumb" style="background:linear-gradient(135deg,#2a1a3a,#3a2a4a)"></div>
+                        <div style="flex:1">
+                            <div class="si-name">Brand Kit</div>
+                            <div class="si-price">$49</div>
+                        </div>
+                    </div>
+                    <div class="store-item">
+                        <div class="si-thumb" style="background:linear-gradient(135deg,#1a3a2a,#2a4a3a)"></div>
+                        <div style="flex:1">
+                            <div class="si-name">Social Media Bundle</div>
+                            <div class="si-price">$19</div>
+                        </div>
+                    </div>
+                </div>
+                <a href="pages/creators.html" class="store-btn">Shop Now &rarr;</a>
+            </div>
+
+            <!-- Center: Revenue Dashboard -->
+            <div class="mock-card center">
+                <div class="mock-header">
+                    <div class="dot"></div>
+                    <span>Revenue Dashboard</span>
+                </div>
+                <div class="mock-stat">$24,560</div>
+                <div class="mock-change">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 10V2M6 2L2 6M6 2l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    +28.4% vs last 30 days
+                </div>
+                <div class="mock-chart"></div>
+                <div class="mock-metrics">
+                    <div class="mock-metric">
+                        <div class="mm-label">Visitors</div>
+                        <div class="mm-val">18,342</div>
+                        <div class="mm-delta">+25.1%</div>
+                    </div>
+                    <div class="mock-metric">
+                        <div class="mm-label">Orders</div>
+                        <div class="mm-val">642</div>
+                        <div class="mm-delta">+31.2%</div>
+                    </div>
+                    <div class="mock-metric">
+                        <div class="mm-label">Conversion</div>
+                        <div class="mm-val">3.92%</div>
+                        <div class="mm-delta">+18.7%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: AI Build Progress -->
+            <div class="mock-card">
+                <div class="mock-header">
+                    <div class="dot" style="background:var(--blue)"></div>
+                    <span>AI Build Progress</span>
+                </div>
+                <div class="check-list">
+                    <div class="check-item done">
+                        <div class="ci-icon done">&#10003;</div>
+                        <span>Idea Analyzed</span>
+                    </div>
+                    <div class="check-item done">
+                        <div class="ci-icon done">&#10003;</div>
+                        <span>Niche Validated</span>
+                    </div>
+                    <div class="check-item done">
+                        <div class="ci-icon done">&#10003;</div>
+                        <span>Brand Created</span>
+                    </div>
+                    <div class="check-item done">
+                        <div class="ci-icon done">&#10003;</div>
+                        <span>Store Built</span>
+                    </div>
+                    <div class="check-item done">
+                        <div class="ci-icon done">&#10003;</div>
+                        <span>Products Added</span>
+                    </div>
+                    <div class="check-item">
+                        <div class="ci-icon active">&#9679;</div>
+                        <span>Marketing Live...</span>
+                    </div>
+                </div>
+                <div class="launch-ready">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    Launch Ready!
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- STATS BAR -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="stats-section">
+    <div class="container">
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-num">15+</div>
+                <div class="stat-label">Creator Tools</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num">$0</div>
+                <div class="stat-label">To Start</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num">Days</div>
+                <div class="stat-label">Not Months</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num">100%</div>
+                <div class="stat-label">Your Revenue</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- HOW IT WORKS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="how-section" id="how-it-works">
+    <div class="container">
+        <div class="section-label">How It Works</div>
+        <h2 class="section-title">From Zero to Launched</h2>
+        <p class="section-desc">Tell us your idea. AI does the rest. You own the business.</p>
+        <div class="steps">
+            <div class="step">
+                <h3>Describe Your Idea</h3>
+                <p>Sign up free and tell Viktor what you want to build. A soap brand, a game, a digital product shop, a consulting service. Anything.</p>
+            </div>
+            <div class="step">
+                <h3>AI Builds It</h3>
+                <p>Viktor validates your niche, creates your brand, builds your storefront, adds products, and sets up payments. You watch it happen in real time.</p>
+            </div>
+            <div class="step">
+                <h3>Launch & Profit</h3>
+                <p>Your business goes live with your brand, your domain, your Stripe account. You keep 100% of revenue. Scale with AI-powered marketing tools.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- WHAT YOU GET -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="features-section">
+    <div class="container">
+        <div class="section-label">Everything Included</div>
+        <h2 class="section-title">Built for Creators Who Move Fast</h2>
+        <p class="section-desc">Every tool you need to launch, run, and scale a business. All powered by AI.</p>
+        <div class="features-grid">
+            <div class="feat-card">
+                <div class="feat-icon green">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </div>
+                <h3>AI-Built Storefronts</h3>
+                <p>Custom branded websites and shops, built automatically. Your domain, your logo, your colors. No templates, no code.</p>
+            </div>
+            <div class="feat-card">
+                <div class="feat-icon purple">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                </div>
+                <h3>Product Creation</h3>
+                <p>Digital products, physical goods, services, subscriptions. AI generates descriptions, pricing, and marketing copy.</p>
+            </div>
+            <div class="feat-card">
+                <div class="feat-icon blue">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <h3>Payments & Revenue</h3>
+                <p>Stripe integration out of the box. Accept payments instantly. Revenue goes straight to your bank. You keep it all.</p>
+            </div>
+            <div class="feat-card">
+                <div class="feat-icon orange">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f97316" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                </div>
+                <h3>Viktor AI Assistant</h3>
+                <p>Your AI business partner. Available 24/7 in Slack. Builds, manages, troubleshoots, and scales your business alongside you.</p>
+            </div>
+            <div class="feat-card">
+                <div class="feat-icon green">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                </div>
+                <h3>Analytics & Growth</h3>
+                <p>Real-time dashboards for revenue, visitors, conversions, and orders. AI-powered insights to optimize and grow.</p>
+            </div>
+            <div class="feat-card">
+                <div class="feat-icon purple">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                </div>
+                <h3>MCTVS Method</h3>
+                <p>Our proven framework for building profitable creator businesses. Step-by-step guidance from idea validation to first sale.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- BOTTOM CTA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="bottom-cta">
+    <div class="container">
+        <div class="cta-box">
+            <h2>Your Idea Deserves to Exist.</h2>
+            <p>Stop thinking about it. Let AI build it. Start earning from your side hustle in days, not months.</p>
+            <div class="hero-ctas">
+                <a href="https://viktor.com" target="_blank" rel="noopener" class="btn btn-primary">Start Free &rarr;</a>
+                <a href="mailto:cloverbot@myclover.tech" class="btn btn-secondary">Talk to Us</a>
+            </div>
+            <div class="brand-bar">
+                <img src="/assets/myclover-logo-512.png" alt="MyClover.Tech">
+                <span>My<span class="g">Clover</span>.Tech</span>
+            </div>
+            <div class="tagline">AI Builds. You Profit.</div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FOOTER -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<footer>
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="/assets/myclover-logo-512.png" alt="MyClover.Tech">
+                <span>My<span style="color:var(--green)">Clover</span>.Tech</span>
+            </div>
+            <div class="footer-links">
+                <a href="pages/creators.html">For Creators</a>
+                <a href="pages/turnkey.html">Turnkey Businesses</a>
+                <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener">MCTVS Method</a>
+                <a href="pages/bulletin.html">Bulletin</a>
+                <a href="pages/partners.html">Partners</a>
+                <a href="pages/viktor.html">Meet Viktor</a>
+                <a href="pages/cloverbot.html">CloverBot</a>
+                <a href="/keygen">KeyGen</a>
+                <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener">GitHub</a>
+                <a href="mailto:inforequest@myclover.tech">Contact</a>
+            </div>
+            <div class="footer-copy">
+                &copy; 2026 MyClover Technologies. All rights reserved.<br>
+                <span style="color:var(--muted)">The AI platform that builds and launches side hustles for creators.</span>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+// Nav scroll effect
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+    nav.classList.toggle('scrolled', window.scrollY > 40);
+});
+
+// Mobile menu
+const mobileToggle = document.getElementById('mobileToggle');
+const navLinks = document.getElementById('navLinks');
+if (mobileToggle) {
+    mobileToggle.addEventListener('click', () => {
+        navLinks.classList.toggle('open');
+        mobileToggle.textContent = navLinks.classList.contains('open') ? '\u2715' : '\u2630';
+    });
+    document.querySelectorAll('.nav-links a').forEach(link => {
+        link.addEventListener('click', () => {
+            navLinks.classList.remove('open');
+            mobileToggle.textContent = '\u2630';
+        });
+    });
+}
+
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+            e.preventDefault();
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+});
+
+// Scroll-in animations
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting) {
+            entry.target.style.opacity = '1';
+            entry.target.style.transform = 'translateY(0)';
+            observer.unobserve(entry.target);
+        }
+    });
+}, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.mock-card, .step, .feat-card, .pillar, .stat').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(24px)';
+    el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    observer.observe(el);
+});
+
+console.log('MyClover.Tech -- AI Builds. You Profit. -- https://myclover.tech');
+</script>
+
+<!-- CloverBot AI Support Widget -->
+<script src="/static/cloverbot.js" data-api-url=""></script>
+</body>
+</html>
