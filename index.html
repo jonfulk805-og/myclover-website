@@ -17,20 +17,15 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700;1,800&display=swap" rel="stylesheet">
     <style>
-        /* ========== RESET & BASE ========== */
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
             --bg: #000000;
-            --bg-card: #0a0a0a;
             --text: #ffffff;
             --text-dim: #94a3b8;
             --text-muted: #64748b;
             --green: #22c55e;
             --green-dark: #16a34a;
-            --green-glow: rgba(34, 197, 94, 0.15);
-            --cyan: #06d6a0;
-            --purple: #a855f7;
             --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
         }
@@ -49,992 +44,448 @@
             flex-direction: column;
         }
 
-        a {
-            color: inherit;
-            text-decoration: none;
-            cursor: pointer;
-        }
+        a { color: inherit; text-decoration: none; cursor: pointer; }
 
-        /* ========== MAIN HERO SECTION ========== */
+        /* ========== HERO ========== */
         .hero {
             flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
-            padding: 60px 32px 40px;
+            padding: 60px 48px 40px;
             min-height: calc(100vh - 100px);
+            overflow: hidden;
         }
 
         .hero-inner {
-            max-width: 1400px;
+            max-width: 1360px;
             width: 100%;
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 40px;
+            grid-template-columns: 1fr 1.1fr;
+            gap: 60px;
             align-items: center;
         }
 
-        /* ===== Left column: Text + Features ===== */
-        .hero-left {
-            position: relative;
-            z-index: 2;
-        }
+        /* ===== Left: Text + Features ===== */
+        .hero-left { position: relative; z-index: 2; }
 
         .hero-headline {
             font-family: var(--font-display);
             font-weight: 800;
-            font-size: clamp(2.8rem, 5.5vw, 4.5rem);
-            line-height: 1.08;
+            font-size: clamp(2.6rem, 5vw, 4.2rem);
+            line-height: 1.1;
             letter-spacing: -0.02em;
-            margin-bottom: 28px;
-            color: var(--text);
+            margin-bottom: 24px;
         }
 
-        .hero-headline .line {
-            display: block;
-        }
+        .hero-headline .line { display: block; }
 
-        .hero-subheadline {
-            font-size: clamp(1.1rem, 2vw, 1.35rem);
+        .hero-sub {
+            font-size: clamp(1.05rem, 1.8vw, 1.3rem);
             font-weight: 300;
             color: var(--text-dim);
-            margin-bottom: 48px;
+            margin-bottom: 44px;
             line-height: 1.5;
         }
 
-        .hero-subheadline em {
-            font-style: italic;
-            color: var(--text);
-            font-weight: 400;
+        .hero-sub em { font-style: italic; color: var(--text); font-weight: 400; }
+
+        .features-row { display: flex; flex-wrap: wrap; gap: 12px; }
+
+        .fp {
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            padding: 14px 18px; border-radius: 14px;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+            min-width: 105px; transition: all .3s;
         }
 
-        /* Feature pills row */
-        .features-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
+        .fp:hover { background: rgba(255,255,255,0.06); border-color: rgba(34,197,94,.2); transform: translateY(-2px); }
+
+        .fp-icon {
+            width: 42px; height: 42px; border-radius: 11px;
+            display: flex; align-items: center; justify-content: center;
         }
 
-        .feature-pill {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            padding: 16px 20px;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            min-width: 110px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
+        .fp-icon.g { background: rgba(34,197,94,.12); color: #22c55e; }
+        .fp-icon.c { background: rgba(6,214,160,.12); color: #06d6a0; }
+        .fp-icon.b { background: rgba(59,130,246,.12); color: #3b82f6; }
+        .fp-icon.y { background: rgba(234,179,8,.12); color: #eab308; }
 
-        .feature-pill:hover {
-            background: rgba(255, 255, 255, 0.06);
-            border-color: rgba(34, 197, 94, 0.2);
-            transform: translateY(-2px);
-        }
+        .fp-label { font-size: .75rem; font-weight: 500; color: var(--text-dim); text-align: center; line-height: 1.3; }
 
-        .feature-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-        }
-
-        .feature-icon.green-icon { background: rgba(34, 197, 94, 0.12); color: #22c55e; }
-        .feature-icon.cyan-icon { background: rgba(6, 214, 160, 0.12); color: #06d6a0; }
-        .feature-icon.blue-icon { background: rgba(59, 130, 246, 0.12); color: #3b82f6; }
-        .feature-icon.yellow-icon { background: rgba(234, 179, 8, 0.12); color: #eab308; }
-
-        .feature-label {
-            font-size: 0.78rem;
-            font-weight: 500;
-            color: var(--text-dim);
-            text-align: center;
-            line-height: 1.3;
-        }
-
-        /* ===== Right column: Clover + UI Mockups ===== */
+        /* ===== Right: Clover + Mockups ===== */
         .hero-right {
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            min-height: 500px;
+            min-height: 520px;
         }
 
-        /* Central clover emblem */
-        .clover-emblem {
+        /* Clover emblem */
+        .clover-wrap {
             position: absolute;
-            left: 50%;
+            left: 5%;
             top: 50%;
-            transform: translate(-70%, -55%);
+            transform: translateY(-55%);
             z-index: 3;
-            width: 280px;
-            height: 280px;
+            width: 260px; height: 260px;
+        }
+
+        .clover-glow {
+            position: absolute; inset: -35px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(6,214,160,.14) 0%, rgba(168,85,247,.06) 40%, transparent 70%);
+            pointer-events: none;
+            animation: glow 4s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%,100% { opacity: .6; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.06); }
         }
 
         .clover-circle {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
+            width: 100%; height: 100%; border-radius: 50%;
             background: radial-gradient(circle at center, #1a1a2e 0%, #0d0d1a 60%, #000 100%);
-            border: 2px solid rgba(255, 255, 255, 0.08);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            box-shadow:
-                0 0 60px rgba(6, 214, 160, 0.15),
-                0 0 120px rgba(168, 85, 247, 0.08),
-                inset 0 0 30px rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(255,255,255,.08);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 60px rgba(6,214,160,.15), 0 0 120px rgba(168,85,247,.08), inset 0 0 30px rgba(0,0,0,.5);
         }
 
         .clover-circle img {
-            width: 65%;
-            height: 65%;
-            object-fit: contain;
-            filter: drop-shadow(0 0 20px rgba(34, 197, 94, 0.3));
+            width: 68%; height: 68%; object-fit: contain;
+            filter: drop-shadow(0 0 20px rgba(34,197,94,.3));
         }
 
-        /* Glow ring around clover */
-        .clover-glow {
-            position: absolute;
-            inset: -30px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(6, 214, 160, 0.12) 0%, rgba(168, 85, 247, 0.06) 40%, transparent 70%);
-            pointer-events: none;
-            animation: pulse-glow 4s ease-in-out infinite;
+        /* Store card */
+        .m-store {
+            position: absolute; top: -10px; right: 0;
+            width: 300px; background: #111318; border-radius: 14px;
+            border: 1px solid rgba(255,255,255,.08);
+            overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.6); z-index: 2;
         }
 
-        @keyframes pulse-glow {
-            0%, 100% { opacity: 0.6; transform: scale(1); }
-            50% { opacity: 1; transform: scale(1.05); }
+        .m-store-head {
+            background: linear-gradient(135deg, #1a1d25, #12141a);
+            padding: 16px 18px; display: flex; justify-content: space-between; align-items: flex-start;
         }
 
-        /* UI Mockup cards */
-        .mockup-store {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 320px;
-            background: #111318;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
-            z-index: 2;
+        .m-store-left { flex: 1; }
+        .m-store-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; }
+        .m-store-sub { font-size: .72rem; color: var(--text-muted); margin-bottom: 10px; }
+
+        .shop-btn {
+            display: inline-block; background: var(--green); color: #000;
+            font-size: .7rem; font-weight: 600; padding: 5px 12px; border-radius: 5px;
         }
 
-        .mockup-store-header {
-            background: linear-gradient(135deg, #1a1d25 0%, #12141a 100%);
-            padding: 20px;
-            position: relative;
+        .tk-badge {
+            background: linear-gradient(135deg, rgba(168,85,247,.3), rgba(34,197,94,.2));
+            border: 1px solid rgba(168,85,247,.3); border-radius: 8px;
+            padding: 6px 10px; text-align: center; margin-left: 10px;
         }
 
-        .store-top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
+        .tk-badge .tk-top { font-size: .5rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); }
+        .tk-badge .tk-bot { font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+
+        .cart-tag {
+            position: absolute; top: 10px; right: 14px;
+            font-size: .65rem; color: var(--text-muted); background: rgba(255,255,255,.06);
+            padding: 3px 8px; border-radius: 5px;
         }
 
-        .store-top-bar .cart-btn {
-            font-size: 0.72rem;
-            color: var(--text-dim);
-            background: rgba(255,255,255,0.06);
-            padding: 4px 10px;
-            border-radius: 6px;
+        .m-store-prods { padding: 12px 18px 16px; }
+        .prods-label { font-size: .65rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 10px; }
+
+        .prods-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+
+        .prod {
+            background: rgba(255,255,255,.04); border-radius: 8px; padding: 10px 6px;
+            text-align: center; border: 1px solid rgba(255,255,255,.05);
         }
 
-        .store-title {
-            font-size: 1.15rem;
-            font-weight: 700;
-            margin-bottom: 4px;
+        .prod-ico {
+            width: 28px; height: 28px; margin: 0 auto 5px;
+            background: rgba(255,255,255,.06); border-radius: 6px;
+            display: flex; align-items: center; justify-content: center; font-size: 13px;
         }
 
-        .store-subtitle {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-bottom: 12px;
+        .prod-name { font-size: .55rem; font-weight: 500; color: var(--text-dim); line-height: 1.2; margin-bottom: 2px; }
+        .prod-price { font-size: .6rem; font-weight: 700; color: var(--green); }
+
+        /* Dashboard card */
+        .m-dash {
+            position: absolute; bottom: -20px; right: -10px;
+            width: 360px; background: #111318; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,.08);
+            overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.7); z-index: 1;
         }
 
-        .store-cta-btn {
-            display: inline-block;
-            background: var(--green);
-            color: #000;
-            font-size: 0.72rem;
-            font-weight: 600;
-            padding: 6px 14px;
-            border-radius: 6px;
+        .m-dash-head {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.06);
         }
 
-        .creator-toolkit-badge {
-            position: absolute;
-            top: 12px;
-            right: 16px;
-            background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(34, 197, 94, 0.2));
-            border: 1px solid rgba(168, 85, 247, 0.3);
-            border-radius: 10px;
-            padding: 8px 12px;
-            text-align: center;
+        .m-dash-title { font-size: .8rem; font-weight: 700; }
+        .m-dash-period { font-size: .6rem; color: var(--text-muted); background: rgba(255,255,255,.05); padding: 2px 7px; border-radius: 4px; }
+
+        .m-dash-body { display: flex; }
+
+        .m-dash-side {
+            width: 90px; padding: 10px; border-right: 1px solid rgba(255,255,255,.06);
         }
 
-        .creator-toolkit-badge .badge-label {
-            font-size: 0.55rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: var(--text-dim);
+        .si { font-size: .55rem; color: var(--text-muted); padding: 5px 6px; border-radius: 5px; margin-bottom: 1px; }
+        .si.on { background: rgba(34,197,94,.1); color: var(--green); }
+
+        .m-dash-main { flex: 1; padding: 12px; }
+        .rev-label { font-size: .55rem; color: var(--text-muted); margin-bottom: 3px; }
+        .rev-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 2px; }
+        .rev-amt { font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; }
+        .rev-chg { font-size: .65rem; color: var(--green); font-weight: 600; }
+        .rev-sub { font-size: .55rem; color: var(--text-muted); margin-bottom: 8px; }
+
+        .mchart { height: 45px; margin-bottom: 12px; }
+        .mchart svg { width: 100%; height: 100%; }
+
+        .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+        .st-label { font-size: .5rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 1px; }
+        .st-val { font-size: .8rem; font-weight: 700; }
+        .st-chg { font-size: .5rem; color: var(--green); }
+
+        /* Mobile card */
+        .m-mob {
+            position: absolute; bottom: 10px; right: -40px;
+            width: 130px; background: #111318; border-radius: 18px;
+            border: 2px solid rgba(255,255,255,.1);
+            overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.6); z-index: 4;
+            padding: 5px;
         }
 
-        .creator-toolkit-badge .badge-title {
-            font-size: 0.9rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+        .mob-notch { width: 50%; height: 3px; background: rgba(255,255,255,.15); border-radius: 2px; margin: 3px auto 6px; }
 
-        .mockup-store-products {
-            padding: 16px 20px 20px;
-        }
+        .mob-inner { background: #0a0c10; border-radius: 13px; padding: 9px; }
+        .mob-title { font-size: .6rem; font-weight: 700; margin-bottom: 6px; }
+        .mob-rev-label { font-size: .45rem; color: var(--text-muted); margin-bottom: 1px; }
+        .mob-rev { font-size: .9rem; font-weight: 800; margin-bottom: 1px; }
+        .mob-chg { font-size: .5rem; color: var(--green); margin-bottom: 8px; }
 
-        .products-label {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 12px;
-        }
+        .mob-chart { height: 25px; margin-bottom: 6px; }
+        .mob-chart svg { width: 100%; height: 100%; }
 
-        .products-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-        }
+        .mob-pl { font-size: .45rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
 
-        .product-card {
-            background: rgba(255, 255, 255, 0.04);
-            border-radius: 10px;
-            padding: 12px 8px;
-            text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
+        .mob-item { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.04); }
+        .mob-item:last-child { border-bottom: none; }
+        .mob-item-name { font-size: .45rem; color: var(--text-dim); }
+        .mob-item-amt { font-size: .45rem; font-weight: 700; }
 
-        .product-icon {
-            width: 32px;
-            height: 32px;
-            margin: 0 auto 6px;
-            background: rgba(255, 255, 255, 0.06);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-        }
+        .mob-nav { display: flex; justify-content: space-around; padding: 6px 3px 3px; border-top: 1px solid rgba(255,255,255,.06); margin-top: 8px; }
+        .mob-nav span { font-size: .4rem; color: var(--text-muted); }
+        .mob-nav span.on { color: var(--green); }
 
-        .product-name {
-            font-size: 0.6rem;
-            font-weight: 500;
-            color: var(--text-dim);
-            line-height: 1.2;
-            margin-bottom: 2px;
-        }
-
-        .product-price {
-            font-size: 0.65rem;
-            font-weight: 700;
-            color: var(--green);
-        }
-
-        /* Dashboard mockup */
-        .mockup-dashboard {
-            position: absolute;
-            bottom: -10px;
-            right: -10px;
-            width: 380px;
-            background: #111318;
-            border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
-            z-index: 1;
-        }
-
-        .dashboard-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 18px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-        }
-
-        .dashboard-title {
-            font-size: 0.85rem;
-            font-weight: 700;
-        }
-
-        .dashboard-period {
-            font-size: 0.65rem;
-            color: var(--text-muted);
-            background: rgba(255,255,255,0.05);
-            padding: 3px 8px;
-            border-radius: 4px;
-        }
-
-        .dashboard-body {
-            display: flex;
-        }
-
-        .dashboard-sidebar {
-            width: 100px;
-            padding: 12px;
-            border-right: 1px solid rgba(255, 255, 255, 0.06);
-        }
-
-        .sidebar-item {
-            font-size: 0.6rem;
-            color: var(--text-muted);
-            padding: 6px 8px;
-            border-radius: 6px;
-            margin-bottom: 2px;
-            cursor: default;
-        }
-
-        .sidebar-item.active {
-            background: rgba(34, 197, 94, 0.1);
-            color: var(--green);
-        }
-
-        .dashboard-content {
-            flex: 1;
-            padding: 14px;
-        }
-
-        .revenue-row {
-            display: flex;
-            align-items: baseline;
-            gap: 12px;
-            margin-bottom: 4px;
-        }
-
-        .revenue-amount {
-            font-size: 1.5rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-        }
-
-        .revenue-change {
-            font-size: 0.7rem;
-            color: var(--green);
-            font-weight: 600;
-        }
-
-        .revenue-sublabel {
-            font-size: 0.6rem;
-            color: var(--text-muted);
-            margin-bottom: 10px;
-        }
-
-        /* Chart placeholder */
-        .mini-chart {
-            height: 50px;
-            margin-bottom: 14px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .mini-chart svg {
-            width: 100%;
-            height: 100%;
-        }
-
-        /* Stats row */
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-        }
-
-        .stat-box {
-            text-align: center;
-        }
-
-        .stat-label {
-            font-size: 0.55rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 2px;
-        }
-
-        .stat-value {
-            font-size: 0.85rem;
-            font-weight: 700;
-        }
-
-        .stat-change {
-            font-size: 0.55rem;
-            color: var(--green);
-        }
-
-        /* Mobile mockup */
-        .mockup-mobile {
-            position: absolute;
-            bottom: 20px;
-            right: -50px;
-            width: 140px;
-            background: #111318;
-            border-radius: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            overflow: hidden;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-            z-index: 4;
-            padding: 6px;
-        }
-
-        .mobile-notch {
-            width: 50%;
-            height: 3px;
-            background: rgba(255,255,255,0.15);
-            border-radius: 2px;
-            margin: 4px auto 8px;
-        }
-
-        .mobile-inner {
-            background: #0a0c10;
-            border-radius: 14px;
-            padding: 10px;
-        }
-
-        .mobile-title {
-            font-size: 0.65rem;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-
-        .mobile-revenue {
-            font-size: 1rem;
-            font-weight: 800;
-            margin-bottom: 2px;
-        }
-
-        .mobile-change {
-            font-size: 0.55rem;
-            color: var(--green);
-            margin-bottom: 10px;
-        }
-
-        .mobile-products-label {
-            font-size: 0.5rem;
-            color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin-bottom: 6px;
-        }
-
-        .mobile-product-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 4px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-        }
-
-        .mobile-product-item:last-child { border-bottom: none; }
-
-        .mobile-product-name {
-            font-size: 0.5rem;
-            color: var(--text-dim);
-        }
-
-        .mobile-product-amount {
-            font-size: 0.5rem;
-            font-weight: 700;
-        }
-
-        .mobile-nav {
-            display: flex;
-            justify-content: space-around;
-            padding: 8px 4px 4px;
-            border-top: 1px solid rgba(255,255,255,0.06);
-            margin-top: 10px;
-        }
-
-        .mobile-nav span {
-            font-size: 0.45rem;
-            color: var(--text-muted);
-        }
-
-        .mobile-nav span.active { color: var(--green); }
-
-        /* ========== BOTTOM BAR (CTA Strip) ========== */
+        /* ========== BOTTOM BAR ========== */
         .bottom-bar {
-            background: #0a0a0a;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 28px 32px;
-            position: relative;
-            z-index: 10;
+            background: #0a0a0a; border-top: 1px solid rgba(255,255,255,.08);
+            padding: 26px 48px; position: relative; z-index: 10;
         }
 
-        .bottom-bar-inner {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 24px;
+        .bb-inner {
+            max-width: 1360px; margin: 0 auto;
+            display: flex; align-items: center; justify-content: space-between; gap: 24px;
         }
 
-        .bottom-logo-area {
-            display: flex;
-            align-items: center;
-            gap: 14px;
+        .bb-logo { display: flex; align-items: center; gap: 12px; }
+
+        .bb-logo img { width: 42px; height: 42px; object-fit: contain; }
+
+        .bb-logo-text { font-size: 1.4rem; font-weight: 800; letter-spacing: -.01em; }
+        .bb-logo-text .grn { color: var(--green); }
+
+        .bb-div { width: 1px; height: 46px; background: rgba(255,255,255,.12); margin: 0 14px; }
+
+        .bb-tag { font-size: 1rem; color: var(--text-dim); line-height: 1.4; max-width: 300px; }
+        .bb-tag strong { color: var(--green); font-weight: 600; }
+
+        .bb-cta { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+
+        .cta-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: var(--green); color: #000;
+            font-size: 1.1rem; font-weight: 700; padding: 13px 34px; border-radius: 9px;
+            border: none; cursor: pointer; transition: all .3s;
+            box-shadow: 0 4px 20px rgba(34,197,94,.3);
         }
 
-        .bottom-logo-icon {
-            width: 44px;
-            height: 44px;
-        }
+        .cta-btn:hover { background: #2dd66b; transform: translateY(-2px); box-shadow: 0 6px 30px rgba(34,197,94,.4); }
+        .cta-btn .arr { font-size: 1.2rem; transition: transform .3s; }
+        .cta-btn:hover .arr { transform: translateX(3px); }
 
-        .bottom-logo-icon img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
+        .cta-sub { font-size: .78rem; color: var(--text-muted); font-style: italic; }
 
-        .bottom-logo-text {
-            font-size: 1.5rem;
-            font-weight: 800;
-            letter-spacing: -0.01em;
-        }
-
-        .bottom-logo-text .green { color: var(--green); }
-
-        .bottom-divider {
-            width: 1px;
-            height: 48px;
-            background: rgba(255, 255, 255, 0.12);
-            margin: 0 16px;
-        }
-
-        .bottom-tagline {
-            font-size: 1.05rem;
-            color: var(--text-dim);
-            line-height: 1.4;
-            max-width: 320px;
-        }
-
-        .bottom-tagline strong {
-            color: var(--green);
-            font-weight: 600;
-        }
-
-        .bottom-cta-area {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 6px;
-        }
-
-        .cta-button {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--green);
-            color: #000;
-            font-size: 1.15rem;
-            font-weight: 700;
-            padding: 14px 36px;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.3);
-        }
-
-        .cta-button:hover {
-            background: #2dd66b;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 30px rgba(34, 197, 94, 0.4);
-        }
-
-        .cta-button .arrow {
-            font-size: 1.2rem;
-            transition: transform 0.3s;
-        }
-
-        .cta-button:hover .arrow {
-            transform: translateX(3px);
-        }
-
-        .cta-subtext {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            font-style: italic;
-        }
-
-        /* ========== BACKGROUND EFFECTS ========== */
-        .bg-gradient-1 {
-            position: fixed;
-            top: 20%;
-            left: 40%;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(6, 214, 160, 0.04) 0%, transparent 70%);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .bg-gradient-2 {
-            position: fixed;
-            top: 30%;
-            right: 10%;
-            width: 500px;
-            height: 500px;
-            background: radial-gradient(circle, rgba(168, 85, 247, 0.03) 0%, transparent 70%);
-            pointer-events: none;
-            z-index: 0;
-        }
+        /* Ambient */
+        .bg1 { position: fixed; top: 20%; left: 40%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(6,214,160,.04) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+        .bg2 { position: fixed; top: 30%; right: 10%; width: 500px; height: 500px; background: radial-gradient(circle, rgba(168,85,247,.03) 0%, transparent 70%); pointer-events: none; z-index: 0; }
 
         /* ========== RESPONSIVE ========== */
-        @media (max-width: 1024px) {
-            .hero-inner {
-                grid-template-columns: 1fr;
-                text-align: center;
-                gap: 50px;
-            }
-
+        @media (max-width: 1100px) {
+            .hero-inner { grid-template-columns: 1fr; text-align: center; gap: 50px; }
             .hero-left { order: 1; }
-            .hero-right { order: 2; min-height: 400px; }
-
-            .features-row {
-                justify-content: center;
-            }
-
-            .clover-emblem {
-                left: 50%;
-                transform: translate(-50%, -55%);
-            }
-
-            .mockup-store {
-                width: 260px;
-                right: auto;
-                left: 55%;
-                top: 10px;
-            }
-
-            .mockup-dashboard {
-                width: 320px;
-                right: auto;
-                left: 45%;
-                bottom: 0;
-            }
-
-            .mockup-mobile {
-                display: none;
-            }
-
-            .bottom-bar-inner {
-                flex-direction: column;
-                text-align: center;
-                gap: 20px;
-            }
-
-            .bottom-logo-area {
-                justify-content: center;
-            }
-
-            .bottom-divider {
-                width: 60px;
-                height: 1px;
-                margin: 0;
-            }
-
-            .bottom-tagline {
-                text-align: center;
-            }
-
-            .bottom-cta-area {
-                align-items: center;
-            }
+            .hero-right { order: 2; min-height: 420px; }
+            .features-row { justify-content: center; }
+            .clover-wrap { left: 50%; transform: translate(-50%, -55%); }
+            .m-store { width: 250px; right: auto; left: 52%; top: 0; }
+            .m-dash { width: 300px; right: auto; left: 42%; bottom: -10px; }
+            .m-mob { display: none; }
+            .bb-inner { flex-direction: column; text-align: center; gap: 18px; }
+            .bb-logo { justify-content: center; }
+            .bb-div { width: 60px; height: 1px; margin: 0; }
+            .bb-tag { text-align: center; }
+            .bb-cta { align-items: center; }
         }
 
         @media (max-width: 640px) {
-            .hero {
-                padding: 40px 20px 30px;
-                min-height: auto;
-            }
-
-            .hero-headline {
-                font-size: 2.2rem;
-            }
-
-            .hero-subheadline {
-                font-size: 1rem;
-                margin-bottom: 32px;
-            }
-
-            .feature-pill {
-                min-width: 90px;
-                padding: 12px 14px;
-            }
-
-            .feature-icon {
-                width: 36px;
-                height: 36px;
-                font-size: 16px;
-            }
-
-            .feature-label {
-                font-size: 0.68rem;
-            }
-
-            .hero-right {
-                min-height: 350px;
-            }
-
-            .clover-emblem {
-                width: 200px;
-                height: 200px;
-            }
-
-            .mockup-store {
-                width: 220px;
-                left: 52%;
-            }
-
-            .mockup-dashboard {
-                width: 280px;
-                left: 40%;
-            }
-
-            .bottom-bar {
-                padding: 24px 20px;
-            }
-
-            .bottom-logo-text {
-                font-size: 1.2rem;
-            }
-
-            .cta-button {
-                font-size: 1rem;
-                padding: 12px 28px;
-            }
+            .hero { padding: 36px 20px 28px; min-height: auto; }
+            .hero-headline { font-size: 2.1rem; }
+            .hero-sub { font-size: .95rem; margin-bottom: 30px; }
+            .fp { min-width: 85px; padding: 10px 12px; }
+            .fp-icon { width: 34px; height: 34px; }
+            .fp-label { font-size: .65rem; }
+            .hero-right { min-height: 340px; }
+            .clover-wrap { width: 190px; height: 190px; }
+            .m-store { width: 210px; left: 48%; }
+            .m-dash { width: 260px; left: 35%; }
+            .bottom-bar { padding: 22px 20px; }
+            .bb-logo-text { font-size: 1.15rem; }
+            .cta-btn { font-size: .95rem; padding: 11px 26px; }
         }
     </style>
 </head>
 <body>
 
-<!-- Ambient background -->
-<div class="bg-gradient-1"></div>
-<div class="bg-gradient-2"></div>
+<div class="bg1"></div>
+<div class="bg2"></div>
 
 <!-- ========== HERO ========== -->
 <section class="hero">
     <div class="hero-inner">
 
-        <!-- Left: Headline + Features -->
         <div class="hero-left">
             <h1 class="hero-headline">
                 <span class="line">Your Idea.</span>
                 <span class="line">AI Builds It.</span>
                 <span class="line">You Profit.</span>
             </h1>
-            <p class="hero-subheadline">
+            <p class="hero-sub">
                 Launch your side hustle<br>
                 in <em>days</em>, not months.
             </p>
             <div class="features-row">
-                <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="feature-pill">
-                    <div class="feature-icon green-icon">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                    </div>
-                    <span class="feature-label">AI-Powered<br>Build</span>
+                <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="fp">
+                    <div class="fp-icon g"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+                    <span class="fp-label">AI-Powered<br>Build</span>
                 </a>
-                <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="feature-pill">
-                    <div class="feature-icon cyan-icon">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
-                    </div>
-                    <span class="feature-label">Launch<br>Faster</span>
+                <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="fp">
+                    <div class="fp-icon c"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg></div>
+                    <span class="fp-label">Launch<br>Faster</span>
                 </a>
-                <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="feature-pill">
-                    <div class="feature-icon blue-icon">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
-                    </div>
-                    <span class="feature-label">Grow &amp;<br>Scale</span>
+                <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="fp">
+                    <div class="fp-icon b"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
+                    <span class="fp-label">Grow &amp;<br>Scale</span>
                 </a>
-                <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="feature-pill">
-                    <div class="feature-icon yellow-icon">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                    </div>
-                    <span class="feature-label">Profit on<br>Your Terms</span>
+                <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="fp">
+                    <div class="fp-icon y"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+                    <span class="fp-label">Profit on<br>Your Terms</span>
                 </a>
             </div>
         </div>
 
-        <!-- Right: Clover Emblem + UI Mockups -->
         <div class="hero-right">
-            <!-- Clover emblem -->
-            <div class="clover-emblem">
+            <!-- Clover -->
+            <div class="clover-wrap">
                 <div class="clover-glow"></div>
                 <div class="clover-circle">
-                    <img src="/assets/clover_colored_with_border_1024x1024.png" alt="MyClover.Tech">
+                    <img src="/assets/clover_colored_metallic_1024x1024.png" alt="MyClover.Tech">
                 </div>
             </div>
 
-            <!-- Store mockup card -->
-            <div class="mockup-store">
-                <div class="mockup-store-header">
-                    <div class="store-top-bar">
-                        <span></span>
-                        <span class="cart-btn">&#128722; Cart (2)</span>
+            <!-- Store mockup -->
+            <div class="m-store">
+                <div class="m-store-head" style="position:relative;">
+                    <span class="cart-tag">&#128722; Cart (2)</span>
+                    <div class="m-store-left" style="margin-top:22px;">
+                        <div class="m-store-title">Your Store</div>
+                        <div class="m-store-sub">Digital tools for creators</div>
+                        <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="shop-btn">Shop Now &rarr;</a>
                     </div>
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                        <div>
-                            <div class="store-title">Your Store</div>
-                            <div class="store-subtitle">Digital tools for creators</div>
-                            <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="store-cta-btn">Shop Now &rarr;</a>
-                        </div>
-                        <div class="creator-toolkit-badge">
-                            <div class="badge-label">Creator</div>
-                            <div class="badge-title">Toolkit</div>
-                        </div>
+                    <div class="tk-badge">
+                        <div class="tk-top">Creator</div>
+                        <div class="tk-bot">Toolkit</div>
                     </div>
                 </div>
-                <div class="mockup-store-products">
-                    <div class="products-label">Featured Products</div>
-                    <div class="products-grid">
-                        <div class="product-card">
-                            <div class="product-icon">&#128203;</div>
-                            <div class="product-name">Content Planner</div>
-                            <div class="product-price">$29</div>
-                        </div>
-                        <div class="product-card">
-                            <div class="product-icon">&#127912;</div>
-                            <div class="product-name">Brand Kit</div>
-                            <div class="product-price">$49</div>
-                        </div>
-                        <div class="product-card">
-                            <div class="product-icon">&#128506;</div>
-                            <div class="product-name">Roadmap</div>
-                            <div class="product-price">$39</div>
-                        </div>
-                        <div class="product-card">
-                            <div class="product-icon">&#129302;</div>
-                            <div class="product-name">AI Prompts Pack</div>
-                            <div class="product-price">$19</div>
-                        </div>
+                <div class="m-store-prods">
+                    <div class="prods-label">Featured Products</div>
+                    <div class="prods-grid">
+                        <div class="prod"><div class="prod-ico">&#128203;</div><div class="prod-name">Content Planner</div><div class="prod-price">$29</div></div>
+                        <div class="prod"><div class="prod-ico">&#127912;</div><div class="prod-name">Brand Kit</div><div class="prod-price">$49</div></div>
+                        <div class="prod"><div class="prod-ico">&#128506;</div><div class="prod-name">Roadmap</div><div class="prod-price">$39</div></div>
+                        <div class="prod"><div class="prod-ico">&#129302;</div><div class="prod-name">AI Prompts</div><div class="prod-price">$19</div></div>
                     </div>
                 </div>
             </div>
 
             <!-- Dashboard mockup -->
-            <div class="mockup-dashboard">
-                <div class="dashboard-header">
-                    <div class="dashboard-title">Dashboard</div>
-                    <div class="dashboard-period">Last 30 days &rarr;</div>
+            <div class="m-dash">
+                <div class="m-dash-head">
+                    <div class="m-dash-title">Dashboard</div>
+                    <div class="m-dash-period">Last 30 days &rarr;</div>
                 </div>
-                <div class="dashboard-body">
-                    <div class="dashboard-sidebar">
-                        <div class="sidebar-item active">&#9673; Overview</div>
-                        <div class="sidebar-item">&#9673; Products</div>
-                        <div class="sidebar-item">&#9673; Orders</div>
-                        <div class="sidebar-item">&#9673; Customers</div>
-                        <div class="sidebar-item">&#9673; Analytics</div>
-                        <div class="sidebar-item">&#9673; Settings</div>
+                <div class="m-dash-body">
+                    <div class="m-dash-side">
+                        <div class="si on">&#9673; Overview</div>
+                        <div class="si">&#9673; Products</div>
+                        <div class="si">&#9673; Orders</div>
+                        <div class="si">&#9673; Customers</div>
+                        <div class="si">&#9673; Analytics</div>
+                        <div class="si">&#9673; Settings</div>
                     </div>
-                    <div class="dashboard-content">
-                        <div style="font-size:0.6rem;color:var(--text-muted);margin-bottom:4px;">Total Revenue</div>
-                        <div class="revenue-row">
-                            <span class="revenue-amount">$24,560</span>
-                            <span class="revenue-change">+28.4%</span>
-                        </div>
-                        <div class="revenue-sublabel">vs last period</div>
-                        <!-- Mini chart -->
-                        <div class="mini-chart">
-                            <svg viewBox="0 0 260 50" preserveAspectRatio="none">
-                                <defs>
-                                    <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stop-color="rgba(34,197,94,0.3)"/>
-                                        <stop offset="100%" stop-color="rgba(34,197,94,0)"/>
-                                    </linearGradient>
-                                </defs>
-                                <path d="M0,40 Q30,35 52,30 T104,25 T156,15 T208,20 T260,8" fill="none" stroke="#22c55e" stroke-width="2"/>
-                                <path d="M0,40 Q30,35 52,30 T104,25 T156,15 T208,20 T260,8 V50 H0 Z" fill="url(#chartGrad)"/>
+                    <div class="m-dash-main">
+                        <div class="rev-label">Total Revenue</div>
+                        <div class="rev-row"><span class="rev-amt">$24,560</span><span class="rev-chg">+28.4%</span></div>
+                        <div class="rev-sub">vs last period</div>
+                        <div class="mchart">
+                            <svg viewBox="0 0 260 45" preserveAspectRatio="none">
+                                <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(34,197,94,.3)"/><stop offset="100%" stop-color="rgba(34,197,94,0)"/></linearGradient></defs>
+                                <path d="M0,38 Q30,33 52,28 T104,23 T156,13 T208,18 T260,6" fill="none" stroke="#22c55e" stroke-width="2"/>
+                                <path d="M0,38 Q30,33 52,28 T104,23 T156,13 T208,18 T260,6 V45 H0 Z" fill="url(#cg)"/>
                             </svg>
                         </div>
-                        <div class="stats-row">
-                            <div class="stat-box">
-                                <div class="stat-label">Visitors</div>
-                                <div class="stat-value">18,342</div>
-                                <div class="stat-change">+25.1%</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-label">Conversions</div>
-                                <div class="stat-value">3.92%</div>
-                                <div class="stat-change">+18.7%</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-label">Orders</div>
-                                <div class="stat-value">642</div>
-                                <div class="stat-change">+31.2%</div>
-                            </div>
-                            <div class="stat-box">
-                                <div class="stat-label">Avg. Order</div>
-                                <div class="stat-value">$38.27</div>
-                                <div class="stat-change">+16.4%</div>
-                            </div>
+                        <div class="stats">
+                            <div><div class="st-label">Visitors</div><div class="st-val">18,342</div><div class="st-chg">+25.1%</div></div>
+                            <div><div class="st-label">Conversions</div><div class="st-val">3.92%</div><div class="st-chg">+18.7%</div></div>
+                            <div><div class="st-label">Orders</div><div class="st-val">642</div><div class="st-chg">+31.2%</div></div>
+                            <div><div class="st-label">Avg. Order</div><div class="st-val">$38.27</div><div class="st-chg">+16.4%</div></div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Mobile mockup -->
-            <div class="mockup-mobile">
-                <div class="mobile-notch"></div>
-                <div class="mobile-inner">
-                    <div class="mobile-title">My Store</div>
-                    <div style="font-size:0.5rem;color:var(--text-muted);margin-bottom:2px;">Total Revenue</div>
-                    <div class="mobile-revenue">$24,560</div>
-                    <div class="mobile-change">+28.4%</div>
-                    <!-- Mini chart -->
-                    <div style="height:30px;margin-bottom:8px;">
-                        <svg viewBox="0 0 120 30" preserveAspectRatio="none" style="width:100%;height:100%;">
-                            <path d="M0,24 Q15,20 26,18 T52,14 T78,8 T104,11 T120,4" fill="none" stroke="#22c55e" stroke-width="1.5"/>
-                        </svg>
-                    </div>
-                    <div class="mobile-products-label">Top Products</div>
-                    <div class="mobile-product-item">
-                        <span class="mobile-product-name">Creator Toolkit</span>
-                        <span class="mobile-product-amount">$5,120</span>
-                    </div>
-                    <div class="mobile-product-item">
-                        <span class="mobile-product-name">Brand Kit</span>
-                        <span class="mobile-product-amount">$3,890</span>
-                    </div>
-                    <div class="mobile-product-item">
-                        <span class="mobile-product-name">Content Planner</span>
-                        <span class="mobile-product-amount">$2,760</span>
-                    </div>
-                    <div class="mobile-product-item">
-                        <span class="mobile-product-name">AI Prompts Pack</span>
-                        <span class="mobile-product-amount">$1,230</span>
-                    </div>
-                    <div class="mobile-nav">
-                        <span class="active">Home</span>
-                        <span>Orders</span>
-                        <span>Products</span>
-                        <span>More</span>
-                    </div>
+            <div class="m-mob">
+                <div class="mob-notch"></div>
+                <div class="mob-inner">
+                    <div class="mob-title">My Store</div>
+                    <div class="mob-rev-label">Total Revenue</div>
+                    <div class="mob-rev">$24,560</div>
+                    <div class="mob-chg">+28.4%</div>
+                    <div class="mob-chart"><svg viewBox="0 0 120 25" preserveAspectRatio="none"><path d="M0,20 Q15,17 26,15 T52,11 T78,6 T104,9 T120,3" fill="none" stroke="#22c55e" stroke-width="1.5"/></svg></div>
+                    <div class="mob-pl">Top Products</div>
+                    <div class="mob-item"><span class="mob-item-name">Creator Toolkit</span><span class="mob-item-amt">$5,120</span></div>
+                    <div class="mob-item"><span class="mob-item-name">Brand Kit</span><span class="mob-item-amt">$3,890</span></div>
+                    <div class="mob-item"><span class="mob-item-name">Content Planner</span><span class="mob-item-amt">$2,760</span></div>
+                    <div class="mob-item"><span class="mob-item-name">AI Prompts Pack</span><span class="mob-item-amt">$1,230</span></div>
+                    <div class="mob-nav"><span class="on">Home</span><span>Orders</span><span>Products</span><span>More</span></div>
                 </div>
             </div>
         </div>
@@ -1043,23 +494,16 @@
 
 <!-- ========== BOTTOM BAR ========== -->
 <footer class="bottom-bar">
-    <div class="bottom-bar-inner">
-        <div class="bottom-logo-area">
-            <div class="bottom-logo-icon">
-                <img src="/assets/clover_colored_with_border_1024x1024.png" alt="MyClover.Tech">
-            </div>
-            <div class="bottom-logo-text">My<span class="green">Clover</span>.Tech</div>
+    <div class="bb-inner">
+        <div class="bb-logo">
+            <img src="/assets/clover_colored_metallic_1024x1024.png" alt="MyClover.Tech">
+            <div class="bb-logo-text">My<span class="grn">Clover</span>.Tech</div>
         </div>
-        <div class="bottom-divider"></div>
-        <div class="bottom-tagline">
-            The AI platform that builds<br>
-            and launches <strong>side hustles</strong> for creators.
-        </div>
-        <div class="bottom-cta-area">
-            <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="cta-button">
-                Start Free <span class="arrow">&rarr;</span>
-            </a>
-            <span class="cta-subtext">No credit card required.</span>
+        <div class="bb-div"></div>
+        <div class="bb-tag">The AI platform that builds<br>and launches <strong>side hustles</strong> for creators.</div>
+        <div class="bb-cta">
+            <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="cta-btn">Start Free <span class="arr">&rarr;</span></a>
+            <span class="cta-sub">No credit card required.</span>
         </div>
     </div>
 </footer>
