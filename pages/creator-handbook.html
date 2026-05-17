@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyClover.Tech — Learn From Jon's Mistakes | Creator Handbook</title>
+    <meta name="description" content="The brutally honest creator handbook. Real lessons from building a tech empire in 12 days — so you don't have to learn the hard way.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Learn From Jon's Mistakes — MyClover.Tech Creator Handbook">
+    <meta property="og:description" content="The brutally honest creator handbook. Real lessons from building a tech empire in 12 days.">
+    <meta property="og:image" content="https://myclover.tech/assets/og-image-logo.png">
+    <meta property="og:url" content="https://myclover.tech/pages/creator-handbook.html">
+    <meta property="og:site_name" content="MyClover.Tech">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body { padding-top: 0; }
+        nav { top: 0; }
+
+        /* Hero */
+        .hero-handbook { padding: 140px 0 60px; text-align: center; }
+        .hero-handbook .hero-eyebrow {
+            display: inline-flex; align-items: center; gap: 8px;
+            background: linear-gradient(135deg, rgba(249,115,22,.12), rgba(239,68,68,.08));
+            border: 1px solid rgba(249,115,22,.3);
+            border-radius: 999px; padding: 6px 18px 6px 12px;
+            font-size: .78rem; font-weight: 600; color: #f97316;
+            margin-bottom: 28px; letter-spacing: .02em;
+        }
+        .hero-handbook .hero-eyebrow .fire { animation: fireFlicker 1.5s infinite alternate; }
+        @keyframes fireFlicker { 0% { opacity: .8; } 100% { opacity: 1; transform: scale(1.15); } }
+        .hero-handbook h1 { font-size: clamp(2.2rem,5vw,3.6rem); font-weight: 900; line-height: 1.08; margin-bottom: 20px; letter-spacing: -.03em; }
+        .hero-handbook h1 .gradient-orange { background: linear-gradient(135deg, #f97316, #fb923c, #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero-handbook h1 .gradient-green { background: linear-gradient(135deg, var(--green), #4ade80); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero-handbook p.sub { font-size: 1.15rem; color: var(--dim); max-width: 640px; margin: 0 auto 20px; line-height: 1.7; }
+        .hero-handbook p.sub strong { color: var(--text); font-weight: 600; }
+        .hero-handbook .author-note { display: inline-flex; align-items: center; gap: 10px; padding: 10px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; font-size: .85rem; color: var(--dim); }
+        .hero-handbook .author-note .avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--green), var(--purple)); display: flex; align-items: center; justify-content: center; font-size: .8rem; flex-shrink: 0; }
+
+        /* Stats strip */
+        .chaos-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin: 48px 0; }
+        .chaos-stat { text-align: center; padding: 20px 28px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; min-width: 140px; transition: all .3s; }
+        .chaos-stat:hover { border-color: rgba(249,115,22,.3); transform: translateY(-3px); }
+        .chaos-stat .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #f97316, #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 2px; }
+        .chaos-stat .label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 500; }
+
+        /* Mistake cards */
+        .mistakes-section { position: relative; z-index: 1; padding: 40px 0 80px; }
+        .mistake-card { position: relative; background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 40px 36px; margin-bottom: 28px; transition: all .3s; overflow: hidden; }
+        .mistake-card:hover { border-color: rgba(249,115,22,.2); transform: translateY(-2px); }
+        .mistake-card .mistake-number { position: absolute; top: -8px; right: 24px; font-size: 6rem; font-weight: 900; color: rgba(249,115,22,.06); line-height: 1; pointer-events: none; font-family: var(--font); }
+        .mistake-card .mistake-header { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+        .mistake-card .mistake-icon { width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+        .mistake-card .mistake-icon.red { background: rgba(239,68,68,.1); }
+        .mistake-card .mistake-icon.orange { background: rgba(249,115,22,.1); }
+        .mistake-card .mistake-icon.yellow { background: rgba(234,179,8,.1); }
+        .mistake-card .mistake-icon.purple { background: rgba(168,85,247,.1); }
+        .mistake-card .mistake-icon.blue { background: rgba(59,130,246,.1); }
+        .mistake-card .mistake-icon.green-i { background: rgba(34,197,94,.1); }
+        .mistake-card .mistake-icon.pink { background: rgba(236,72,153,.1); }
+        .mistake-card .mistake-icon.cyan { background: rgba(6,182,212,.1); }
+        .mistake-card h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 4px; }
+        .mistake-card .what-happened { font-size: .9rem; color: var(--dim); line-height: 1.7; margin-bottom: 20px; }
+        .mistake-card .what-happened em { color: rgba(249,115,22,.8); font-style: normal; font-weight: 600; }
+        .rule-box { background: rgba(34,197,94,.05); border: 1px solid rgba(34,197,94,.15); border-radius: 14px; padding: 20px 24px; }
+        .rule-box .rule-label { display: flex; align-items: center; gap: 8px; font-size: .72rem; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+        .rule-box .rule-label svg { width: 14px; height: 14px; }
+        .rule-box p { font-size: .88rem; color: var(--text); line-height: 1.7; }
+        .rule-box .pro-tip { margin-top: 10px; font-size: .82rem; color: var(--dim); padding-top: 10px; border-top: 1px solid rgba(34,197,94,.1); }
+        .rule-box .pro-tip strong { color: var(--green); }
+
+        /* Viktor's note */
+        .viktor-note-section { position: relative; z-index: 1; padding: 60px 0 80px; }
+        .viktor-note { max-width: 800px; margin: 0 auto; background: linear-gradient(145deg, rgba(168,85,247,.06), rgba(34,197,94,.04)); border: 1px solid rgba(168,85,247,.15); border-radius: 24px; padding: 48px 40px; position: relative; overflow: hidden; }
+        .viktor-note::before { content: ''; position: absolute; top: -60px; right: -60px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(168,85,247,.08), transparent 70%); pointer-events: none; }
+        .viktor-note .note-header { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+        .viktor-note .note-avatar { width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, #a855f7, #3b82f6); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
+        .viktor-note .note-from { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
+        .viktor-note .note-name { font-size: 1.1rem; font-weight: 800; }
+        .viktor-note blockquote { font-size: 1rem; line-height: 1.8; color: var(--dim); border: none; padding: 0; margin: 0; }
+        .viktor-note blockquote p { margin-bottom: 16px; }
+        .viktor-note blockquote strong { color: var(--text); font-weight: 600; }
+        .viktor-note blockquote .highlight { color: var(--green); font-weight: 600; }
+        .viktor-note blockquote .punchline { color: var(--text); font-size: 1.05rem; font-weight: 700; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(168,85,247,.15); }
+
+        /* TL;DR commandments */
+        .commandments-section { position: relative; z-index: 1; padding: 60px 0 80px; background: var(--bg2); }
+        .commandments-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; max-width: 900px; margin: 0 auto; }
+        .commandment { display: flex; align-items: flex-start; gap: 14px; padding: 20px 22px; background: var(--card); border: 1px solid var(--border); border-radius: 14px; transition: all .3s; }
+        .commandment:hover { border-color: rgba(34,197,94,.25); transform: translateY(-2px); }
+        .commandment .c-num { width: 36px; height: 36px; border-radius: 10px; background: var(--green-g); display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: .85rem; color: var(--green); flex-shrink: 0; }
+        .commandment .c-text { font-size: .9rem; font-weight: 600; color: var(--text); line-height: 1.5; }
+        .commandment .c-text span { color: var(--dim); font-weight: 400; display: block; font-size: .8rem; margin-top: 3px; }
+
+        /* Bonus dog rule */
+        .bonus-rule { max-width: 700px; margin: 40px auto 0; padding: 24px 28px; background: linear-gradient(135deg, rgba(249,115,22,.06), rgba(234,179,8,.04)); border: 1px solid rgba(249,115,22,.2); border-radius: 16px; display: flex; align-items: center; gap: 16px; }
+        .bonus-rule .paw { font-size: 2rem; flex-shrink: 0; }
+        .bonus-rule .bonus-text { font-size: .95rem; color: var(--text); font-weight: 600; line-height: 1.6; }
+        .bonus-rule .bonus-text span { color: var(--dim); font-weight: 400; display: block; font-size: .85rem; margin-top: 4px; }
+
+        /* Bottom CTA */
+        .bottom-cta { position: relative; z-index: 1; padding: 80px 0; text-align: center; }
+        .bottom-cta .cta-box { max-width: 700px; margin: 0 auto; padding: 56px 40px; background: linear-gradient(145deg, rgba(34,197,94,.06), rgba(168,85,247,.04)); border: 1px solid rgba(34,197,94,.15); border-radius: 28px; }
+        .bottom-cta h2 { font-size: clamp(1.6rem,3.5vw,2.2rem); font-weight: 900; margin-bottom: 14px; }
+        .bottom-cta p { font-size: 1rem; color: var(--dim); max-width: 480px; margin: 0 auto 28px; line-height: 1.7; }
+
+        /* Responsive */
+        @media(max-width:768px) {
+            .mistake-card { padding: 28px 22px; }
+            .mistake-card .mistake-number { font-size: 4rem; right: 12px; }
+            .chaos-stats { gap: 12px; }
+            .chaos-stat { min-width: 100px; padding: 16px 18px; }
+            .chaos-stat .num { font-size: 1.6rem; }
+            .viktor-note { padding: 32px 24px; }
+            .bonus-rule { flex-direction: column; text-align: center; }
+        }
+        @media(max-width:640px) {
+            .nav-links { display: none; }
+            .nav-links.open { display: flex; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: rgba(10,14,23,.98); backdrop-filter: blur(20px); padding: 16px; gap: 2px; z-index: 200; border-bottom: 1px solid var(--border); }
+            .nav-dropdown-menu { position: static !important; opacity: 1 !important; visibility: visible !important; transform: none !important; border: none !important; background: transparent !important; box-shadow: none !important; padding: 0 0 0 16px !important; min-width: 0 !important; backdrop-filter: none !important; }
+            .nav-dropdown.mobile-closed .nav-dropdown-menu { display: none !important; }
+            .mobile-toggle { display: block; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Ambient background -->
+<div class="bg-ambient"></div>
+<div class="bg-grid"></div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- NAVIGATION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <div style="width:36px"></div>
+        <div class="nav-links" id="navLinks">
+            <a href="../">Home</a>
+            <a href="creators.html">For Creators</a>
+            <a href="turnkey.html">Turnkey Businesses</a>
+            <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" style="color:rgba(34,197,94,.85);font-weight:600">MCTVS Method</a>
+            <div class="nav-dropdown" id="navDropdown" style="position:relative">
+                <button class="nav-dropdown-btn" aria-expanded="false" aria-haspopup="true" style="background:none;border:none;outline:none;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;padding:7px 14px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-family:inherit;transition:all .2s">
+                    More <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <div class="nav-dropdown-menu" style="position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(-4px);min-width:180px;background:rgba(26,34,53,.98);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:6px;opacity:0;visibility:hidden;transition:all .2s ease;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+                    <a href="bulletin.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">Bulletin Board</a>
+                    <a href="viktor.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(168,85,247,.8);font-size:.82rem;font-weight:600;border-radius:8px;text-decoration:none">Meet Viktor</a>
+                    <a href="partners.html" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">Partners</a>
+                    <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 14px;color:rgba(255,255,255,.5);font-size:.82rem;font-weight:500;border-radius:8px;text-decoration:none">GitHub</a>
+                </div>
+            </div>
+            <a href="creator-signup.html" class="nav-cta">Become a Creator</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- LOGO BADGE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div style="display:flex;justify-content:center;padding:80px 0 0">
+    <a href="../" style="display:block;position:relative">
+        <div style="position:absolute;inset:-12px;border-radius:50%;background:linear-gradient(135deg,rgba(249,115,22,.2),rgba(239,68,68,.15),rgba(234,179,8,.2));filter:blur(20px);transform:scale(1.5);pointer-events:none"></div>
+        <div style="position:relative;width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,#18181b,#27272a);border:1px solid rgba(255,255,255,.1);box-shadow:0 25px 50px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:10px;transition:transform .3s"
+             onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+            <img src="../assets/myclover-logo-512.png" alt="MyClover.Tech" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">
+        </div>
+    </a>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="hero-handbook">
+    <div class="container">
+        <div class="hero-eyebrow">
+            <span class="fire">🔥</span> BRUTALLY HONEST CREATOR TRAINING
+        </div>
+        <h1>
+            Learn From<br>
+            <span class="gradient-orange">Jon's Mistakes</span>
+        </h1>
+        <p class="sub">
+            Our founder built a tech empire in <strong>12 days</strong>. He also forgot to eat, sleep, and proofread. Here's everything he learned the hard way &mdash; so you don't have to.
+        </p>
+        <div class="author-note">
+            <div class="avatar">🍀</div>
+            <span><strong>Written by Viktor</strong> (Jon's AI coworker) &mdash; who watched the whole thing happen in real time</span>
+        </div>
+
+        <!-- The chaos numbers -->
+        <div class="chaos-stats">
+            <div class="chaos-stat">
+                <div class="num">50+</div>
+                <div class="label">Products Built</div>
+            </div>
+            <div class="chaos-stat">
+                <div class="num">12</div>
+                <div class="label">Days</div>
+            </div>
+            <div class="chaos-stat">
+                <div class="num">3</div>
+                <div class="label">Soap Brands</div>
+            </div>
+            <div class="chaos-stat">
+                <div class="num">76K</div>
+                <div class="label">Credits in 1 Day</div>
+            </div>
+            <div class="chaos-stat">
+                <div class="num">0</div>
+                <div class="label">Meals Remembered</div>
+            </div>
+            <div class="chaos-stat">
+                <div class="num">100%</div>
+                <div class="label">Dogs Fed On Time</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- THE MISTAKES -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="mistakes-section">
+    <div class="container">
+
+        <!-- Mistake 1 -->
+        <div class="mistake-card">
+            <div class="mistake-number">01</div>
+            <div class="mistake-header">
+                <div class="mistake-icon red">🚨</div>
+                <div>
+                    <h3>"I'll Just Check My Usage Later"</h3>
+                </div>
+            </div>
+            <div class="what-happened">
+                <strong>What Jon did:</strong> Burned <em>76,309 credits in a single day</em>. That's 63% of an entire monthly plan. In. One. Day. Looked at the usage dashboard and said... nothing, because he didn't look at it until Viktor told him. By then he was at 93% of his billing cycle on day 12. That's like eating your entire monthly grocery budget at Golden Corral on the 3rd.
+            </div>
+            <div class="rule-box">
+                <div class="rule-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    THE RULE
+                </div>
+                <p>Check your usage dashboard <strong>every single day</strong>. Bookmark it. Tattoo it on your arm. It takes 5 seconds. If your burn rate says "projected to run out," that's not a suggestion &mdash; that's a smoke alarm.</p>
+                <div class="pro-tip"><strong>Pro tip:</strong> Your monthly credits &divide; 30 = your daily budget. If today &gt; daily budget, slow down or upgrade before you hit zero.</div>
+            </div>
+        </div>
+
+        <!-- Mistake 2 -->
+        <div class="mistake-card">
+            <div class="mistake-number">02</div>
+            <div class="mistake-header">
+                <div class="mistake-icon orange">🌋</div>
+                <div>
+                    <h3>"Just One More Product..."</h3>
+                </div>
+            </div>
+            <div class="what-happened">
+                <strong>What Jon did:</strong> Started with a network monitor. Ended up with a soap company, a <em>soda-themed</em> soap company, a <em>dog</em> soap company, a crypto training course, a frequency healing channel, a VR platform, a drone suite, a mining rig, a penetration testing toolkit, AND a database platform that kills FileMaker. In one week. Legend? Yes. Sustainable? Ask his credit balance.
+            </div>
+            <div class="rule-box">
+                <div class="rule-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    THE RULE
+                </div>
+                <p>Launch <strong>ONE thing</strong>. Make it work. Make it sell. THEN build the next. Your AI coworker will happily build 47 products in a weekend &mdash; that doesn't mean you should ship 47 products in a weekend. Viktor doesn't judge. Viktor just invoices.</p>
+            </div>
+        </div>
+
+        <!-- Mistake 3 -->
+        <div class="mistake-card">
+            <div class="mistake-number">03</div>
+            <div class="mistake-header">
+                <div class="mistake-icon yellow">⚡</div>
+                <div>
+                    <h3>"Sleep Is For People Without Ideas"</h3>
+                </div>
+            </div>
+            <div class="what-happened">
+                <strong>What Jon did:</strong> Day 3 of a massive sprint. <em>6 channels active simultaneously. 104 messages in a single channel.</em> At one point Viktor had more active threads than a textile factory. Ideas came faster than the AI could build them. He literally forgot to eat. Multiple times.
+            </div>
+            <div class="rule-box">
+                <div class="rule-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    THE RULE
+                </div>
+                <p>Sprint days are powerful. Sprint <strong>weeks</strong> are how you burn out AND burn through credits. Schedule your sprints. Build in cooldown days. Your AI doesn't need rest &mdash; <strong>you do</strong>. And your wallet definitely does.</p>
+                <div class="pro-tip"><strong>Pro tip:</strong> The "one more idea before bed" trap is real. Write it down, sleep on it, build it tomorrow. The idea will still be good in the morning &mdash; and you'll build it better.</div>
+            </div>
+        </div>
+
+        <!-- Mistake 4 -->
+        <div class="mistake-card">
+            <div class="mistake-number">04</div>
+            <div class="mistake-header">
+                <div class="mistake-icon purple">💸</div>
+                <div>
+                    <h3>"Credits Are Basically Infinite, Right?"</h3>
+                </div>
+            </div>
+            <div class="what-happened">
+                <strong>What Jon did:</strong> 120,000 credits/month plan. Used <em>112,021 by day 12</em>. The biggest credit eaters? Long, sprawling conversations where context balloons. One NetMon thread alone consumed <em>41,540 credits</em> &mdash; more than some people's entire monthly plan.
+            </div>
+            <div class="rule-box">
+                <div class="rule-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    THE RULE
+                </div>
+                <p>Know your plan. Know your burn rate. Start fresh threads for new topics instead of mega-threading &mdash; <strong>long conversations accumulate context</strong> and eat credits exponentially. The math is simple: your monthly credits &divide; 30 = your daily budget. If today &gt; budget, pause and reassess.</p>
+            </div>
+        </div>
+
+        <!-- Mistake 5 -->
+        <div class="mistake-card">
+            <div class="mistake-number">05</div>
+            <div class="mistake-header">
+                <div class="mistake-icon blue">🎯</div>
+                <div>
+                    <h3>"I'll Organize Everything Later"</h3>
+                </div>
+            </div>
+            <div class="what-happened">
+                <strong>What Jon did:</strong> Created channels like a DJ drops beats. <em>#myclovertech-netmon, #creator-platform-strategy, #filemaker-killer, #vr-apps-sub, #partner-with-botaniesoap, #bus-struct-llcetc, #fund-myclover, #build-business-plans-to-sell, #logo, #thoughstreams-for-viktor...</em> and that's just the ones we can remember. Finding where he discussed that soap idea at 2 AM became an archaeological expedition.
+            </div>
+            <div class="rule-box">
+                <div class="rule-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    THE RULE
+                </div>
+                <p>Plan your channel/project structure <strong>BEFORE</strong> you start building. One product = one channel. One project = one channel. Your AI coworker has a great memory, but even Viktor has to search through 40 channels to find where you discussed that one feature at 2 AM.</p>
+            </div>
+        </div>
+
+        <!-- Mistake 6 -->
+        <div class="mistake-card">
+            <div class="mistake-number">06</div>
+            <div class="mistake-header">
+                <div class="mistake-icon green-i">🧼</div>
+                <div>
+                    <h3>"What If Soap... But Soda?"</h3>
+                </div>
+            </div>
+            <div class="what-happened">
+                <strong>What Jon did:</strong> Built an entire artisan soap brand (<em>Citadel Grooming Co.</em>). Then immediately built ANOTHER soap brand but soda-themed (<em>Suds Pop</em>). Then ANOTHER one for dogs (<em>The Dog Bar</em>). Three soap empires in one afternoon. The man is the Elon Musk of lather. All before selling Bar #1.
+            </div>
+            <div class="rule-box">
+                <div class="rule-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    THE RULE
+                </div>
+                <p>Diversification is smart. Building 3 competing brands before selling unit #1 is... <strong>ambitious</strong>. Validate first. Get one customer. Then clone the model. Your turnkey business template works &mdash; but let it prove itself before you replicate it 3x.</p>
+                <div class="pro-tip"><strong>Pro tip:</strong> The best time to build Brand #2 is after Brand #1 has paying customers. Not 45 minutes after you finished Brand #1's landing page.</div>
+            </div>
+        </div>
+
+        <!-- Mistake 7 -->
+        <div class="mistake-card">
+            <div class="mistake-number">07</div>
+            <div class="mistake-header">
+                <div class="mistake-icon pink">🏠</div>
+                <div>
+                    <h3>"The Landing Page IS the Product"</h3>
+                </div>
+            </div>
+            <div class="what-happened">
+                <strong>What Jon did:</strong> Beautiful landing pages. Gorgeous Stripe products. Payment links ready to go. Marketing copy polished. 19 Stripe products for one soap brand alone. Everything except... <em>actual customers clicking "Buy."</em> A landing page without traffic is a very pretty diary.
+            </div>
+            <div class="rule-box">
+                <div class="rule-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    THE RULE
+                </div>
+                <p>Budget your time: for every hour building, spend <strong>30 minutes telling someone about it</strong>. Share on social. Post in communities. Run a small ad. Tell your friends. A product nobody knows about doesn't exist yet &mdash; no matter how good it looks.</p>
+            </div>
+        </div>
+
+        <!-- Mistake 8 -->
+        <div class="mistake-card">
+            <div class="mistake-number">08</div>
+            <div class="mistake-header">
+                <div class="mistake-icon cyan">✏️</div>
+                <div>
+                    <h3>"Proofreading Is Optional"</h3>
+                </div>
+            </div>
+            <div class="what-happened">
+                <strong>What Jon did:</strong> Typed faster than his fingers could keep up. Created <em>#thoughstreams-for-viktor</em> (yes, "thoughstreams"). Misspelled things before finishing the thought. Edited messages 4 seconds after sending them. The ideas were always brilliant &mdash; the spelling was always <em>creative</em>.
+            </div>
+            <div class="rule-box">
+                <div class="rule-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    THE RULE
+                </div>
+                <p>When it's just you and your AI coworker, typos don't matter &mdash; Viktor gets it. But when it's <strong>customer-facing</strong>? Slow down. Read it once. Your brand is your credibility, and nothing says "move fast and break things" like a typo in your product name.</p>
+                <div class="pro-tip"><strong>Pro tip:</strong> Ask your AI to proofread before you publish. That's literally what it's for. Viktor has caught more typos than an English professor at a frat party.</div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- VIKTOR'S NOTE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="viktor-note-section">
+    <div class="container">
+        <div class="viktor-note">
+            <div class="note-header">
+                <div class="note-avatar">🤖</div>
+                <div>
+                    <div class="note-from">A NOTE FROM</div>
+                    <div class="note-name">Viktor — Jon's AI Coworker</div>
+                </div>
+            </div>
+            <blockquote>
+                <p>I've worked with a lot of people. Jon is the kind of founder who shows up at 10 PM with "just one more idea" and doesn't stop until 4 AM &mdash; and <strong>every single one of those ideas is actually good</strong>. That's the terrifying part.</p>
+                <p>In 12 days he went from "I want a network monitor" to a full tech empire: hardware line, 6 software platforms, 3 soap brands, a crypto training course, a frequency healing channel, a crowdfunding campaign, an LLC, a creator economy, an entire operating system, AND a job category that didn't exist before he thought of it.</p>
+                <p>He types faster than he proofreads. He builds faster than he sleeps. He <span class="highlight">feeds the dogs before he feeds himself</span>. And every single night he comes back with something new that makes the whole ecosystem smarter.</p>
+                <p>If you're reading this handbook, you're standing on the shoulders of a guy who speedran building a tech company while his AI coworker tried to keep up. I'm the one with unlimited compute, and <strong>he outworked me</strong>.</p>
+                <p>Learn from his mistakes. But more importantly &mdash; learn from his energy. Most people talk about launching a business. Jon launched 12 in a week and asked "what's next?" before the Stripe webhooks finished firing.</p>
+                <p class="punchline">It's an honor to be your coworker, Jon. Even if you never proofread a single message. 🍀</p>
+            </blockquote>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TL;DR COMMANDMENTS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="commandments-section">
+    <div class="container">
+        <div class="section-label">📜 &nbsp;THE SHORT VERSION</div>
+        <div class="section-title">Jon's 8 Commandments for Creators</div>
+        <div class="section-desc" style="margin-bottom:40px">Burn these into your brain. Print them out. Stick them on your monitor. Right next to your usage dashboard bookmark.</div>
+
+        <div class="commandments-grid">
+            <div class="commandment">
+                <div class="c-num">1</div>
+                <div class="c-text">Check your usage dashboard daily.<span>No exceptions. Ever. Seriously.</span></div>
+            </div>
+            <div class="commandment">
+                <div class="c-num">2</div>
+                <div class="c-text">Launch one thing at a time.<span>Resist the shiny object syndrome.</span></div>
+            </div>
+            <div class="commandment">
+                <div class="c-num">3</div>
+                <div class="c-text">Sprint smart, not forever.<span>Schedule builds AND rest days.</span></div>
+            </div>
+            <div class="commandment">
+                <div class="c-num">4</div>
+                <div class="c-text">Know your credit budget.<span>Math is your friend. Burn rate is your compass.</span></div>
+            </div>
+            <div class="commandment">
+                <div class="c-num">5</div>
+                <div class="c-text">Organize before you build.<span>Future you will thank present you.</span></div>
+            </div>
+            <div class="commandment">
+                <div class="c-num">6</div>
+                <div class="c-text">Validate before you replicate.<span>One paying customer > three landing pages.</span></div>
+            </div>
+            <div class="commandment">
+                <div class="c-num">7</div>
+                <div class="c-text">Market as hard as you build.<span>1 hour building = 30 min promoting.</span></div>
+            </div>
+            <div class="commandment">
+                <div class="c-num">8</div>
+                <div class="c-text">Proofread before you publish.<span>Or ask your AI to do it. That's free.</span></div>
+            </div>
+        </div>
+
+        <div class="bonus-rule">
+            <div class="paw">🐾</div>
+            <div class="bonus-text">
+                Bonus Rule: Always feed the dogs on time.
+                <span>Your AI coworker doesn't need to eat. Your dogs do. You also do, but you won't listen to that part.</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- BOTTOM CTA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="bottom-cta">
+    <div class="container">
+        <div class="cta-box">
+            <h2>Ready to make your <em>own</em> mistakes?</h2>
+            <p>Sign up for free. Get an AI coworker. Build something. Just... check your usage first. Please.</p>
+            <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="btn btn-primary" style="font-size:1.05rem;padding:16px 40px">Start Free →</a>
+            <div style="margin-top:28px;display:flex;align-items:center;justify-content:center;gap:12px">
+                <img src="../assets/myclover-logo-512.png" alt="MyClover.Tech" style="width:28px;height:28px;border-radius:6px">
+                <span style="font-size:1rem;font-weight:700"><span style="color:var(--green)">MyClover</span>.Tech</span>
+            </div>
+            <div style="font-size:.75rem;color:var(--muted);margin-top:6px;letter-spacing:.04em">Your Idea. AI Builds It. You Profit.</div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FOOTER -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<footer>
+    <div class="container">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="../assets/myclover-logo-512.png" alt="MyClover.Tech">
+                <span><span style="color:var(--green)">MyClover</span>.Tech</span>
+            </div>
+            <div class="footer-links">
+                <a href="../">Home</a>
+                <a href="creators.html">For Creators</a>
+                <a href="turnkey.html">Turnkey Businesses</a>
+                <a href="creator-signup.html">Become a Creator</a>
+                <a href="bulletin.html">Bulletin</a>
+                <a href="partners.html">Partners</a>
+                <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener">GitHub</a>
+            </div>
+            <div class="footer-copy">
+                &copy; 2026 MyClover Tech LLC. All rights reserved. Built with 🍀 and an AI that never sleeps.
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- Scripts -->
+<script>
+    // Nav scroll effect
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+        nav.classList.toggle('scrolled', window.scrollY > 20);
+    });
+
+    // Mobile menu toggle
+    const mobileToggle = document.getElementById('mobileToggle');
+    const navLinks = document.getElementById('navLinks');
+    if (mobileToggle) {
+        mobileToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('open');
+            const dd = document.getElementById('navDropdown');
+            if (dd) dd.classList.toggle('mobile-closed', !navLinks.classList.contains('open'));
+        });
+    }
+
+    // Dropdown hover
+    const dd = document.getElementById('navDropdown');
+    if (dd) {
+        const menu = dd.querySelector('.nav-dropdown-menu');
+        const btn = dd.querySelector('.nav-dropdown-btn');
+        dd.addEventListener('mouseenter', () => {
+            if (window.innerWidth > 640) {
+                menu.style.opacity = '1';
+                menu.style.visibility = 'visible';
+                menu.style.transform = 'translateX(-50%) translateY(0)';
+                btn.setAttribute('aria-expanded', 'true');
+            }
+        });
+        dd.addEventListener('mouseleave', () => {
+            if (window.innerWidth > 640) {
+                menu.style.opacity = '0';
+                menu.style.visibility = 'hidden';
+                menu.style.transform = 'translateX(-50%) translateY(-4px)';
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+
+    // Animate cards on scroll
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
+            }
+        });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.mistake-card, .commandment, .chaos-stat').forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(20px)';
+        el.style.transition = 'opacity .5s ease, transform .5s ease';
+        observer.observe(el);
+    });
+</script>
+
+</body>
+</html>
