@@ -121,6 +121,8 @@
             align-items: center;
             justify-content: center;
             min-height: 520px;
+            overflow: visible;
+            margin-right: -20px;
         }
 
         /* Clover emblem */
@@ -160,8 +162,8 @@
 
         /* Store card */
         .m-store {
-            position: absolute; top: -10px; right: 0;
-            width: 300px; background: #111318; border-radius: 14px;
+            position: absolute; top: -10px; right: 20px;
+            width: 280px; background: #111318; border-radius: 14px;
             border: 1px solid rgba(255,255,255,.08);
             overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.6); z-index: 2;
         }
@@ -190,9 +192,9 @@
         .tk-badge .tk-bot { font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
 
         .cart-tag {
-            position: absolute; top: 10px; right: 14px;
-            font-size: .65rem; color: var(--text-muted); background: rgba(255,255,255,.06);
-            padding: 3px 8px; border-radius: 5px;
+            position: absolute; top: 12px; right: 12px;
+            font-size: .6rem; color: var(--text-muted); background: rgba(255,255,255,.06);
+            padding: 2px 7px; border-radius: 5px; z-index: 5;
         }
 
         .m-store-prods { padding: 12px 18px 16px; }
@@ -216,8 +218,8 @@
 
         /* Dashboard card */
         .m-dash {
-            position: absolute; bottom: -20px; right: -10px;
-            width: 360px; background: #111318; border-radius: 12px;
+            position: absolute; bottom: -20px; right: 10px;
+            width: 340px; background: #111318; border-radius: 12px;
             border: 1px solid rgba(255,255,255,.08);
             overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.7); z-index: 1;
         }
@@ -256,8 +258,8 @@
 
         /* Mobile card */
         .m-mob {
-            position: absolute; bottom: 10px; right: -40px;
-            width: 130px; background: #111318; border-radius: 18px;
+            position: absolute; bottom: 30px; right: -20px;
+            width: 125px; background: #111318; border-radius: 18px;
             border: 2px solid rgba(255,255,255,.1);
             overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.6); z-index: 4;
             padding: 5px;
@@ -413,15 +415,17 @@
             <!-- Store mockup -->
             <div class="m-store">
                 <div class="m-store-head" style="position:relative;">
-                    <span class="cart-tag">&#128722; Cart (2)</span>
-                    <div class="m-store-left" style="margin-top:22px;">
+                    <div class="m-store-left" style="margin-top:4px;">
                         <div class="m-store-title">Your Store</div>
                         <div class="m-store-sub">Digital tools for creators</div>
                         <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" class="shop-btn">Shop Now &rarr;</a>
                     </div>
-                    <div class="tk-badge">
-                        <div class="tk-top">Creator</div>
-                        <div class="tk-bot">Toolkit</div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                        <span style="font-size:.6rem;color:var(--text-muted);background:rgba(255,255,255,.06);padding:2px 7px;border-radius:5px;">&#128722; Cart (2)</span>
+                        <div class="tk-badge">
+                            <div class="tk-top">Creator</div>
+                            <div class="tk-bot">Toolkit</div>
+                        </div>
                     </div>
                 </div>
                 <div class="m-store-prods">
