@@ -24,6 +24,12 @@
            Homepage-specific styles
            ═══════════════════════════════════════════════════════ */
 
+        /* --- Jump-To Dropdown Overrides --- */
+        #jumpMenu{max-height:70vh;overflow-y:auto;min-width:240px;left:0;right:auto}
+        #jumpMenu::-webkit-scrollbar{width:4px}
+        #jumpMenu::-webkit-scrollbar-track{background:transparent}
+        #jumpMenu::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
         /* --- Ambient Background --- */
         .bg-ambient{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
         .bg-ambient::before{content:'';position:absolute;top:-20%;left:50%;transform:translateX(-50%);width:900px;height:900px;background:radial-gradient(circle,rgba(34,197,94,.05),transparent 70%)}
@@ -200,15 +206,46 @@
 <nav id="nav">
     <div class="container nav-inner">
         <a href="/" class="nav-logo">
-            <img src="/assets/myclover-3d-badge-512.png" alt="MyClover.Tech" width="34" height="34" style="border-radius:8px;object-fit:contain">
             <span>My<span class="green">Clover</span>.Tech</span>
         </a>
         <div class="nav-links" id="navLinks">
+            <!-- Jump-To Dropdown -->
+            <div class="nav-dropdown" id="jumpDropdown">
+                <button class="nav-dropdown-btn" aria-expanded="false" aria-haspopup="true">
+                    Jump To <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+                <div class="nav-dropdown-menu" role="menu" id="jumpMenu">
+                    <div style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">🌐 Public</div>
+                    <a href="pages/bulletin.html" role="menuitem">📋 Bulletin Board</a>
+                    <a href="pages/bulletin.html#game-arcade" role="menuitem">🎮 Game Arcade</a>
+                    <a href="pages/bulletin.html#citadel-grooming" role="menuitem">🧼 Citadel Grooming Co.</a>
+                    <a href="pages/bulletin.html#clovercoin" role="menuitem">🍀 CloverCoin</a>
+                    <a href="pages/bulletin.html#clovermint" role="menuitem">💎 CloverMint</a>
+                    <a href="pages/bulletin.html#inkforge" role="menuitem">📚 InkForge</a>
+                    <a href="pages/cloverstrike.html" role="menuitem">🛡️ Security Suite</a>
+                    <a href="pages/clovermarket.html" role="menuitem">🏪 CloverMarket</a>
+                    <a href="pages/cloverbase.html" role="menuitem">🖥️ CloverOS / CloverBase</a>
+                    <a href="pages/cloverbot.html" role="menuitem">🤖 CloverBot</a>
+                    <a href="pages/cloverdesign.html" role="menuitem">🎨 CloverDesign</a>
+                    <a href="pages/clovermesh-radio.html" role="menuitem">📡 CloverMesh Radio</a>
+                    <a href="pages/cloverdrone.html" role="menuitem">🚁 CloverDrone</a>
+                    <a href="pages/clovervr.html" role="menuitem">🥽 CloverVR</a>
+                    <a href="pages/cloverpos.html" role="menuitem">💳 CloverPOS</a>
+                    <a href="pages/viktor.html" role="menuitem">🤖 Meet Viktor</a>
+                    <a href="pages/creator-handbook.html" role="menuitem" style="color:rgba(249,115,22,.85)">📖 Jon's Mistakes</a>
+                    <div style="height:1px;background:var(--border);margin:6px 0"></div>
+                    <div style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--green)">🔒 Creators & Subscribers</div>
+                    <a href="pages/creators.html" role="menuitem">🚀 Creator Tools</a>
+                    <a href="pages/turnkey.html" role="menuitem">🔑 Turnkey Businesses</a>
+                    <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" role="menuitem">🍀 MCTVS Method</a>
+                    <a href="pages/partners.html" role="menuitem">🤝 Partner Network</a>
+                    <a href="/keygen" role="menuitem">🔐 License KeyGen</a>
+                    <a href="pages/creator-signup.html" role="menuitem">📝 Creator Sign-Up</a>
+                </div>
+            </div>
             <a href="pages/creators.html">For Creators</a>
-            <a href="#discover">Products</a>
-            <a href="pages/turnkey.html">Turnkey Businesses</a>
-            <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" class="nav-bulletin">MCTVS Method</a>
-            <a href="pages/creator-handbook.html" style="color:rgba(249,115,22,.85);font-weight:600">Jon's Mistakes</a>
+            <a href="pages/turnkey.html">Turnkey</a>
+            <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" class="nav-bulletin">MCTVS</a>
             <a href="pages/bulletin.html">Bulletin</a>
             <a href="pages/partners.html">Partners</a>
             <a href="https://viktor.com" target="_blank" rel="noopener" class="nav-cta">Start Free</a>
@@ -694,7 +731,6 @@
                 <a href="mailto:cloverbot@myclover.tech" class="btn btn-secondary">Talk to Us</a>
             </div>
             <div class="cta-brand">
-                <img src="/assets/myclover-3d-badge-512.png" alt="MyClover.Tech">
                 <span>My<span class="green">Clover</span>.Tech</span>
             </div>
             <div class="cta-tagline">AI Builds. You Profit. Welcome to the Rabbit Hole. 🍀</div>
@@ -709,7 +745,6 @@
     <div class="container">
         <div class="footer-inner">
             <div class="footer-brand">
-                <img src="/assets/myclover-3d-badge-512.png" alt="MyClover.Tech" width="32" height="32" style="border-radius:6px;object-fit:contain">
                 <span>My<span class="green">Clover</span>.Tech</span>
             </div>
             <div class="footer-links">
@@ -754,6 +789,30 @@ if (mobileToggle) {
         link.addEventListener('click', () => {
             navLinks.classList.remove('open');
             mobileToggle.textContent = '\u2630';
+        });
+    });
+}
+
+// Jump-To dropdown
+const jumpDropdown = document.getElementById('jumpDropdown');
+const jumpBtn = jumpDropdown?.querySelector('.nav-dropdown-btn');
+if (jumpBtn) {
+    jumpBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        jumpDropdown.classList.toggle('open');
+        jumpBtn.setAttribute('aria-expanded', jumpDropdown.classList.contains('open'));
+    });
+    document.addEventListener('click', (e) => {
+        if (!jumpDropdown.contains(e.target)) {
+            jumpDropdown.classList.remove('open');
+            jumpBtn.setAttribute('aria-expanded', 'false');
+        }
+    });
+    // Close on menu item click
+    jumpDropdown.querySelectorAll('a').forEach(a => {
+        a.addEventListener('click', () => {
+            jumpDropdown.classList.remove('open');
+            jumpBtn.setAttribute('aria-expanded', 'false');
         });
     });
 }
