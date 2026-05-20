@@ -59,10 +59,17 @@
         .nav-cta:hover{background:var(--green-l)!important;transform:translateY(-1px);color:#000!important}
         .mobile-toggle{display:none;background:none;border:none;color:var(--text);cursor:pointer;font-size:1.5rem;padding:8px}
 
-        /* Logo badge removed */
+        /* --- Logo Badge (centered below nav) --- */
+        .logo-badge-wrap{display:flex;justify-content:center;padding:80px 0 0;position:relative;z-index:1}
+        .logo-badge{position:relative;display:block}
+        .logo-badge .glow{position:absolute;inset:-20px;border-radius:50%;background:radial-gradient(circle,rgba(34,197,94,.3),rgba(34,197,94,.08) 60%,transparent 75%);filter:blur(20px);transform:scale(1.3);pointer-events:none;animation:glowPulse 4s ease-in-out infinite alternate}
+        @keyframes glowPulse{0%{opacity:.5;transform:scale(1.2)}100%{opacity:1;transform:scale(1.4)}}
+        .logo-badge .badge{position:relative;width:160px;height:160px;border-radius:50%;background:transparent;border:none;box-shadow:none;display:flex;align-items:center;justify-content:center;padding:0;transition:transform .4s,box-shadow .4s}
+        .logo-badge:hover .badge{transform:scale(1.08)}
+        .logo-badge .badge img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 4px 20px rgba(34,197,94,.3))}
 
         /* --- Hero Section --- */
-        .hero{position:relative;z-index:1;padding:120px 0 60px;text-align:center}
+        .hero{position:relative;z-index:1;padding:40px 0 60px;text-align:center}
         .hero h1{font-size:clamp(2.8rem,6vw,5rem);font-weight:900;line-height:1.05;letter-spacing:-.04em;margin-bottom:20px}
         .hero h1 .line{display:block}
         .hero h1 .profit{background:linear-gradient(135deg,var(--green),#4ade80,#86efac);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
@@ -224,15 +231,24 @@
             <a href="pages/creator-handbook.html" style="color:rgba(249,115,22,.85);font-weight:600">Jon's Mistakes</a>
             <a href="pages/viktor.html">Meet Viktor</a>
             <a href="pages/bulletin.html">Bulletin</a>
-            <a href="pages/security.html" style="color:rgba(239,68,68,.85);font-weight:600">🛡️ Security</a>
             <a href="pages/partners.html">Partners</a>
-            <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" target="_blank" rel="noopener" class="nav-cta">Start Free</a>
+            <a href="https://viktor.com" target="_blank" rel="noopener" class="nav-cta">Start Free</a>
         </div>
         <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
     </div>
 </nav>
 
-<!-- Logo badge removed — cleaner header design -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- LOGO BADGE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="logo-badge-wrap">
+    <a href="/" class="logo-badge">
+        <div class="glow"></div>
+        <div class="badge">
+            <img src="/assets/myclover-3d-badge.png" alt="MyClover.Tech">
+        </div>
+    </a>
+</div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- HERO -->
@@ -286,7 +302,7 @@
         </div>
 
         <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-bottom:8px">
-            <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" target="_blank" rel="noopener" class="btn-round">Start<br>Free</a>
+            <a href="https://viktor.com" target="_blank" rel="noopener" class="btn-round">Start<br>Free</a>
         </div>
         <div class="no-cc">No credit card required.</div>
         <div style="margin-top:8px">
@@ -522,11 +538,11 @@
             <h2>Your Idea Deserves to Exist.</h2>
             <p>Stop thinking about it. Let AI build it. Start earning from your side hustle in days, not months.</p>
             <div class="hero-ctas">
-                <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" target="_blank" rel="noopener" class="btn btn-primary">Start Free &rarr;</a>
+                <a href="https://viktor.com" target="_blank" rel="noopener" class="btn btn-primary">Start Free &rarr;</a>
                 <a href="mailto:cloverbot@myclover.tech" class="btn btn-secondary">Talk to Us</a>
             </div>
             <div class="brand-bar">
-                <img src="/assets/myclover-logo-512.png" alt="MyClover.Tech">
+                <img src="/assets/myclover-3d-badge-512.png" alt="MyClover.Tech">
                 <span>My<span class="g">Clover</span>.Tech</span>
             </div>
             <div class="tagline">AI Builds. You Profit.</div>
@@ -541,7 +557,7 @@
     <div class="container">
         <div class="footer-inner">
             <div class="footer-brand">
-                <img src="/assets/myclover-logo-512.png" alt="MyClover.Tech">
+                <img src="/assets/myclover-3d-badge-512.png" alt="MyClover.Tech">
                 <span>My<span style="color:var(--green)">Clover</span>.Tech</span>
             </div>
             <div class="footer-links">
@@ -550,8 +566,7 @@
                 <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener">MCTVS Method</a>
                 <a href="pages/creator-handbook.html">Creator Handbook</a>
                 <a href="pages/bulletin.html">Bulletin</a>
-                <a href="pages/security.html" style="color:rgba(239,68,68,.85);font-weight:600">🛡️ Security</a>
-            <a href="pages/partners.html">Partners</a>
+                <a href="pages/partners.html">Partners</a>
                 <a href="pages/viktor.html">Meet Viktor</a>
                 <a href="pages/cloverbot.html">CloverBot</a>
                 <a href="/keygen">KeyGen</a>
