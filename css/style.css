@@ -52,7 +52,7 @@ section{position:relative;z-index:1;padding:100px 0}
 body{padding-top:0}
 
 /* --- Navigation --- */
-nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0;background:rgba(10,14,23,.92);backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:border-color .3s}
+nav{position:fixed;top:36px;left:0;right:0;z-index:100;padding:0;background:rgba(10,14,23,.92);backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:border-color .3s}
 nav.scrolled{border-bottom-color:var(--border)}
 .nav-inner{display:flex;align-items:center;justify-content:space-between;height:60px}
 .nav-logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.1rem;color:var(--text);flex-shrink:0}
