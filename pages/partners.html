@@ -178,9 +178,7 @@
 <!-- Nav (simplified) -->
 <nav class="nav">
     <div class="nav-inner">
-        <a href="../index.html" class="nav-brand">
-            <img src="../assets/myclover-3d-badge-512.png" alt="MyClover.Tech" style="height:36px;margin-right:10px">
-            <span style="font-weight:800; background: linear-gradient(135deg, #4ade80, #d4af37); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">MyClover.Tech</span>
+        <a href="../index.html" class="nav-brand"><span style="font-weight:800; background: linear-gradient(135deg, #4ade80, #d4af37); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">MyClover.Tech</span>
         </a>
         <div class="nav-links">
             <a href="../index.html#products">Products</a>
@@ -192,100 +190,7 @@
         </div>
     </div>
 </nav>
-<!-- Logo Badge -->
-<div style="display:flex;justify-content:center;padding:80px 0 20px">
-    <a href="/" style="display:block;position:relative">
-        <div style="position:absolute;inset:-12px;border-radius:50%;background:linear-gradient(135deg,rgba(34,197,94,.2),rgba(139,92,246,.15),rgba(245,158,11,.2));filter:blur(20px);transform:scale(1.5);pointer-events:none"></div>
-        <div style="position:relative;width:80px;height:80px;border-radius:20px;background:linear-gradient(135deg,#18181b,#27272a);border:1px solid rgba(255,255,255,.1);box-shadow:0 25px 50px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:10px;transition:transform .3s,box-shadow .3s" onmouseover="this.style.transform='scale(1.1)';this.style.boxShadow='0 25px 50px rgba(0,0,0,.5),0 0 30px rgba(34,197,94,.2)'" onmouseout="this.style.transform='scale(1)';this.style.boxShadow='0 25px 50px rgba(0,0,0,.5)'">
-            <img src="/assets/myclover-3d-badge-512.png" alt="MyClover.Tech" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">
-        </div>
-    </a>
-</div>
-
-<!-- Hero -->
-<section class="partner-hero">
-    <div class="container">
-        <h1>🛠️ CloverStack Partner Network</h1>
-        <p>Find a verified tech, MSP, or installer near you — or register to grow your business with CloverStack.</p>
-
-        <div class="partner-tabs">
-            <div class="partner-tab active" onclick="showTab('directory')">🔍 Find an Installer</div>
-            <div class="partner-tab" onclick="showTab('register')">📋 Become a Partner</div>
-        </div>
-    </div>
-</section>
-
-<!-- Directory (Find) -->
-<section class="directory-section active" id="directory-tab">
-    <div class="container">
-        <div class="search-bar">
-            <input type="text" id="search-zip" placeholder="Enter ZIP code or city...">
-            <select id="search-specialty">
-                <option value="">All Specialties</option>
-                <option value="install">Installation & Setup</option>
-                <option value="migration">Migration & Upgrades</option>
-                <option value="networking">Networking & Infrastructure</option>
-                <option value="security">Security & Hardening</option>
-                <option value="mining">Mining Rig Builds</option>
-                <option value="industrial">SCADA / Industrial</option>
-                <option value="mesh">CloverMesh Multi-Site</option>
-                <option value="msp">Managed Services (MSP)</option>
-                <option value="media">Media / Streaming Setup</option>
-                <option value="voip">VoIP / Telecom</option>
-            </select>
-            <select id="search-radius">
-                <option value="25">Within 25 miles</option>
-                <option value="50" selected>Within 50 miles</option>
-                <option value="100">Within 100 miles</option>
-                <option value="250">Within 250 miles</option>
-                <option value="any">Any distance</option>
-            </select>
-            <button onclick="searchPartners()">Search</button>
-        </div>
-
-        <div class="partner-grid" id="partner-list">
-            <!-- Sample cards (will be replaced by API/backend) -->
-            <div class="partner-card">
-                <div class="partner-card-header">
-                    <div class="partner-avatar">JF</div>
-                    <div>
-                        <div class="partner-name">Jon Fulk</div>
-                        <div class="partner-company">MyClover Technologies</div>
-                        <div class="partner-location">📍 Central Coast, CA</div>
-                    </div>
-                </div>
-                <div class="partner-badges">
-                    <span class="partner-badge certified">⭐ Founding Partner</span>
-                    <span class="partner-badge">Install & Setup</span>
-                    <span class="partner-badge">Networking</span>
-                    <span class="partner-badge">Security</span>
-                    <span class="partner-badge">Industrial</span>
-                    <span class="partner-badge">Full Stack</span>
-                </div>
-                <div class="partner-stars">★★★★★ <span style="color:var(--muted);font-size:.78rem">(Founder)</span></div>
-                <div class="partner-rate">Rate: <strong>Contact for quote</strong> · 20+ yrs experience</div>
-                <a href="mailto:inforequest@myclover.tech" class="partner-contact-btn">Contact →</a>
-            </div>
-
-            <!-- Placeholder cards showing what the directory looks like populated -->
-            <div class="partner-card" style="opacity:0.5">
-                <div class="partner-card-header">
-                    <div class="partner-avatar" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">?</div>
-                    <div>
-                        <div class="partner-name">Your Name Here</div>
-                        <div class="partner-company">Your Company</div>
-                        <div class="partner-location">📍 Your City, State</div>
-                    </div>
-                </div>
-                <div class="partner-badges">
-                    <span class="partner-badge">Your Specialties</span>
-                </div>
-                <div style="text-align:center;padding:12px 0;color:var(--muted);font-size:.85rem">
-                    Register as a partner to appear here →
-                </div>
-            </div>
-        </div>
-    </div>
+<!-- Logo badge removed -->
 </section>
 
 <!-- Registration Form -->
@@ -480,7 +385,6 @@
     <div class="container">
         <div class="footer-inner">
             <div class="footer-brand">
-                <img src="../assets/myclover-3d-badge-512.png" alt="MyClover.Tech" style="height:28px;margin-right:8px">
                 <span style="font-weight:700;color:#fff">MyClover.Tech</span>
             </div>
             <div class="footer-links">
