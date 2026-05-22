@@ -180,7 +180,195 @@
             .pipeline-steps { grid-template-columns: 1fr; }
             .mctvs-grid { grid-template-columns: 1fr; }
             .hero-gigs { padding: 110px 0 60px; }
+            .hw-tiers { grid-template-columns: 1fr; }
+            .hw-tier.featured { transform: none; }
+            .rig-controls { grid-template-columns: 1fr; }
         }
+
+        /* ========= HARDWARE TIERS ========= */
+        .hw-tiers {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            align-items: start;
+        }
+        .hw-tier {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 28px 24px;
+            position: relative;
+            transition: all .3s;
+        }
+        .hw-tier:hover { border-color: rgba(34,197,94,.4); transform: translateY(-4px); }
+        .hw-tier.featured {
+            border-color: rgba(34,197,94,.5);
+            transform: scale(1.03);
+            box-shadow: 0 0 40px rgba(34,197,94,.12);
+        }
+        .hw-tier.featured:hover { transform: scale(1.03) translateY(-4px); }
+        .hw-tier-badge {
+            position: absolute;
+            top: -12px;
+            left: 24px;
+            font-size: .7rem;
+            font-weight: 800;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            padding: 4px 14px;
+            border-radius: 20px;
+        }
+        .hw-tier-badge.basic { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+        .hw-tier-badge.vm { background: linear-gradient(135deg,#22c55e,#06b6d4); color: #000; }
+        .hw-tier-badge.elite { background: linear-gradient(135deg,#f59e0b,#ef4444); color: #000; }
+        .hw-tier-icon { font-size: 2.2rem; margin: 8px 0 6px; }
+        .hw-tier h3 { font-size: 1.15rem; font-weight: 900; margin-bottom: 6px; }
+        .hw-tier-desc { font-size: .85rem; color: var(--dim); line-height: 1.6; margin-bottom: 16px; }
+        .hw-tier-specs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+        .hw-spec {
+            display: flex;
+            justify-content: space-between;
+            font-size: .82rem;
+            padding: 6px 10px;
+            background: rgba(10,14,23,.6);
+            border-radius: 8px;
+        }
+        .hw-spec-label { font-weight: 700; color: var(--green); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+        .hw-price-range {
+            font-size: 1.4rem;
+            font-weight: 900;
+            text-align: center;
+            margin: 16px 0;
+            background: linear-gradient(135deg,#22c55e,#06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hw-products { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+        .hw-product {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 12px 14px;
+            background: rgba(10,14,23,.5);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            text-decoration: none;
+            transition: all .2s;
+        }
+        .hw-product:hover { border-color: rgba(34,197,94,.5); background: rgba(34,197,94,.06); }
+        .hw-prod-name { font-size: .88rem; font-weight: 700; color: var(--text); }
+        .hw-prod-price { font-size: .82rem; font-weight: 800; color: var(--green); }
+        .hw-prod-note { font-size: .75rem; color: var(--muted); line-height: 1.4; }
+        .hw-gigs-label {
+            font-size: .75rem;
+            color: var(--muted);
+            text-align: center;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            line-height: 1.5;
+        }
+
+        /* ========= RIG BUILDER APP ========= */
+        .rig-app {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+        }
+        .rig-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr) auto;
+            gap: 16px;
+            align-items: end;
+        }
+        .rig-control-group label {
+            display: block;
+            font-size: .75rem;
+            font-weight: 700;
+            color: var(--green);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-bottom: 6px;
+        }
+        .rig-control-group select {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            font-size: .88rem;
+            font-family: inherit;
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2322c55e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+        .rig-control-group select:focus { border-color: var(--green); }
+        .rig-result {
+            margin-top: 24px;
+            padding: 28px;
+            background: rgba(10,14,23,.6);
+            border: 1px solid rgba(34,197,94,.3);
+            border-radius: 16px;
+            animation: fadeSlideIn .4s ease;
+        }
+        @keyframes fadeSlideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        .rig-result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .rig-result-header h3 { font-size: 1.1rem; font-weight: 900; }
+        .rig-result-badge {
+            font-size: .72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            padding: 4px 14px;
+            border-radius: 20px;
+            background: linear-gradient(135deg,#22c55e,#06b6d4);
+            color: #000;
+        }
+        .rig-result-specs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .rig-spec-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+        }
+        .rig-spec-card .rig-spec-label { font-size: .68rem; font-weight: 700; color: #06b6d4; text-transform: uppercase; letter-spacing: .05em; }
+        .rig-spec-card .rig-spec-value { font-size: .88rem; font-weight: 600; color: var(--text); margin-top: 2px; }
+        .rig-spec-card .rig-spec-price { font-size: .78rem; color: var(--green); font-weight: 700; }
+        .rig-result-total {
+            text-align: center;
+            font-size: 1.6rem;
+            font-weight: 900;
+            margin: 16px 0;
+            background: linear-gradient(135deg,#22c55e,#06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .rig-result-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+        .rig-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: rgba(34,197,94,.1);
+            border: 1px solid rgba(34,197,94,.3);
+            border-radius: 10px;
+            font-size: .82rem;
+            font-weight: 600;
+            color: var(--green);
+            text-decoration: none;
+            transition: all .2s;
+        }
+        .rig-link:hover { background: rgba(34,197,94,.2); border-color: var(--green); }
     </style>
 </head>
 <body>
@@ -768,6 +956,220 @@
     </div>
 </section>
 
+<!-- ======================= RECOMMENDED HARDWARE ======================= -->
+<section class="section" id="hardware">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label"><span>&#128187;</span> MCT DevHardware</div>
+            <h2 class="section-title">MCT Recommended <span class="ehbb-gradient">DevHardware</span></h2>
+            <p class="section-desc">
+                Whether you're running VMs on a budget laptop or building a dedicated QA lab, 
+                these MCT-recommended setups are hand-picked for CloverOS testing. Affiliate links &mdash; 
+                every purchase supports the MCT ecosystem and QA/QC gig program.
+            </p>
+        </div>
+
+        <!-- TIER CARDS -->
+        <div class="hw-tiers">
+            <!-- BASIC -->
+            <div class="hw-tier">
+                <div class="hw-tier-badge basic">Basic</div>
+                <div class="hw-tier-icon">&#128421;</div>
+                <h3>The Starter Rig</h3>
+                <p class="hw-tier-desc">Entry-level laptop or mini PC. Perfect for Apprentice gigs &mdash; install testing, docs QA, basic functional testing.</p>
+                <div class="hw-tier-specs">
+                    <div class="hw-spec"><span class="hw-spec-label">CPU</span><span>Intel i5 / Ryzen 5 (4+ cores)</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">RAM</span><span>8&ndash;16 GB DDR4</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">Storage</span><span>256 GB NVMe SSD</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">GPU</span><span>Integrated (OK for basic)</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">Network</span><span>Gigabit Ethernet + Wi-Fi</span></div>
+                </div>
+                <div class="hw-price-range">$300&ndash;$600</div>
+                <div class="hw-products">
+                    <a href="https://www.amazon.com/dp/B0D7BHKZ2N?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">Beelink Mini S12 Pro</span>
+                        <span class="hw-prod-price">~$169</span>
+                        <span class="hw-prod-note">Intel N100, 16GB, 500GB &mdash; dead-simple QA box</span>
+                    </a>
+                    <a href="https://www.amazon.com/dp/B0DFHM2JK1?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">Lenovo IdeaPad 3 15</span>
+                        <span class="hw-prod-price">~$449</span>
+                        <span class="hw-prod-note">Ryzen 5, 16GB, 512GB SSD &mdash; portable QA laptop</span>
+                    </a>
+                    <a href="https://www.amazon.com/dp/B0CX2BG327?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">ASUS VivoBook 15</span>
+                        <span class="hw-prod-price">~$399</span>
+                        <span class="hw-prod-note">Intel i5, 16GB, 512GB &mdash; solid daily driver + QA</span>
+                    </a>
+                </div>
+                <div class="hw-gigs-label">Best for: Functional QA, Docs QA, LLM Integration (basic)</div>
+            </div>
+
+            <!-- VM CAPABLE -->
+            <div class="hw-tier featured">
+                <div class="hw-tier-badge vm">VM Ready</div>
+                <div class="hw-tier-icon">&#9889;</div>
+                <h3>The VM Powerhouse</h3>
+                <p class="hw-tier-desc">Run multiple CloverOS VMs simultaneously. Ideal for Journeyman &amp; Senior QA &mdash; multi-edition testing, performance benchmarks, hypervisor QA.</p>
+                <div class="hw-tier-specs">
+                    <div class="hw-spec"><span class="hw-spec-label">CPU</span><span>Intel i7/i9 or Ryzen 7/9 (8+ cores)</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">RAM</span><span>32&ndash;64 GB DDR5</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">Storage</span><span>1 TB NVMe + 2 TB secondary</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">GPU</span><span>Dedicated (for GPU passthrough testing)</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">Network</span><span>2.5GbE + Wi-Fi 6E</span></div>
+                </div>
+                <div class="hw-price-range">$800&ndash;$1,800</div>
+                <div class="hw-products">
+                    <a href="https://www.amazon.com/dp/B0DDJ1HM7C?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">Beelink SER7 Mini PC</span>
+                        <span class="hw-prod-price">~$569</span>
+                        <span class="hw-prod-note">Ryzen 7 7840HS, 32GB, 1TB &mdash; tiny beast for VMs</span>
+                    </a>
+                    <a href="https://www.amazon.com/dp/B0D5CKQZ3W?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">Lenovo Legion Pro 5i 16&Prime;</span>
+                        <span class="hw-prod-price">~$1,399</span>
+                        <span class="hw-prod-note">i9-14900HX, 32GB, RTX 4060, 1TB &mdash; portable VM lab</span>
+                    </a>
+                    <a href="https://www.amazon.com/dp/B0BSHF7LLL?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">ASUS ROG Strix G16</span>
+                        <span class="hw-prod-price">~$1,299</span>
+                        <span class="hw-prod-note">Ryzen 9, 16GB (upgrade to 64), RTX 4060 &mdash; power+portability</span>
+                    </a>
+                    <a href="https://www.amazon.com/dp/B0DFJKWRPN?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">Dell OptiPlex 7010 Micro (Refurb)</span>
+                        <span class="hw-prod-price">~$359</span>
+                        <span class="hw-prod-note">i7-13700, 32GB, 512GB &mdash; budget VM machine, add storage</span>
+                    </a>
+                </div>
+                <div class="hw-gigs-label">Best for: All QA gigs, Performance Testing, CloverVisor Hypervisor QA, Security/Pentest</div>
+            </div>
+
+            <!-- FULL BUILD -->
+            <div class="hw-tier">
+                <div class="hw-tier-badge elite">Full Build</div>
+                <div class="hw-tier-icon">&#128296;</div>
+                <h3>The EHBB Lab</h3>
+                <p class="hw-tier-desc">Custom desktop build or server-grade hardware. For EHBB Elite contractors running full CloverVisor clusters, GPU passthrough labs, and stress testing at scale.</p>
+                <div class="hw-tier-specs">
+                    <div class="hw-spec"><span class="hw-spec-label">CPU</span><span>Ryzen 9 7950X / Intel i9-14900K / Threadripper</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">RAM</span><span>64&ndash;128 GB DDR5 ECC</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">Storage</span><span>2 TB NVMe + 8 TB RAID array</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">GPU</span><span>RTX 4070/4080 (passthrough &amp; AI)</span></div>
+                    <div class="hw-spec"><span class="hw-spec-label">Network</span><span>10GbE + managed switch</span></div>
+                </div>
+                <div class="hw-price-range">$2,000&ndash;$5,000+</div>
+                <div class="hw-products">
+                    <a href="https://www.amazon.com/dp/B0BV8YLC9Y?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">AMD Ryzen 9 7950X CPU</span>
+                        <span class="hw-prod-price">~$449</span>
+                        <span class="hw-prod-note">16C/32T, 5.7GHz boost &mdash; the heart of the lab</span>
+                    </a>
+                    <a href="https://www.amazon.com/dp/B0C3S5N2H2?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">ASUS ProArt X670E Creator WiFi</span>
+                        <span class="hw-prod-price">~$499</span>
+                        <span class="hw-prod-note">AM5, DDR5, PCIe 5.0, 10GbE &mdash; workstation-class board</span>
+                    </a>
+                    <a href="https://www.amazon.com/dp/B0CJ3TZR71?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">G.Skill Trident Z5 64GB DDR5-6000</span>
+                        <span class="hw-prod-price">~$169</span>
+                        <span class="hw-prod-note">64GB kit &mdash; run 10+ VMs without breaking a sweat</span>
+                    </a>
+                    <a href="https://www.amazon.com/dp/B0CVL4P2LK?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">NVIDIA RTX 4070 Ti SUPER</span>
+                        <span class="hw-prod-price">~$779</span>
+                        <span class="hw-prod-note">GPU passthrough, AI/LLM inference, CUDA &mdash; QA power</span>
+                    </a>
+                    <a href="https://www.amazon.com/dp/B0B7CPSN2K?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">Samsung 990 Pro 2TB NVMe</span>
+                        <span class="hw-prod-price">~$159</span>
+                        <span class="hw-prod-note">7,450 MB/s read &mdash; boot drive for the lab</span>
+                    </a>
+                    <a href="https://www.amazon.com/dp/B08QV1LJKK?tag=myclovertech-20" target="_blank" rel="noopener" class="hw-product">
+                        <span class="hw-prod-name">Fractal Design Meshify 2 Case</span>
+                        <span class="hw-prod-price">~$159</span>
+                        <span class="hw-prod-note">Clean, airflow king, tons of drive bays</span>
+                    </a>
+                </div>
+                <div class="hw-gigs-label">Best for: EHBB Elite, CloverVisor Cluster Testing, GPU Passthrough, Stress Testing, AI/LLM Full-Stack QA</div>
+            </div>
+        </div>
+
+        <!-- AFFILIATE PARTNERS -->
+        <div style="margin-top:40px; text-align:center;">
+            <p style="font-size:.82rem; color:var(--muted); line-height:1.6; max-width:700px; margin:0 auto;">
+                &#128722; <em>Amazon Associate links &mdash; as an Amazon Associate, MyClover.Tech earns from qualifying purchases. 
+                Every purchase through these links directly supports CloverOS development and the QA/QC gig program. 
+                Prices shown are approximate and may vary.</em>
+            </p>
+            <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:16px;">
+                <a href="https://www.amazon.com?tag=myclovertech-20" target="_blank" rel="noopener" style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 20px; font-size:.82rem; font-weight:600; color:var(--dim); text-decoration:none; transition:all .2s;">&#128722; Amazon</a>
+                <a href="https://www.newegg.com" target="_blank" rel="noopener" style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 20px; font-size:.82rem; font-weight:600; color:var(--dim); text-decoration:none; transition:all .2s;">&#9889; Newegg</a>
+                <a href="https://www.bhphotovideo.com" target="_blank" rel="noopener" style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 20px; font-size:.82rem; font-weight:600; color:var(--dim); text-decoration:none; transition:all .2s;">&#128247; B&amp;H Photo</a>
+                <a href="https://www.microcenter.com" target="_blank" rel="noopener" style="background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 20px; font-size:.82rem; font-weight:600; color:var(--dim); text-decoration:none; transition:all .2s;">&#128187; Micro Center</a>
+            </div>
+        </div>
+
+        <!-- ========= INTERACTIVE BUILD YOUR QA RIG ========= -->
+        <div id="rig-builder" style="margin-top:60px;">
+            <div class="section-header center">
+                <div class="section-label"><span>&#128295;</span> Interactive Tool</div>
+                <h2 class="section-title">Build Your <span class="ehbb-gradient">QA Rig</span></h2>
+                <p class="section-desc">Select your gig track and budget &mdash; get a custom hardware recommendation with direct purchase links.</p>
+            </div>
+
+            <div class="rig-app" id="rigApp">
+                <div class="rig-controls">
+                    <div class="rig-control-group">
+                        <label>Your Primary Gig Track</label>
+                        <select id="rigGigTrack">
+                            <option value="functional">Functional QA</option>
+                            <option value="security">Security &amp; Pentest</option>
+                            <option value="performance">Performance &amp; Stress</option>
+                            <option value="hypervisor" selected>CloverVisor Hypervisor</option>
+                            <option value="docs">Documentation QA</option>
+                            <option value="ai">AI &amp; LLM Integration</option>
+                            <option value="all">All Tracks (EHBB Elite)</option>
+                        </select>
+                    </div>
+                    <div class="rig-control-group">
+                        <label>Budget Range</label>
+                        <select id="rigBudget">
+                            <option value="low">$200&ndash;$500 (Starter)</option>
+                            <option value="mid" selected>$500&ndash;$1,500 (Solid)</option>
+                            <option value="high">$1,500&ndash;$3,000 (Power)</option>
+                            <option value="max">$3,000+ (No Limits)</option>
+                        </select>
+                    </div>
+                    <div class="rig-control-group">
+                        <label>Form Factor</label>
+                        <select id="rigForm">
+                            <option value="mini">Mini PC</option>
+                            <option value="laptop">Laptop</option>
+                            <option value="desktop" selected>Desktop Build</option>
+                            <option value="server">Server / Rack</option>
+                        </select>
+                    </div>
+                    <button id="rigBuildBtn" class="btn btn-primary" style="align-self:flex-end; margin-top:8px;">&#128295; Build My Rig</button>
+                </div>
+
+                <div id="rigResult" class="rig-result" style="display:none;">
+                    <div class="rig-result-header">
+                        <h3 id="rigResultTitle">Your Recommended Build</h3>
+                        <div id="rigResultBadge" class="rig-result-badge"></div>
+                    </div>
+                    <div id="rigResultSpecs" class="rig-result-specs"></div>
+                    <div id="rigResultTotal" class="rig-result-total"></div>
+                    <div id="rigResultLinks" class="rig-result-links"></div>
+                    <p style="font-size:.75rem; color:var(--muted); margin-top:16px; text-align:center;">
+                        &#9432; Prices are approximate. Amazon Associate affiliate links &mdash; purchases support the MCT QA/QC program.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
 <!-- Footer -->
 <footer>
     <div class="container footer-inner">
@@ -804,6 +1206,199 @@ const nav = document.getElementById('nav');
 window.addEventListener('scroll', () => {
     if (nav) nav.classList.toggle('scrolled', window.scrollY > 20);
 });
+</script>
+<!-- ========= RIG BUILDER APP SCRIPT ========= -->
+<script>
+(function(){
+    const TAG = 'myclovertech-20';
+    const builds = {
+        // [gig][budget][form] => { title, badge, specs: [{label,value,price,url}], total }
+        // We define templates by budget+form, then adjust notes per gig
+    };
+
+    const components = {
+        cpu: {
+            low:    { mini: {n:'Intel N100 (Beelink S12)',p:'$169',u:'https://www.amazon.com/dp/B0D7BHKZ2N?tag='+TAG,note:'4C/4T — handles basic QA'},
+                      laptop: {n:'AMD Ryzen 5 5500U',p:'~$449',u:'https://www.amazon.com/dp/B0DFHM2JK1?tag='+TAG,note:'6C/12T in Lenovo IdeaPad'},
+                      desktop: {n:'AMD Ryzen 5 5600',p:'$119',u:'https://www.amazon.com/dp/B09VCHR1VH?tag='+TAG,note:'6C/12T — great budget CPU'},
+                      server: {n:'Intel Xeon E-2336 (Dell T150)',p:'$699',u:'https://www.amazon.com/dp/B09JQZNWD3?tag='+TAG,note:'6C/12T server-grade'}},
+            mid:    { mini: {n:'AMD Ryzen 7 7840HS (Beelink SER7)',p:'$569',u:'https://www.amazon.com/dp/B0DDJ1HM7C?tag='+TAG,note:'8C/16T — tiny VM beast'},
+                      laptop: {n:'Intel i9-14900HX (Legion Pro)',p:'$1,399',u:'https://www.amazon.com/dp/B0D5CKQZ3W?tag='+TAG,note:'24C — portable VM lab'},
+                      desktop: {n:'AMD Ryzen 7 7700X',p:'$219',u:'https://www.amazon.com/dp/B0BBJ59WJ4?tag='+TAG,note:'8C/16T — sweet spot'},
+                      server: {n:'Intel Xeon E-2388G (HPE ML30)',p:'$1,499',u:'https://www.amazon.com/dp/B09LYP7F59?tag='+TAG,note:'8C/16T ECC server'}},
+            high:   { mini: {n:'Intel i9-13900H (Intel NUC 13)',p:'$849',u:'https://www.amazon.com/dp/B0BY5GKYQF?tag='+TAG,note:'14C — high-perf mini'},
+                      laptop: {n:'AMD Ryzen 9 7945HX (ROG Strix)',p:'$1,799',u:'https://www.amazon.com/dp/B0BSHF7LLL?tag='+TAG,note:'16C — desktop in a laptop'},
+                      desktop: {n:'AMD Ryzen 9 7950X',p:'$449',u:'https://www.amazon.com/dp/B0BV8YLC9Y?tag='+TAG,note:'16C/32T — dominate everything'},
+                      server: {n:'AMD EPYC 7313P',p:'$699',u:'https://www.amazon.com/dp/B099DKTZ15?tag='+TAG,note:'16C/32T server-class'}},
+            max:    { mini: {n:'AMD Ryzen 9 7945HX (Minisforum MS-01)',p:'$1,099',u:'https://www.amazon.com/dp/B0CWV34H4K?tag='+TAG,note:'16C + 10GbE + PCIe'},
+                      laptop: {n:'Intel i9-14900HX + RTX 4090 (MSI Titan)',p:'$3,999',u:'https://www.amazon.com/dp/B0CS3Y6J8N?tag='+TAG,note:'The everything machine'},
+                      desktop: {n:'AMD Threadripper 7960X',p:'$1,299',u:'https://www.amazon.com/dp/B0CPPGLVS1?tag='+TAG,note:'24C/48T — server-class desktop'},
+                      server: {n:'AMD EPYC 9354P',p:'$2,199',u:'https://www.amazon.com/dp/B0CTFRMJM3?tag='+TAG,note:'32C/64T — enterprise beast'}}
+        },
+        ram: {
+            low:    { val:'16 GB DDR4', p:'~$35', u:'https://www.amazon.com/dp/B08C511GQH?tag='+TAG },
+            mid:    { val:'32 GB DDR5', p:'~$79', u:'https://www.amazon.com/dp/B0BJ8GPC8V?tag='+TAG },
+            high:   { val:'64 GB DDR5', p:'~$169', u:'https://www.amazon.com/dp/B0CJ3TZR71?tag='+TAG },
+            max:    { val:'128 GB DDR5 ECC', p:'~$349', u:'https://www.amazon.com/dp/B0CTZHSBM7?tag='+TAG }
+        },
+        storage: {
+            low:    { val:'512 GB NVMe SSD', p:'~$39', u:'https://www.amazon.com/dp/B0BHG5VK4M?tag='+TAG },
+            mid:    { val:'1 TB NVMe SSD', p:'~$79', u:'https://www.amazon.com/dp/B0BBWH7DBT?tag='+TAG },
+            high:   { val:'2 TB NVMe + 4 TB HDD', p:'~$229', u:'https://www.amazon.com/dp/B0CY1GGHHR?tag='+TAG },
+            max:    { val:'2 TB NVMe + 8 TB NAS RAID', p:'~$559', u:'https://www.amazon.com/dp/B0CY1GGHHR?tag='+TAG }
+        },
+        gpu: {
+            low:    { val:'Integrated Graphics', p:'Included', u:'' },
+            mid:    { val:'NVIDIA RTX 4060', p:'~$289', u:'https://www.amazon.com/dp/B0C9FLLWNQ?tag='+TAG },
+            high:   { val:'NVIDIA RTX 4070 Ti SUPER', p:'~$779', u:'https://www.amazon.com/dp/B0CVL4P2LK?tag='+TAG },
+            max:    { val:'NVIDIA RTX 4090', p:'~$1,799', u:'https://www.amazon.com/dp/B0BDP6GKX1?tag='+TAG }
+        },
+        mobo: {
+            low:    { val:'Included / B550', p:'~$89', u:'https://www.amazon.com/dp/B089CZSQB4?tag='+TAG },
+            mid:    { val:'ASUS TUF B650-PLUS WiFi', p:'~$199', u:'https://www.amazon.com/dp/B0BHN7GGBQ?tag='+TAG },
+            high:   { val:'ASUS ProArt X670E Creator', p:'~$499', u:'https://www.amazon.com/dp/B0C3S5N2H2?tag='+TAG },
+            max:    { val:'ASUS WRX90E SAGE (sTR5)', p:'~$899', u:'https://www.amazon.com/dp/B0CMQB9YGF?tag='+TAG }
+        },
+        case_psu: {
+            low:    { val:'Basic mATX Case + 500W PSU', p:'~$79', u:'https://www.amazon.com/dp/B07TC76671?tag='+TAG },
+            mid:    { val:'Fractal Pop Air + 650W 80+', p:'~$149', u:'https://www.amazon.com/dp/B09NLJ2S7Z?tag='+TAG },
+            high:   { val:'Fractal Meshify 2 + 850W 80+ Gold', p:'~$249', u:'https://www.amazon.com/dp/B08QV1LJKK?tag='+TAG },
+            max:    { val:'Fractal Define 7 XL + 1200W Platinum', p:'~$399', u:'https://www.amazon.com/dp/B07WNZPFML?tag='+TAG }
+        },
+        network: {
+            low:    { val:'Gigabit Ethernet + WiFi', p:'Included', u:'' },
+            mid:    { val:'2.5 GbE + WiFi 6E', p:'Included on board', u:'' },
+            high:   { val:'10 GbE PCIe Card', p:'~$79', u:'https://www.amazon.com/dp/B08D71PVXG?tag='+TAG },
+            max:    { val:'10 GbE + Managed Switch', p:'~$249', u:'https://www.amazon.com/dp/B076PK2GBY?tag='+TAG }
+        }
+    };
+
+    const gigNeeds = {
+        functional:  { minBudget:'low', gpuNeed:'low', ramNeed:'low', note:'Install testing, service validation — CPU and storage matter most' },
+        security:    { minBudget:'mid', gpuNeed:'low', ramNeed:'mid', note:'Pentesting, vuln scanning — multi-tool parallel runs need RAM' },
+        performance: { minBudget:'mid', gpuNeed:'mid', ramNeed:'mid', note:'Benchmarking, load testing — balanced build, good I/O' },
+        hypervisor:  { minBudget:'mid', gpuNeed:'high', ramNeed:'high', note:'VM lifecycle, GPU passthrough — max RAM and GPU passthrough critical' },
+        docs:        { minBudget:'low', gpuNeed:'low', ramNeed:'low', note:'Doc walkthroughs, screenshot capture — any hardware works' },
+        ai:          { minBudget:'mid', gpuNeed:'high', ramNeed:'mid', note:'Ollama, Chappie, RAG — GPU for inference, RAM for models' },
+        all:         { minBudget:'high', gpuNeed:'high', ramNeed:'max', note:'All tracks — build for the hardest gig (hypervisor + AI)' }
+    };
+
+    const prices = { low: '$300–$600', mid: '$800–$1,800', high: '$2,000–$3,500', max: '$3,500–$6,000+' };
+    const tierNames = { low:'Starter Rig', mid:'VM Powerhouse', high:'EHBB Lab', max:'Creator Fortress' };
+
+    function pickLevel(base, gigOverride) {
+        const order = ['low','mid','high','max'];
+        const bi = order.indexOf(base);
+        const gi = order.indexOf(gigOverride);
+        return order[Math.max(bi, gi)] || base;
+    }
+
+    function buildRig() {
+        const gig = document.getElementById('rigGigTrack').value;
+        const budget = document.getElementById('rigBudget').value;
+        const form = document.getElementById('rigForm').value;
+        const needs = gigNeeds[gig];
+
+        // For mini/laptop, the CPU entry IS the full system — show differently
+        const isPrebuilt = (form === 'mini' || form === 'laptop');
+
+        const cpuEntry = components.cpu[budget][form];
+        const ramLevel = pickLevel(budget, needs.ramNeed);
+        const gpuLevel = pickLevel(budget, needs.gpuNeed);
+
+        const resultDiv = document.getElementById('rigResult');
+        const specsDiv = document.getElementById('rigResultSpecs');
+        const titleEl = document.getElementById('rigResultTitle');
+        const badgeEl = document.getElementById('rigResultBadge');
+        const totalEl = document.getElementById('rigResultTotal');
+        const linksEl = document.getElementById('rigResultLinks');
+
+        titleEl.textContent = isPrebuilt
+            ? 'Your Recommended ' + (form === 'mini' ? 'Mini PC' : 'Laptop')
+            : 'Your Custom ' + tierNames[budget] + ' Build';
+        badgeEl.textContent = needs.note;
+
+        specsDiv.innerHTML = '';
+        linksEl.innerHTML = '';
+
+        if (isPrebuilt) {
+            // Show as single system recommendation
+            specsDiv.innerHTML = `
+                <div class="rig-spec-card" style="grid-column:1/-1;">
+                    <div class="rig-spec-label">${form === 'mini' ? 'Mini PC' : 'Laptop'}</div>
+                    <div class="rig-spec-value">${cpuEntry.n}</div>
+                    <div class="rig-spec-price">${cpuEntry.p}</div>
+                    <div style="font-size:.78rem;color:var(--muted);margin-top:4px;">${cpuEntry.note}</div>
+                </div>
+                <div class="rig-spec-card">
+                    <div class="rig-spec-label">Recommended RAM</div>
+                    <div class="rig-spec-value">${components.ram[ramLevel].val}</div>
+                    <div style="font-size:.78rem;color:var(--muted);margin-top:2px;">Upgrade if not included</div>
+                </div>
+                <div class="rig-spec-card">
+                    <div class="rig-spec-label">Storage</div>
+                    <div class="rig-spec-value">${components.storage[budget].val}</div>
+                    <div class="rig-spec-price">${components.storage[budget].p} (add external if needed)</div>
+                </div>
+            `;
+            totalEl.textContent = 'Estimated: ' + cpuEntry.p;
+            if (cpuEntry.u) linksEl.innerHTML += `<a href="${cpuEntry.u}" target="_blank" rel="noopener" class="rig-link">🛒 Buy ${form === 'mini' ? 'Mini PC' : 'Laptop'} on Amazon</a>`;
+            if (components.storage[budget].u) linksEl.innerHTML += `<a href="${components.storage[budget].u}" target="_blank" rel="noopener" class="rig-link">💾 Storage Upgrade</a>`;
+            if (components.ram[ramLevel].u) linksEl.innerHTML += `<a href="${components.ram[ramLevel].u}" target="_blank" rel="noopener" class="rig-link">🧠 RAM Upgrade</a>`;
+        } else {
+            // Full component build
+            const parts = [
+                { label:'CPU', data: cpuEntry, isCustom: true },
+                { label:'Motherboard', data: components.mobo[budget] },
+                { label:'RAM', data: components.ram[ramLevel] },
+                { label:'Storage', data: components.storage[budget] },
+                { label:'GPU', data: components.gpu[gpuLevel] },
+                { label:'Case + PSU', data: components.case_psu[budget] },
+                { label:'Network', data: components.network[budget] }
+            ];
+
+            parts.forEach(function(part) {
+                const d = part.data;
+                const val = part.isCustom ? d.n : d.val;
+                const price = part.isCustom ? d.p : d.p;
+                const card = document.createElement('div');
+                card.className = 'rig-spec-card';
+                card.innerHTML = `
+                    <div class="rig-spec-label">${part.label}</div>
+                    <div class="rig-spec-value">${val}</div>
+                    <div class="rig-spec-price">${price}</div>
+                `;
+                specsDiv.appendChild(card);
+
+                const url = part.isCustom ? d.u : d.u;
+                if (url) {
+                    linksEl.innerHTML += `<a href="${url}" target="_blank" rel="noopener" class="rig-link">🛒 ${part.label}</a>`;
+                }
+            });
+
+            totalEl.textContent = 'Estimated Total: ' + prices[budget];
+
+            if (form === 'server') {
+                specsDiv.innerHTML += `
+                    <div class="rig-spec-card" style="grid-column:1/-1; border-color:rgba(34,197,94,.3);">
+                        <div class="rig-spec-label">💡 Server Tip</div>
+                        <div class="rig-spec-value" style="font-size:.82rem; font-weight:400; color:var(--dim);">
+                            Consider refurbished Dell PowerEdge R730/R740 or HPE ProLiant DL380 for rack-mounted QA labs. 
+                            Often $500-$1,500 on eBay/Amazon with ECC RAM and dual Xeons.
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        resultDiv.style.display = 'block';
+        resultDiv.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    }
+
+    document.getElementById('rigBuildBtn').addEventListener('click', buildRig);
+    // Auto-build on load
+    buildRig();
+})();
 </script>
 </body>
 </html>
