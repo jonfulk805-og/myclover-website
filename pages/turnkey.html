@@ -116,19 +116,54 @@
 <!-- Navigation -->
 <nav id="nav">
     <div class="container nav-inner">
-        <div style="width:36px"></div>
+        <a href="../index.html" class="nav-logo">
+            <span class="green">&clubs;</span>
+        </a>
         <div class="nav-links" id="navLinks">
-            <a href="/">Home</a>
-            <a href="#businesses">Businesses</a>
-            <a href="#how">How It Works</a>
-            <a href="#includes">What's Included</a>
-            <a href="#faq">FAQ</a>
-            <a href="bulletin.html" class="nav-bulletin">Bulletin Board</a>
-            <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" style="color:rgba(34,197,94,.85);font-weight:600">MCTVS Method</a>
-            <a href="https://ethical-hacker-cb9a9f5c.viktor.space" target="_blank" rel="noopener" style="color:rgba(239,68,68,.85);font-weight:600">Ethical Hacker</a>
-            <a href="https://clover-academy-85af4dbe.viktor.space" target="_blank" rel="noopener" style="color:rgba(59,130,246,.85);font-weight:600">AI Academy</a>
-            <a href="partners.html">Partners</a>
-            <a href="creator-signup.html" class="nav-cta">Become a Creator</a>
+            <a href="../index.html">Home</a>
+            <div class="nav-dropdown" id="jumpDropdown">
+                <button class="nav-dropdown-btn" aria-expanded="false" aria-haspopup="true">
+                    Explore <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+                <div class="nav-dropdown-menu" role="menu" id="jumpMenu">
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--green)">&#9889; Products &amp; Tools</div>
+                    <a href="cloverbase.html" role="menuitem">&#128421;&#65039; CloverOS / CloverBase</a>
+                    <a href="cloverstrike.html" role="menuitem">&#128737;&#65039; Security Suite</a>
+                    <a href="clovermarket.html" role="menuitem">&#127978; CloverMarket</a>
+                    <a href="cloverbot.html" role="menuitem">&#129302; CloverBot</a>
+                    <a href="cloverdesign.html" role="menuitem">&#127912; CloverDesign</a>
+                    <a href="clovermesh-radio.html" role="menuitem">&#128225; CloverMesh Radio</a>
+                    <a href="cloverdrone.html" role="menuitem">&#128641; CloverDrone</a>
+                    <a href="clovervr.html" role="menuitem">&#129405; CloverVR</a>
+                    <a href="cloverpos.html" role="menuitem">&#128179; CloverPOS</a>
+                    <div style="height:1px;background:var(--border);margin:6px 0"></div>
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--cyan)">&#128188; Gigs &amp; Careers</div>
+                    <a href="qaqcgigs.html" role="menuitem" style="color:rgba(6,182,212,.9);font-weight:600">&#128187; QA/QC Gigs &mdash; EHBB</a>
+                    <a href="creators.html" role="menuitem">&#128640; Creator Tools</a>
+                    <a href="turnkey.html" role="menuitem">&#128273; Turnkey Businesses</a>
+                    <a href="creator-signup.html" role="menuitem">&#128221; Creator Sign-Up</a>
+                    <div style="height:1px;background:var(--border);margin:6px 0"></div>
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--purple)">&#127793; Community</div>
+                    <a href="bulletin.html" role="menuitem">&#128203; Bulletin Board</a>
+                    <a href="bulletin.html#game-arcade" role="menuitem">&#127918; Game Arcade</a>
+                    <a href="bulletin.html#citadel-grooming" role="menuitem">&#129532; Citadel Grooming Co.</a>
+                    <a href="bulletin.html#clovercoin" role="menuitem">&#127808; CloverCoin</a>
+                    <a href="bulletin.html#inkforge" role="menuitem">&#128218; InkForge</a>
+                    <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" role="menuitem" style="color:rgba(34,197,94,.9);font-weight:600">&#127808; MCTVS Method</a>
+                    <a href="partners.html" role="menuitem">&#129309; Partner Network</a>
+                    <a href="creator-handbook.html" role="menuitem" style="color:rgba(249,115,22,.85)">&#128214; Jon's Mistakes</a>
+                    <a href="viktor.html" role="menuitem">&#129302; Meet Viktor</a>
+                    <div style="height:1px;background:var(--border);margin:6px 0"></div>
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">&#128279; External</div>
+                    <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener" role="menuitem">GitHub</a>
+                    <a href="../../keygen" role="menuitem">&#128272; License KeyGen</a>
+                </div>
+            </div>
+            <a href="qaqcgigs.html" style="color:rgba(6,182,212,.85);font-weight:600">QA/QC Gigs</a>
+            <a href="creators.html">Creators</a>
+            <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" class="nav-bulletin">MCTVS</a>
+            <a href="bulletin.html">Bulletin</a>
+            <a href="https://viktor.com" target="_blank" rel="noopener" class="nav-cta">Start Free</a>
         </div>
         <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
     </div>
@@ -429,28 +464,28 @@
 
 <!-- Footer -->
 <footer>
-    <div class="container">
-        <div class="footer-inner">
-            <div class="footer-brand">
-                <span>My<span class="green">Clover</span>.Tech</span>
-            </div>
-            <div class="footer-links">
-                <a href="/">Home</a>
-                <a href="/">Creator Tools</a>
-                <a href="/">Pricing</a>
-                <a href="bulletin.html">Bulletin</a>
-                <a href="partners.html">Partners</a>
-                <a href="/keygen">KeyGen</a>
-                <a href="cloverbot.html">CloverBot</a>
-                <a href="cloverdrone.html">CloverDrone</a>
-                <a href="clovermesh-radio.html">CloverMesh Radio</a>
-                <a href="https://github.com/jonfulk805-og" target="_blank">GitHub</a>
-                <a href="mailto:inforequest@myclover.tech">Contact</a>
-            </div>
-            <div class="footer-copy">
-                &copy; 2026 MyClover Technologies. All rights reserved.<br>
-                <span class="dim">The Business Creation Business.</span>
-            </div>
+    <div class="container footer-inner">
+        <div class="footer-brand">
+            <span class="green">&clubs;</span> <span style="font-size:.82rem;color:var(--dim)">Powered by Viktor &bull; Built by myclover.tech</span>
+        </div>
+        <div class="footer-links">
+            <a href="../index.html">Home</a>
+            <a href="cloverbase.html">CloverOS</a>
+            <a href="cloverstrike.html">Security</a>
+            <a href="qaqcgigs.html">QA/QC Gigs</a>
+            <a href="creators.html">Creators</a>
+            <a href="turnkey.html">Turnkey</a>
+            <a href="bulletin.html">Bulletin</a>
+            <a href="partners.html">Partners</a>
+            <a href="viktor.html">Viktor</a>
+            <a href="clovermarket.html">CloverMarket</a>
+            <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener">MCTVS Method</a>
+            <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener">GitHub</a>
+            <a href="mailto:inforequest@myclover.tech">Contact</a>
+        </div>
+        <div class="footer-copy">
+            &copy; 2026 MyClover Technologies. All rights reserved.<br>
+            <span class="dim">MCTVS is the road to freedom. &bull; Designed by Viktor &bull; Props to myclover.tech</span>
         </div>
     </div>
 </footer>
