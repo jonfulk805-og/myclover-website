@@ -111,7 +111,7 @@
 
         /* --- Stats Bar --- */
         .stats-section{position:relative;z-index:1;padding:60px 0;background:var(--bg2)}
-        .stats-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;background:var(--border);border-radius:18px;overflow:hidden}
+        .stats-bar{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;background:var(--border);border-radius:18px;overflow:hidden}
         .stat{background:var(--bg2);padding:32px 20px;text-align:center}
         .stat-num{font-size:2rem;font-weight:900;color:var(--green);margin-bottom:4px}
         .stat-label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:500}
@@ -140,6 +140,56 @@
         /* --- Footer enhancements --- */
         footer{position:relative;z-index:1}
         .footer-inner{display:flex;flex-direction:column;align-items:center;gap:20px}
+
+
+        /* --- Resume Builder Section --- */
+        .resume-section{position:relative;z-index:1;padding:80px 0}
+        .resume-hero-text{text-align:center;max-width:720px;margin:0 auto 48px;font-size:1.1rem;color:var(--dim);line-height:1.8}
+        .resume-hero-text strong{color:var(--text);font-weight:700}
+        .resume-hero-text em{font-style:normal;color:var(--green);font-weight:600}
+
+        /* Skills Journey Timeline */
+        .skills-journey{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;background:var(--border);border-radius:18px;overflow:hidden;margin-bottom:56px}
+        .journey-stage{background:var(--card);padding:28px 18px;text-align:center;position:relative;transition:all .3s}
+        .journey-stage:hover{background:var(--card-h)}
+        .journey-stage .j-step{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px}
+        .journey-stage .j-icon{font-size:2rem;margin-bottom:10px;display:block}
+        .journey-stage h4{font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:6px}
+        .journey-stage .j-skills{display:flex;flex-direction:column;gap:3px}
+        .journey-stage .j-skill{font-size:.7rem;color:var(--dim);line-height:1.4}
+        .journey-stage .j-badge{display:inline-block;margin-top:10px;font-size:.6rem;font-weight:700;padding:3px 10px;border-radius:6px;text-transform:uppercase}
+        .j-badge.green{background:rgba(34,197,94,.12);color:var(--green)}
+
+        /* Skills Grid */
+        .skills-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+        .skill-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:32px 26px;transition:all .3s;position:relative;overflow:hidden}
+        .skill-card:hover{border-color:rgba(34,197,94,.3);transform:translateY(-4px);box-shadow:0 16px 40px rgba(0,0,0,.3)}
+        .skill-card .sk-icon{font-size:2rem;margin-bottom:14px;display:block}
+        .skill-card h3{font-size:1rem;font-weight:800;color:var(--text);margin-bottom:4px}
+        .skill-card .sk-role{font-size:.75rem;font-weight:600;color:var(--green);margin-bottom:10px}
+        .skill-card p{font-size:.82rem;color:var(--dim);line-height:1.6}
+        .skill-card .sk-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:12px}
+        .skill-card .sk-tag{font-size:.65rem;font-weight:500;padding:2px 8px;border-radius:5px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted)}
+
+        /* Resume CTA */
+        .resume-cta-row{display:flex;align-items:center;justify-content:center;gap:20px;margin-top:48px;flex-wrap:wrap}
+        .resume-cta-box{display:flex;align-items:center;gap:14px;padding:18px 28px;background:linear-gradient(135deg,rgba(34,197,94,.06),rgba(168,85,247,.04));border:1px solid rgba(34,197,94,.15);border-radius:16px}
+        .resume-cta-box .rcb-icon{font-size:1.6rem}
+        .resume-cta-box .rcb-text{font-size:.88rem;color:var(--dim);line-height:1.5}
+        .resume-cta-box .rcb-text strong{color:var(--text)}
+
+        @media(max-width:1024px){
+            .skills-journey{grid-template-columns:repeat(3,1fr)}
+            .skills-grid{grid-template-columns:repeat(2,1fr)}
+        }
+        @media(max-width:768px){
+            .skills-journey{grid-template-columns:1fr 1fr}
+            .skills-grid{grid-template-columns:1fr}
+            .resume-cta-row{flex-direction:column}
+        }
+        @media(max-width:480px){
+            .skills-journey{grid-template-columns:1fr}
+        }
 
         /* --- Responsive --- */
         @media(max-width:1024px){
@@ -277,7 +327,8 @@
         <p class="sub">
             Games, stores, apps, physical products, crypto, security tools — 
             <em>anything you can dream up</em>. No coding. No experience needed. 
-            Any age. Any skill level. Just you and an AI that builds it all.
+            Any age. Any skill level. <em>Build real businesses, gain real experience,
+            and walk away with a resume that proves you can do it.</em>
         </p>
 
         <div class="pillars">
@@ -521,6 +572,191 @@
     </div>
 </section>
 
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- BUILD YOUR RESUME -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="resume-section section-alt" id="resume">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">📋 More Than a Side Hustle</div>
+            <h2 class="section-title">Build Your Resume While<br>You Build Your Business</h2>
+            <p class="section-desc">Every creator who comes through MyClover.Tech walks out with <strong>real, provable experience</strong> — not a certificate from a course, but an actual track record. The MCTVS Method doesn't just build businesses. It builds <em>you</em>.</p>
+        </div>
+
+        <p class="resume-hero-text">
+            Slack-based team collaboration. Business formation. Financial operations. Product launches. AI tools. Marketing strategy. 
+            <strong>These aren't skills you read about — you live them.</strong> Every project becomes a line on your resume.
+            Every launch proves you can <em>ship</em>.
+        </p>
+
+        <!-- Skills Journey Timeline -->
+        <div class="skills-journey">
+            <div class="journey-stage">
+                <div class="j-step">Stage 1</div>
+                <span class="j-icon">🚀</span>
+                <h4>Sign Up & Onboard</h4>
+                <div class="j-skills">
+                    <span class="j-skill">Slack workspace setup</span>
+                    <span class="j-skill">Team communication</span>
+                    <span class="j-skill">AI tool adoption</span>
+                </div>
+                <span class="j-badge green">Day 1</span>
+            </div>
+            <div class="journey-stage">
+                <div class="j-step">Stage 2</div>
+                <span class="j-icon">🧠</span>
+                <h4>Strategy & Planning</h4>
+                <div class="j-skills">
+                    <span class="j-skill">Market research</span>
+                    <span class="j-skill">Business planning</span>
+                    <span class="j-skill">Niche validation</span>
+                </div>
+                <span class="j-badge green">Week 1</span>
+            </div>
+            <div class="journey-stage">
+                <div class="j-step">Stage 3</div>
+                <span class="j-icon">🔧</span>
+                <h4>Build & Brand</h4>
+                <div class="j-skills">
+                    <span class="j-skill">Product development</span>
+                    <span class="j-skill">Brand identity</span>
+                    <span class="j-skill">Payment systems</span>
+                </div>
+                <span class="j-badge green">Week 2</span>
+            </div>
+            <div class="journey-stage">
+                <div class="j-step">Stage 4</div>
+                <span class="j-icon">📈</span>
+                <h4>Launch & Sell</h4>
+                <div class="j-skills">
+                    <span class="j-skill">Go-to-market execution</span>
+                    <span class="j-skill">Sales & conversions</span>
+                    <span class="j-skill">Customer acquisition</span>
+                </div>
+                <span class="j-badge green">Week 3</span>
+            </div>
+            <div class="journey-stage">
+                <div class="j-step">Stage 5</div>
+                <span class="j-icon">👑</span>
+                <h4>Scale & Lead</h4>
+                <div class="j-skills">
+                    <span class="j-skill">Operations management</span>
+                    <span class="j-skill">Team leadership</span>
+                    <span class="j-skill">Revenue optimization</span>
+                </div>
+                <span class="j-badge green">Month 1+</span>
+            </div>
+        </div>
+
+        <!-- Skills You'll Gain Grid -->
+        <div class="section-header center" style="margin-bottom:32px">
+            <div class="section-label">🎯 Skills You'll Gain</div>
+            <h2 class="section-title" style="font-size:1.6rem">Experience That Goes On Your Resume</h2>
+        </div>
+
+        <div class="skills-grid">
+            <div class="skill-card">
+                <span class="sk-icon">💬</span>
+                <h3>Slack & Team Collaboration</h3>
+                <div class="sk-role">Communication & Project Management</div>
+                <p>Real-time team communication, channel-based project workflows, async coordination, stakeholder updates. The #1 skill employers look for.</p>
+                <div class="sk-tags">
+                    <span class="sk-tag">Slack</span>
+                    <span class="sk-tag">Async Work</span>
+                    <span class="sk-tag">Cross-Team</span>
+                </div>
+            </div>
+            <div class="skill-card">
+                <span class="sk-icon">📊</span>
+                <h3>Business Management</h3>
+                <div class="sk-role">Operations & Strategy</div>
+                <p>LLC formation, business planning, pricing strategy, supplier relationships, inventory management. The full lifecycle of running a real business.</p>
+                <div class="sk-tags">
+                    <span class="sk-tag">LLC</span>
+                    <span class="sk-tag">Strategy</span>
+                    <span class="sk-tag">Operations</span>
+                </div>
+            </div>
+            <div class="skill-card">
+                <span class="sk-icon">💳</span>
+                <h3>Financial Operations</h3>
+                <div class="sk-role">Revenue & Payments</div>
+                <p>Stripe payment processing, revenue tracking, subscription management, pricing models, financial reporting. Handle real money from day one.</p>
+                <div class="sk-tags">
+                    <span class="sk-tag">Stripe</span>
+                    <span class="sk-tag">Revenue</span>
+                    <span class="sk-tag">Pricing</span>
+                </div>
+            </div>
+            <div class="skill-card">
+                <span class="sk-icon">🤖</span>
+                <h3>AI Tools & Automation</h3>
+                <div class="sk-role">Emerging Technology</div>
+                <p>Work side-by-side with AI agents daily. Prompt engineering, AI-assisted development, automated workflows. The most in-demand skill of the decade.</p>
+                <div class="sk-tags">
+                    <span class="sk-tag">AI Agents</span>
+                    <span class="sk-tag">Automation</span>
+                    <span class="sk-tag">Prompting</span>
+                </div>
+            </div>
+            <div class="skill-card">
+                <span class="sk-icon">🚀</span>
+                <h3>Product Development</h3>
+                <div class="sk-role">Build & Ship</div>
+                <p>Take an idea from concept to deployed product. Branding, UX decisions, feature prioritization, launch strategy. Ship real products that real people use.</p>
+                <div class="sk-tags">
+                    <span class="sk-tag">Ship It</span>
+                    <span class="sk-tag">Branding</span>
+                    <span class="sk-tag">UX</span>
+                </div>
+            </div>
+            <div class="skill-card">
+                <span class="sk-icon">📣</span>
+                <h3>Marketing & Growth</h3>
+                <div class="sk-role">Audience & Revenue Growth</div>
+                <p>Social media strategy, content creation, SEO, Amazon listings, ad campaigns, community building. Drive real traffic and convert it into real revenue.</p>
+                <div class="sk-tags">
+                    <span class="sk-tag">SEO</span>
+                    <span class="sk-tag">Social</span>
+                    <span class="sk-tag">Content</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resume CTA callouts -->
+        <div class="resume-cta-row">
+            <div class="resume-cta-box">
+                <span class="rcb-icon">🏆</span>
+                <div class="rcb-text">
+                    <strong>Not a course. Not a certificate.</strong><br>
+                    A portfolio of real launched businesses.
+                </div>
+            </div>
+            <div class="resume-cta-box">
+                <span class="rcb-icon">💼</span>
+                <div class="rcb-text">
+                    <strong>Prove you can ship.</strong><br>
+                    Every project = a line on your resume.
+                </div>
+            </div>
+            <div class="resume-cta-box">
+                <span class="rcb-icon">🌍</span>
+                <div class="rcb-text">
+                    <strong>Any age. Any background.</strong><br>
+                    Teens to retirees — experience is experience.
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:40px">
+            <a href="https://viktor.com" target="_blank" rel="noopener" class="btn btn-primary" style="font-size:1rem;padding:16px 36px">
+                Start Building Your Resume — Free →
+            </a>
+        </div>
+    </div>
+</section>
+
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- STATS BAR -->
 <!-- ═══════════════════════════════════════════════════════════ -->
@@ -546,6 +782,10 @@
             <div class="stat">
                 <div class="stat-num">100%</div>
                 <div class="stat-label">Your Revenue</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num">6+</div>
+                <div class="stat-label">Resume-Ready Skills</div>
             </div>
         </div>
     </div>
@@ -745,7 +985,7 @@
     <div class="container">
         <div class="cta-box">
             <h2>Your Idea Deserves to Exist.</h2>
-            <p>Stop thinking about it. Let AI build it. Start earning from your side hustle in days, not months. Every age. Every background. Every kind of idea.</p>
+            <p>Stop thinking about it. Let AI build it. Start earning from your side hustle in days, not months. Every project builds your portfolio. Every launch proves you can ship. Every age. Every background. Every kind of idea.</p>
             <div class="hero-ctas">
                 <a href="https://viktor.com" target="_blank" rel="noopener" class="btn btn-primary" style="font-size:1rem;padding:16px 36px">Start Free →</a>
                 <a href="mailto:cloverbot@myclover.tech" class="btn btn-secondary">Talk to Us</a>
@@ -857,7 +1097,7 @@ const observer = new IntersectionObserver((entries) => {
     });
 }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
-document.querySelectorAll('.discover-card, .mctvs-step, .eco-card, .path-card, .pillar, .stat, .steps-grid > div').forEach(el => {
+document.querySelectorAll('.discover-card, .mctvs-step, .eco-card, .path-card, .pillar, .stat, .steps-grid > div, .skill-card, .journey-stage, .resume-cta-box').forEach(el => {
     el.style.opacity = '0';
     el.style.transform = 'translateY(24px)';
     el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
