@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The "Holy Crap, AI Runs On MY Computer?!" Guide to Ollama — MyClover.Tech</title>
+    <meta name="description" content="A fun, first-timer's guide to installing and running Ollama on Windows 11. Local AI, no subscriptions, no cloud. Just you and a very smart llama.">
+    <meta property="og:title" content="Ollama on Windows 11 — MyClover.Tech">
+    <meta property="og:description" content="Install local AI on your Windows 11 PC in 10 minutes. No internet needed, no subscriptions, no one reading your prompts.">
+    <meta property="og:image" content="/assets/og-image-logo.png">
+    <meta property="og:url" content="https://myclover.tech/pages/ollama-guide.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body { padding-top: 0; }
+        nav { top: 0; }
+
+        /* ── Guide Hero ── */
+        .guide-hero {
+            padding: 140px 0 80px;
+            text-align: center;
+            background: linear-gradient(180deg, rgba(10,14,23,1) 0%, rgba(15,20,30,1) 100%);
+            border-bottom: 1px solid rgba(34,197,94,0.08);
+            position: relative;
+            overflow: hidden;
+        }
+        .guide-hero::before {
+            content: '';
+            position: absolute;
+            top: -200px; left: 50%; transform: translateX(-50%);
+            width: 1000px; height: 1000px;
+            background: radial-gradient(circle, rgba(34,197,94,0.06), transparent 60%);
+            pointer-events: none;
+        }
+        .guide-hero h1 {
+            font-size: clamp(2rem, 4.5vw, 3.4rem);
+            font-weight: 900;
+            line-height: 1.08;
+            margin-bottom: 20px;
+            letter-spacing: -.03em;
+        }
+        .guide-hero h1 .gradient {
+            background: linear-gradient(135deg, var(--green), #4ade80, #86efac);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .guide-hero p {
+            font-size: 1.15rem;
+            color: var(--dim);
+            max-width: 660px;
+            margin: 0 auto 28px;
+            line-height: 1.7;
+        }
+        .guide-hero .llama-emoji {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 20px;
+        }
+        .guide-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 6px 16px 6px 10px;
+            font-size: .78rem;
+            color: var(--dim);
+            margin-bottom: 28px;
+        }
+        .guide-badge .pulse {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        /* ── Guide Content Area ── */
+        .guide-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 60px 24px 100px;
+        }
+        .guide-content h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin: 64px 0 16px;
+            letter-spacing: -.02em;
+        }
+        .guide-content h2:first-child { margin-top: 0; }
+        .guide-content h2 .step-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px; height: 42px;
+            background: rgba(34,197,94,0.1);
+            border: 2px solid var(--green);
+            border-radius: 50%;
+            font-size: 1rem;
+            font-weight: 900;
+            color: var(--green);
+            margin-right: 12px;
+            vertical-align: middle;
+        }
+        .guide-content h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin: 28px 0 12px;
+            color: var(--text);
+        }
+        .guide-content p {
+            color: var(--dim);
+            font-size: 1rem;
+            line-height: 1.75;
+            margin-bottom: 16px;
+        }
+        .guide-content ol, .guide-content ul {
+            color: var(--dim);
+            padding-left: 24px;
+            margin-bottom: 20px;
+        }
+        .guide-content li {
+            margin-bottom: 10px;
+            line-height: 1.65;
+            font-size: .95rem;
+        }
+
+        /* Code blocks */
+        .guide-content code {
+            font-family: var(--mono);
+            background: rgba(34,197,94,0.08);
+            color: var(--green-l);
+            padding: 2px 7px;
+            border-radius: 5px;
+            font-size: .88rem;
+        }
+        .guide-content pre {
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            overflow-x: auto;
+            margin: 20px 0 28px;
+            position: relative;
+        }
+        .guide-content pre code {
+            background: none;
+            padding: 0;
+            color: var(--dim);
+            font-size: .88rem;
+            line-height: 1.8;
+        }
+        .guide-content pre .cmd { color: var(--green-l); }
+        .guide-content pre .comment { color: var(--muted); }
+
+        /* Callout boxes */
+        .callout {
+            background: var(--card);
+            border-left: 3px solid var(--green);
+            border-radius: 0 14px 14px 0;
+            padding: 20px 24px;
+            margin: 24px 0;
+        }
+        .callout p { margin-bottom: 0; color: var(--dim); font-size: .95rem; }
+        .callout strong { color: var(--text); }
+        .callout.fun {
+            border-left-color: var(--yellow);
+        }
+        .callout.warn {
+            border-left-color: var(--orange);
+        }
+
+        /* Model table */
+        .model-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0 32px;
+            font-size: .9rem;
+        }
+        .model-table thead th {
+            text-align: left;
+            font-family: var(--mono);
+            font-size: .72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--muted);
+            padding: 12px 14px;
+            border-bottom: 2px solid var(--border);
+        }
+        .model-table tbody td {
+            padding: 14px;
+            border-bottom: 1px solid var(--border-l);
+            color: var(--dim);
+            vertical-align: top;
+        }
+        .model-table tbody tr:hover { background: rgba(34,197,94,0.03); }
+        .model-table .model-name {
+            color: var(--text);
+            font-weight: 600;
+        }
+        .model-table code {
+            font-size: .8rem;
+            white-space: nowrap;
+        }
+
+        /* Requirements card grid */
+        .req-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .req-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+        }
+        .req-card .req-label {
+            font-family: var(--mono);
+            font-size: .72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--green);
+            margin-bottom: 6px;
+        }
+        .req-card .req-value {
+            color: var(--text);
+            font-weight: 600;
+            font-size: .95rem;
+        }
+        .req-card .req-note {
+            color: var(--muted);
+            font-size: .82rem;
+            margin-top: 4px;
+        }
+
+        /* Step separator */
+        .step-divider {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+            margin: 56px 0;
+        }
+
+        /* Checklist */
+        .check-list {
+            list-style: none;
+            padding: 0;
+        }
+        .check-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-l);
+        }
+        .check-list li:last-child { border-bottom: none; }
+        .check-icon {
+            width: 24px; height: 24px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(34,197,94,0.12);
+            border-radius: 6px;
+            color: var(--green);
+            font-size: .9rem;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        /* Links section */
+        .resource-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin: 24px 0;
+        }
+        .resource-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+        .resource-card:hover {
+            border-color: var(--green);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(34,197,94,0.08);
+        }
+        .resource-card .rc-title {
+            color: var(--text);
+            font-weight: 700;
+            font-size: .95rem;
+            margin-bottom: 4px;
+        }
+        .resource-card .rc-url {
+            color: var(--green);
+            font-family: var(--mono);
+            font-size: .78rem;
+        }
+
+        /* Back to top */
+        .back-top {
+            text-align: center;
+            margin-top: 48px;
+        }
+        .back-top a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: .85rem;
+            font-weight: 500;
+            transition: color .2s;
+        }
+        .back-top a:hover { color: var(--green); }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .req-grid, .resource-grid { grid-template-columns: 1fr; }
+            .model-table { font-size: .8rem; }
+            .model-table thead th, .model-table tbody td { padding: 10px 8px; }
+            .guide-hero h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- BG Grid + Glow -->
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- NAV -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="../index.html" class="nav-logo">
+            <span class="green">&clubs;</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="../index.html">Home</a>
+            <div class="nav-dropdown" id="jumpDropdown">
+                <button class="nav-dropdown-btn" aria-expanded="false" aria-haspopup="true">
+                    Explore <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+                <div class="nav-dropdown-menu" role="menu" id="jumpMenu">
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--green)">&#9889; Products &amp; Tools</div>
+                    <a href="cloverbase.html" role="menuitem">&#128421;&#65039; CloverOS / CloverBase</a>
+                    <a href="cloverstrike.html" role="menuitem">&#128737;&#65039; Security Suite</a>
+                    <a href="clovermarket.html" role="menuitem">&#127978; CloverMarket</a>
+                    <a href="cloverbot.html" role="menuitem">&#129302; CloverBot</a>
+                    <a href="cloverdesign.html" role="menuitem">&#127912; CloverDesign</a>
+                    <a href="clovermesh-radio.html" role="menuitem">&#128225; CloverMesh Radio</a>
+                    <a href="cloverdrone.html" role="menuitem">&#128641; CloverDrone</a>
+                    <a href="clovervr.html" role="menuitem">&#129405; CloverVR</a>
+                    <a href="cloverpos.html" role="menuitem">&#128179; CloverPOS</a>
+                    <div style="height:1px;background:var(--border);margin:6px 0"></div>
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--cyan)">&#128188; Gigs &amp; Careers</div>
+                    <a href="qaqcgigs.html" role="menuitem" style="color:rgba(6,182,212,.9);font-weight:600">&#128187; QA/QC Gigs &mdash; EHBB</a>
+                    <a href="creators.html" role="menuitem">&#128640; Creator Tools</a>
+                    <a href="turnkey.html" role="menuitem">&#128273; Turnkey Businesses</a>
+                    <a href="creator-signup.html" role="menuitem">&#128221; Creator Sign-Up</a>
+                    <div style="height:1px;background:var(--border);margin:6px 0"></div>
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--purple)">&#127793; Community</div>
+                    <a href="bulletin.html" role="menuitem">&#128203; Bulletin Board</a>
+                    <a href="partners.html" role="menuitem">&#129309; Partners</a>
+                    <a href="creator-handbook.html" role="menuitem">&#128214; Creator Handbook</a>
+                    <a href="ollama-guide.html" role="menuitem" style="color:var(--green);font-weight:600">&#129433; Ollama Guide</a>
+                </div>
+            </div>
+            <a href="viktor.html">Viktor AI</a>
+            <a href="https://viktor.ai/signup?ref=myclovertech" class="nav-cta" target="_blank" rel="noopener">Get Viktor &rarr;</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="guide-hero">
+    <div class="container">
+        <div class="guide-badge"><span class="pulse"></span> WINDOWS 11 &middot; LOCAL AI &middot; FIRST TIMER'S GUIDE</div>
+        <span class="llama-emoji">&#129433;</span>
+        <h1>The "Holy Crap, AI Runs<br>On <span class="gradient">MY Computer?!</span>"<br>Guide to Ollama</h1>
+        <p>No internet. No subscriptions. No one reading your prompts.<br>Just you and a very smart llama.</p>
+    </div>
+</section>
+
+<!-- GUIDE CONTENT -->
+<div class="guide-content">
+
+    <!-- ════════ WHAT IS OLLAMA ════════ -->
+    <h2>What Even Is Ollama?</h2>
+    <p>Imagine ChatGPT&hellip; but it lives on your computer. No internet needed. No subscriptions. No one reading your prompts. Just you and a very smart llama.</p>
+    <p><strong style="color:var(--text)">Ollama</strong> is a free, open-source tool that lets you download and run powerful AI models (called LLMs &mdash; Large Language Models) right on your own hardware. Your data never leaves your machine. It's like having a tiny genius living inside your PC.</p>
+
+    <!-- ════════ REQUIREMENTS ════════ -->
+    <h2>Before We Start: Do You Have the Goods?</h2>
+    <p>Let's make sure your PC can handle this:</p>
+
+    <div class="req-grid">
+        <div class="req-card">
+            <div class="req-label">Operating System</div>
+            <div class="req-value">Windows 11</div>
+            <div class="req-note">You're golden &#128526;</div>
+        </div>
+        <div class="req-card">
+            <div class="req-label">RAM</div>
+            <div class="req-value">8 GB minimum &middot; 16 GB+ recommended</div>
+            <div class="req-note">AI is hungry</div>
+        </div>
+        <div class="req-card">
+            <div class="req-label">Disk Space</div>
+            <div class="req-value">At least 10 GB free</div>
+            <div class="req-note">Models range 2&ndash;50 GB each</div>
+        </div>
+        <div class="req-card">
+            <div class="req-label">GPU</div>
+            <div class="req-value">NVIDIA recommended, not required</div>
+            <div class="req-note">Runs on CPU too &mdash; just slower</div>
+        </div>
+    </div>
+
+    <div class="callout fun">
+        <p>Think of it this way: <strong>RAM</strong> is your AI's desk space. More RAM = bigger, smarter models. A <strong>GPU</strong> is like giving your AI a Red Bull &mdash; everything goes faster.</p>
+    </div>
+
+    <hr class="step-divider">
+
+    <!-- ════════ STEP 1 ════════ -->
+    <h2><span class="step-num">1</span> Download Ollama</h2>
+    <ol>
+        <li>Open your browser and go to <a href="https://ollama.com/download" target="_blank" rel="noopener">ollama.com/download</a></li>
+        <li>Click the big <strong style="color:var(--text)">"Download for Windows"</strong> button</li>
+        <li>A file called <code>OllamaSetup.exe</code> will land in your Downloads folder</li>
+    </ol>
+    <div class="callout fun">
+        <p>&#127881; Congrats &mdash; you just took your first step into a larger world.</p>
+    </div>
+
+    <hr class="step-divider">
+
+    <!-- ════════ STEP 2 ════════ -->
+    <h2><span class="step-num">2</span> Install It (Still Easy)</h2>
+    <ol>
+        <li>Double-click <code>OllamaSetup.exe</code></li>
+        <li>If Windows Defender pops up with "Windows protected your PC" &mdash; click <strong style="color:var(--text)">"More info"</strong> &rarr; <strong style="color:var(--text)">"Run anyway"</strong> (it's safe, promise)</li>
+        <li>Follow the installer &mdash; it's basically just clicking "Next" a few times</li>
+        <li>When it's done, Ollama will appear as a little llama icon in your system tray (bottom-right of your taskbar, near the clock)</li>
+    </ol>
+    <div class="callout">
+        <p>&#129433; See that little llama down there? That's your new best friend. It runs quietly in the background, waiting for your commands.</p>
+    </div>
+
+    <hr class="step-divider">
+
+    <!-- ════════ STEP 3 ════════ -->
+    <h2><span class="step-num">3</span> Open a Terminal (Don't Panic)</h2>
+    <p>You're about to use the command line. Deep breaths. It's just typing words. You've got this.</p>
+
+    <h3>Option A &mdash; PowerShell (Recommended)</h3>
+    <p>Press <code>Win + X</code> &rarr; click <strong style="color:var(--text)">"Terminal"</strong> or <strong style="color:var(--text)">"Windows PowerShell"</strong></p>
+
+    <h3>Option B &mdash; Command Prompt</h3>
+    <p>Press <code>Win + R</code>, type <code>cmd</code>, hit Enter</p>
+
+    <p>You should see a dark window with a blinking cursor. This is where the magic happens.</p>
+
+    <hr class="step-divider">
+
+    <!-- ════════ STEP 4 ════════ -->
+    <h2><span class="step-num">4</span> Pull Your First Model</h2>
+    <p>"Pulling" a model means downloading an AI brain to your computer. Let's start with a great all-rounder:</p>
+
+    <pre><code><span class="cmd">ollama pull llama3.2</span></code></pre>
+
+    <p>Hit Enter and watch it download. This grabs Meta's Llama 3.2 model (~2 GB for the 3B version).</p>
+
+    <h3>What You'll See</h3>
+    <pre><code><span class="comment">pulling manifest</span>
+<span class="comment">pulling abc123def456...</span> 100% ▕████████████████▏ 2.0 GB
+<span class="comment">pulling 987654fedcba...</span> 100% ▕████████████████▏ 1.5 KB
+<span class="comment">verifying sha256 digest</span>
+<span class="cmd">success</span></code></pre>
+
+    <div class="callout fun">
+        <p>&#9203; Download time depends on your internet speed. Perfect time to grab a coffee. Or a snack. Or contemplate the nature of consciousness.</p>
+    </div>
+
+    <hr class="step-divider">
+
+    <!-- ════════ STEP 5 ════════ -->
+    <h2><span class="step-num">5</span> Talk to Your AI!</h2>
+    <p>This is the moment. Type:</p>
+
+    <pre><code><span class="cmd">ollama run llama3.2</span></code></pre>
+
+    <p>You'll see a prompt that says <code>&gt;&gt;&gt;</code>. That means the AI is listening. Try:</p>
+
+    <pre><code><span class="cmd">&gt;&gt;&gt;</span> Hey there! What can you help me with?
+
+<span class="cmd">&gt;&gt;&gt;</span> Explain quantum physics like I'm a golden retriever
+
+<span class="cmd">&gt;&gt;&gt;</span> Write me a haiku about debugging code
+
+<span class="cmd">&gt;&gt;&gt;</span> What's a good recipe for someone who only has
+    eggs, cheese, and sadness?
+
+<span class="cmd">&gt;&gt;&gt;</span> Pretend you're a pirate who's also a life coach</code></pre>
+
+    <p><strong style="color:var(--text)">AND IT RESPONDS.</strong> Right there. On YOUR computer. No cloud. No API key. No monthly fee. Just raw, local AI power.</p>
+
+    <p>To exit the chat, type:</p>
+    <pre><code><span class="cmd">&gt;&gt;&gt;</span> /bye</code></pre>
+
+    <hr class="step-divider">
+
+    <!-- ════════ STEP 6 ════════ -->
+    <h2><span class="step-num">6</span> Try More Models</h2>
+    <p>Here's the fun part &mdash; there's a whole buffet of AI models. Each one has different strengths:</p>
+
+    <table class="model-table">
+        <thead>
+            <tr>
+                <th>Model</th>
+                <th>Command</th>
+                <th>Size</th>
+                <th>Good For</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="model-name">Llama 3.2</td>
+                <td><code>ollama pull llama3.2</code></td>
+                <td>~2 GB</td>
+                <td>General chat, everyday tasks</td>
+            </tr>
+            <tr>
+                <td class="model-name">Llama 3.1 8B</td>
+                <td><code>ollama pull llama3.1</code></td>
+                <td>~4.7 GB</td>
+                <td>Smarter general purpose</td>
+            </tr>
+            <tr>
+                <td class="model-name">Mistral</td>
+                <td><code>ollama pull mistral</code></td>
+                <td>~4 GB</td>
+                <td>Fast, great at reasoning</td>
+            </tr>
+            <tr>
+                <td class="model-name">Code Llama</td>
+                <td><code>ollama pull codellama</code></td>
+                <td>~3.8 GB</td>
+                <td>Writing &amp; explaining code</td>
+            </tr>
+            <tr>
+                <td class="model-name">Phi-3</td>
+                <td><code>ollama pull phi3</code></td>
+                <td>~2.2 GB</td>
+                <td>Surprisingly smart for its size</td>
+            </tr>
+            <tr>
+                <td class="model-name">Gemma 2</td>
+                <td><code>ollama pull gemma2</code></td>
+                <td>~5.4 GB</td>
+                <td>Google's model, great quality</td>
+            </tr>
+            <tr>
+                <td class="model-name">Llama 3.1 70B</td>
+                <td><code>ollama pull llama3.1:70b</code></td>
+                <td>~40 GB</td>
+                <td>The big brain (needs 64 GB+ RAM)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="callout">
+        <p>&#129514; Start small, experiment, see what vibes with you. Delete models anytime with <code>ollama rm model-name</code>. Browse all available models at <a href="https://ollama.com/library" target="_blank" rel="noopener">ollama.com/library</a></p>
+    </div>
+
+    <hr class="step-divider">
+
+    <!-- ════════ CHEAT SHEET ════════ -->
+    <h2>&#9000;&#65039; Commands Cheat Sheet</h2>
+    <p>Keep this taped to your monitor.</p>
+
+    <pre><code><span class="cmd">ollama list</span>              <span class="comment"># See all your downloaded models</span>
+<span class="cmd">ollama pull &lt;model&gt;</span>      <span class="comment"># Download a new model</span>
+<span class="cmd">ollama run &lt;model&gt;</span>       <span class="comment"># Start chatting with a model</span>
+<span class="cmd">ollama rm &lt;model&gt;</span>        <span class="comment"># Delete a model (free up space)</span>
+<span class="cmd">ollama show &lt;model&gt;</span>      <span class="comment"># See model details</span>
+<span class="cmd">ollama ps</span>                <span class="comment"># See what's currently running</span>
+<span class="cmd">ollama serve</span>             <span class="comment"># Manually start the Ollama server</span>
+<span class="cmd">ollama --version</span>         <span class="comment"># Check your Ollama version</span></code></pre>
+
+    <hr class="step-divider">
+
+    <!-- ════════ BONUS: UI ════════ -->
+    <h2>&#127912; Bonus: Use It With a Pretty UI</h2>
+    <p>Typing in a terminal is cool and all, but what if you want a ChatGPT-like interface? Two popular free options:</p>
+
+    <h3>Option A &mdash; Open WebUI (Most Popular)</h3>
+    <p>If you have Docker installed (or want to install it):</p>
+    <pre><code><span class="cmd">docker run -d -p 3000:8080 --name open-webui \
+  ghcr.io/open-webui/open-webui:main</span></code></pre>
+    <p>Then visit <code>http://localhost:3000</code> in your browser. ChatGPT vibes, but local.</p>
+
+    <h3>Option B &mdash; Chatbox (Easiest)</h3>
+    <ol>
+        <li>Go to <a href="https://chatboxai.app" target="_blank" rel="noopener">chatboxai.app</a></li>
+        <li>Download the Windows version</li>
+        <li>In settings, select <strong style="color:var(--text)">"Ollama"</strong> as your AI provider</li>
+        <li>Set the API URL to <code>http://localhost:11434</code></li>
+        <li>Pick your model and start chatting</li>
+    </ol>
+
+    <hr class="step-divider">
+
+    <!-- ════════ TROUBLESHOOTING ════════ -->
+    <h2>&#128295; Troubleshooting (Because Computers)</h2>
+
+    <h3>"ollama is not recognized&hellip;"</h3>
+    <p>Close and reopen your terminal. If still broken, restart your PC. Ollama needs to be in your system PATH (the installer does this, but sometimes Windows needs a nudge).</p>
+
+    <h3>Everything is super slow</h3>
+    <p>You might be running on CPU only. Check if you have an NVIDIA GPU by typing <code>nvidia-smi</code> in your terminal. If you do, make sure your NVIDIA drivers are up to date.</p>
+
+    <h3>Model won't load / out of memory</h3>
+    <p>The model is too big for your RAM. Try a smaller model like <code>llama3.2</code> or <code>phi3</code>.</p>
+
+    <h3>Ollama icon not in system tray</h3>
+    <p>Search "Ollama" in the Start menu and launch it. It should appear in the tray.</p>
+
+    <hr class="step-divider">
+
+    <!-- ════════ WHAT YOU ACCOMPLISHED ════════ -->
+    <h2>What You Just Accomplished</h2>
+    <p>Let's take a moment to appreciate what you did:</p>
+
+    <ul class="check-list">
+        <li><span class="check-icon">&#10003;</span> <span>Installed a local AI runtime</span></li>
+        <li><span class="check-icon">&#10003;</span> <span>Downloaded a large language model</span></li>
+        <li><span class="check-icon">&#10003;</span> <span>Had a conversation with AI running entirely on <strong style="color:var(--text)">YOUR</strong> hardware</span></li>
+        <li><span class="check-icon">&#10003;</span> <span>Kept your data 100% private</span></li>
+        <li><span class="check-icon">&#10003;</span> <span>Paid exactly <strong style="color:var(--green)">$0.00</strong></span></li>
+    </ul>
+
+    <p style="font-size:1.1rem;color:var(--text);font-weight:600;margin-top:28px">You're not just "using AI" anymore &mdash; you're <em>running</em> AI. On your own terms. Welcome to the club. &#129433;</p>
+
+    <hr class="step-divider">
+
+    <!-- ════════ RESOURCES ════════ -->
+    <h2>Want to Go Deeper?</h2>
+
+    <div class="resource-grid">
+        <a href="https://github.com/ollama/ollama" target="_blank" rel="noopener" class="resource-card">
+            <div class="rc-title">Ollama Docs</div>
+            <div class="rc-url">github.com/ollama/ollama</div>
+        </a>
+        <a href="https://ollama.com/library" target="_blank" rel="noopener" class="resource-card">
+            <div class="rc-title">Model Library</div>
+            <div class="rc-url">ollama.com/library</div>
+        </a>
+        <a href="https://discord.gg/ollama" target="_blank" rel="noopener" class="resource-card">
+            <div class="rc-title">Ollama Discord</div>
+            <div class="rc-url">discord.gg/ollama</div>
+        </a>
+        <a href="https://reddit.com/r/LocalLLaMA" target="_blank" rel="noopener" class="resource-card">
+            <div class="rc-title">r/LocalLLaMA</div>
+            <div class="rc-url">reddit.com/r/LocalLLaMA</div>
+        </a>
+    </div>
+
+    <p style="text-align:center;font-size:1.1rem;margin-top:40px">Now go forth and chat with your llama. &#129433;</p>
+
+    <div class="back-top">
+        <a href="#nav">&uarr; Back to top</a>
+    </div>
+
+</div><!-- /guide-content -->
+
+<!-- FOOTER -->
+<footer>
+    <div class="container footer-inner">
+        <div class="footer-brand">
+            <span class="green">&clubs;</span> <span style="font-size:.82rem;color:var(--dim)">Powered by Viktor &bull; Built by myclover.tech</span>
+        </div>
+        <div class="footer-links">
+            <a href="../index.html">Home</a>
+            <a href="cloverbase.html">CloverOS</a>
+            <a href="cloverstrike.html">Security</a>
+            <a href="qaqcgigs.html">QA/QC Gigs</a>
+            <a href="creators.html">Creators</a>
+            <a href="turnkey.html">Turnkey</a>
+            <a href="bulletin.html">Bulletin</a>
+            <a href="partners.html">Partners</a>
+            <a href="viktor.html">Viktor</a>
+            <a href="clovermarket.html">CloverMarket</a>
+            <a href="ollama-guide.html" style="color:var(--green);font-weight:600">Ollama Guide</a>
+            <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener">GitHub</a>
+            <a href="mailto:inforequest@myclover.tech">Contact</a>
+        </div>
+        <div class="footer-copy">
+            &copy; 2026 MyClover Technologies. All rights reserved.<br>
+            <span class="dim">MCTVS is the road to freedom for all. &bull; Designed by Viktor &bull; Props to myclover.tech</span>
+        </div>
+    </div>
+</footer>
+
+<script src="../js/main.js"></script>
+</body>
+</html>
