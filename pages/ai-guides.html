@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Guide Series — MyClover.Tech Books</title>
+    <meta name="description" content="The MyClover.Tech AI Guide Series — 4 books covering local AI setup, budget PC builds, education tools, and hardware agent projects with Raspberry Pi, RC cars & drones.">
+    <meta property="og:title" content="AI Guide Series — MyClover.Tech">
+    <meta property="og:description" content="Run AI locally. Build the PC. Master the classroom. Control the hardware. 4 books, zero cloud required.">
+    <meta property="og:image" content="/assets/og-image-logo.png">
+    <meta property="og:url" content="https://myclover.tech/pages/ai-guides.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="../assets/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        body { padding-top: 0; }
+        nav { top: 0; }
+
+        /* ── Hero ── */
+        .books-hero {
+            padding: 140px 0 80px;
+            text-align: center;
+            background: linear-gradient(180deg, rgba(10,14,23,1) 0%, rgba(15,20,30,1) 100%);
+            border-bottom: 1px solid rgba(34,197,94,0.08);
+            position: relative;
+            overflow: hidden;
+        }
+        .books-hero::before {
+            content: '';
+            position: absolute;
+            top: -200px; left: 50%; transform: translateX(-50%);
+            width: 1000px; height: 1000px;
+            background: radial-gradient(circle, rgba(34,197,94,0.06), transparent 60%);
+            pointer-events: none;
+        }
+        .books-hero .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: .72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            color: var(--green);
+            background: rgba(34,197,94,0.08);
+            border: 1px solid rgba(34,197,94,0.15);
+            padding: 6px 16px;
+            border-radius: 999px;
+            margin-bottom: 24px;
+        }
+        .books-hero .badge .pulse {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .4; transform: scale(1.4); }
+        }
+        .books-hero h1 {
+            font-size: clamp(2rem, 4.5vw, 3.4rem);
+            font-weight: 900;
+            line-height: 1.08;
+            margin-bottom: 20px;
+            letter-spacing: -.03em;
+        }
+        .books-hero h1 .gradient {
+            background: linear-gradient(135deg, var(--green), #4ade80, #86efac);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .books-hero p {
+            font-size: 1.15rem;
+            color: var(--dim);
+            max-width: 660px;
+            margin: 0 auto 28px;
+            line-height: 1.7;
+        }
+        .books-hero .series-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 32px;
+            flex-wrap: wrap;
+        }
+        .books-hero .stat {
+            text-align: center;
+        }
+        .books-hero .stat-num {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--green);
+        }
+        .books-hero .stat-label {
+            font-size: .75rem;
+            color: var(--dim);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-weight: 600;
+        }
+
+        /* ── Book Cards ── */
+        .books-section {
+            padding: 80px 0;
+        }
+        .books-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 32px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .book-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all .3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        .book-card:hover {
+            border-color: rgba(34,197,94,0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 40px rgba(34,197,94,0.06);
+        }
+        .book-cover {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            border-bottom: 1px solid var(--border);
+        }
+        .book-info {
+            padding: 24px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .book-number {
+            font-size: .65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            color: var(--green);
+            margin-bottom: 8px;
+        }
+        .book-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+        .book-subtitle {
+            font-size: .85rem;
+            color: var(--dim);
+            line-height: 1.6;
+            margin-bottom: 16px;
+            flex: 1;
+        }
+        .book-chapters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 20px;
+        }
+        .book-chapters .tag {
+            font-size: .65rem;
+            padding: 3px 10px;
+            background: rgba(34,197,94,0.08);
+            border: 1px solid rgba(34,197,94,0.12);
+            border-radius: 999px;
+            color: var(--green-l);
+            font-weight: 500;
+        }
+        .book-price-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: auto;
+        }
+        .book-price {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--green);
+        }
+        .book-price .was {
+            font-size: .85rem;
+            color: var(--muted);
+            text-decoration: line-through;
+            font-weight: 400;
+            margin-left: 6px;
+        }
+        .book-buy-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--green);
+            color: #000;
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: .85rem;
+            transition: all .2s;
+            text-decoration: none;
+        }
+        .book-buy-btn:hover {
+            background: var(--green-l);
+            color: #000;
+            transform: translateY(-1px);
+        }
+
+        /* ── Bundle Banner ── */
+        .bundle-section {
+            padding: 60px 0;
+            background: var(--bg2);
+            border-top: 1px solid rgba(34,197,94,0.08);
+            border-bottom: 1px solid rgba(34,197,94,0.08);
+        }
+        .bundle-card {
+            max-width: 800px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, rgba(34,197,94,0.06), rgba(10,14,23,0.95));
+            border: 1px solid rgba(34,197,94,0.2);
+            border-radius: 20px;
+            padding: 48px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .bundle-card::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle at 30% 30%, rgba(34,197,94,0.04), transparent 50%);
+            pointer-events: none;
+        }
+        .bundle-card h2 {
+            font-size: 1.8rem;
+            font-weight: 900;
+            margin-bottom: 12px;
+        }
+        .bundle-card p {
+            color: var(--dim);
+            margin-bottom: 28px;
+            font-size: 1.05rem;
+        }
+        .bundle-price {
+            font-size: 2.5rem;
+            font-weight: 900;
+            color: var(--green);
+            margin-bottom: 8px;
+        }
+        .bundle-savings {
+            font-size: .85rem;
+            color: var(--muted);
+            margin-bottom: 24px;
+        }
+
+        /* ── What You'll Learn ── */
+        .learn-section {
+            padding: 80px 0;
+        }
+        .learn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 24px;
+            max-width: 1000px;
+            margin: 40px auto 0;
+        }
+        .learn-item {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 28px;
+            transition: border-color .2s;
+        }
+        .learn-item:hover {
+            border-color: rgba(34,197,94,0.25);
+        }
+        .learn-icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+        .learn-item h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .learn-item p {
+            font-size: .85rem;
+            color: var(--dim);
+            line-height: 1.6;
+        }
+
+        /* ── Section Titles ── */
+        .section-title {
+            text-align: center;
+            font-size: clamp(1.5rem, 3vw, 2.2rem);
+            font-weight: 900;
+            margin-bottom: 12px;
+        }
+        .section-subtitle {
+            text-align: center;
+            color: var(--dim);
+            max-width: 600px;
+            margin: 0 auto;
+            font-size: 1rem;
+        }
+
+        /* ── Video Section ── */
+        .video-section {
+            padding: 60px 0;
+            background: var(--bg2);
+            border-top: 1px solid rgba(34,197,94,0.08);
+        }
+        .video-wrap {
+            max-width: 800px;
+            margin: 32px auto 0;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            position: relative;
+        }
+        .video-wrap video {
+            width: 100%;
+            display: block;
+        }
+
+        /* ── Footer ── */
+        .books-footer {
+            padding: 48px 0;
+            text-align: center;
+            border-top: 1px solid var(--border);
+        }
+        .books-footer p {
+            color: var(--muted);
+            font-size: .82rem;
+        }
+        .books-footer a {
+            color: var(--green);
+        }
+
+        @media (max-width: 768px) {
+            .books-hero { padding: 120px 0 60px; }
+            .books-hero .series-stats { gap: 24px; }
+            .bundle-card { padding: 32px 20px; }
+            .book-info { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- NAV -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="../index.html" class="nav-logo">
+            <span class="green">&clubs;</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="../index.html">Home</a>
+            <div class="nav-dropdown" id="jumpDropdown">
+                <button class="nav-dropdown-btn" aria-expanded="false" aria-haspopup="true">
+                    Explore <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+                <div class="nav-dropdown-menu" role="menu" id="jumpMenu">
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--green)">&#9889; Products &amp; Tools</div>
+                    <a href="cloverbase.html" role="menuitem">&#128421;&#65039; CloverOS / CloverBase</a>
+                    <a href="cloverstrike.html" role="menuitem">&#128737;&#65039; Security Suite</a>
+                    <a href="clovermarket.html" role="menuitem">&#127978; CloverMarket</a>
+                    <a href="cloverbot.html" role="menuitem">&#129302; CloverBot</a>
+                    <a href="cloverdesign.html" role="menuitem">&#127912; CloverDesign</a>
+                    <a href="clovermesh-radio.html" role="menuitem">&#128225; CloverMesh Radio</a>
+                    <a href="cloverdrone.html" role="menuitem">&#128641; CloverDrone</a>
+                    <a href="clovervr.html" role="menuitem">&#129405; CloverVR</a>
+                    <a href="cloverpos.html" role="menuitem">&#128179; CloverPOS</a>
+                    <div style="height:1px;background:var(--border);margin:6px 0"></div>
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--cyan)">&#128188; Gigs &amp; Careers</div>
+                    <a href="qaqcgigs.html" role="menuitem" style="color:rgba(6,182,212,.9);font-weight:600">&#128187; QA/QC Gigs &mdash; EHBB</a>
+                    <a href="creators.html" role="menuitem">&#128640; Creator Tools</a>
+                    <a href="turnkey.html" role="menuitem">&#128273; Turnkey Businesses</a>
+                    <a href="creator-signup.html" role="menuitem">&#128221; Creator Sign-Up</a>
+                    <div style="height:1px;background:var(--border);margin:6px 0"></div>
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--purple)">&#127793; Community</div>
+                    <a href="bulletin.html" role="menuitem">&#128203; Bulletin Board</a>
+                    <a href="partners.html" role="menuitem">&#129309; Partners</a>
+                    <a href="creator-handbook.html" role="menuitem">&#128214; Creator Handbook</a>
+                    <a href="ollama-guide.html" role="menuitem" style="color:var(--green);font-weight:600">&#129433; Ollama Guide</a>
+                    <a href="ai-guides.html" role="menuitem" style="color:var(--green);font-weight:600">&#128218; AI Guide Series</a>
+                </div>
+            </div>
+            <a href="viktor.html">Viktor AI</a>
+            <a href="https://viktor.ai/signup?ref=myclovertech" class="nav-cta" target="_blank" rel="noopener">Get Viktor &rarr;</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="books-hero">
+    <div class="container">
+        <div class="badge"><span class="pulse"></span> MYCLOVER.TECH AI GUIDE SERIES</div>
+        <h1>Run AI Locally.<br>Build the PC. Master the Classroom.<br><span class="gradient">Control the Hardware.</span></h1>
+        <p>Four books that take you from zero to running powerful AI models on your own machine &mdash; no cloud, no subscriptions, no one watching. By MyClover.Tech.</p>
+        <div class="series-stats">
+            <div class="stat">
+                <div class="stat-num">4</div>
+                <div class="stat-label">Books</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num">52</div>
+                <div class="stat-label">Chapters</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num">6</div>
+                <div class="stat-label">Hardware Projects</div>
+            </div>
+            <div class="stat">
+                <div class="stat-num">$0</div>
+                <div class="stat-label">Cloud Costs</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- BOOKS -->
+<section class="books-section">
+    <div class="container">
+        <h2 class="section-title">The Series</h2>
+        <p class="section-subtitle" style="margin-bottom:48px">From first install to autonomous drones &mdash; each book builds on the last.</p>
+
+        <div class="books-grid">
+
+            <!-- Book 1 -->
+            <div class="book-card">
+                <img src="../assets/covers/ollama-guide-cover.png" alt="The Ollama Guide cover" class="book-cover" loading="lazy">
+                <div class="book-info">
+                    <div class="book-number">Book 1 &middot; Beginner</div>
+                    <div class="book-title">The &ldquo;Holy Crap, AI Runs On MY Computer?!&rdquo; Guide to Ollama</div>
+                    <div class="book-subtitle">Install and run powerful AI models locally on Windows 11 in under 10 minutes. No internet, no subscriptions, no one reading your prompts.</div>
+                    <div class="book-chapters">
+                        <span class="tag">Install Ollama</span>
+                        <span class="tag">Pull Models</span>
+                        <span class="tag">Terminal Basics</span>
+                        <span class="tag">Model Comparison</span>
+                        <span class="tag">Open WebUI</span>
+                        <span class="tag">Cheat Sheet</span>
+                    </div>
+                    <div class="book-price-row">
+                        <div class="book-price">$9.99</div>
+                        <a href="https://buy.stripe.com/7sY8wP5q79NJ96w5TVfrY0v" class="book-buy-btn" target="_blank" rel="noopener">Buy Now &rarr;</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Book 2 -->
+            <div class="book-card">
+                <img src="../assets/covers/budget-ai-pc-cover.png" alt="Budget AI PC Build cover" class="book-cover" loading="lazy">
+                <div class="book-info">
+                    <div class="book-number">Book 2 &middot; Hardware</div>
+                    <div class="book-title">Build Your Own AI PC on a Budget</div>
+                    <div class="book-subtitle">A first-timer&rsquo;s guide to building a small, affordable computer for running local AI. Three complete builds from $300 to $800.</div>
+                    <div class="book-chapters">
+                        <span class="tag">$300 Build</span>
+                        <span class="tag">$500 Build</span>
+                        <span class="tag">$800 Build</span>
+                        <span class="tag">Assembly Guide</span>
+                        <span class="tag">Benchmarks</span>
+                        <span class="tag">Upgrades</span>
+                    </div>
+                    <div class="book-price-row">
+                        <div class="book-price">$9.99</div>
+                        <a href="https://buy.stripe.com/6oU5kD05Nf830A0gyzfrY0w" class="book-buy-btn" target="_blank" rel="noopener">Buy Now &rarr;</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Book 3 -->
+            <div class="book-card">
+                <img src="../assets/covers/ai-for-education-cover.png" alt="AI for Education cover" class="book-cover" loading="lazy">
+                <div class="book-info">
+                    <div class="book-number">Book 3 &middot; Education</div>
+                    <div class="book-title">AI for Education &mdash; Local AI for Students &amp; Educators</div>
+                    <div class="book-subtitle">How students and educators can use free, private local AI for learning, research, and the classroom. No data leaves the building.</div>
+                    <div class="book-chapters">
+                        <span class="tag">Study Buddy</span>
+                        <span class="tag">Research Assistant</span>
+                        <span class="tag">Writing Coach</span>
+                        <span class="tag">Math &amp; Science</span>
+                        <span class="tag">Coding</span>
+                        <span class="tag">Classroom Setup</span>
+                    </div>
+                    <div class="book-price-row">
+                        <div class="book-price">$9.99</div>
+                        <a href="https://buy.stripe.com/00w28r4m30d9eqQeqrfrY0x" class="book-buy-btn" target="_blank" rel="noopener">Buy Now &rarr;</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Book 4 -->
+            <div class="book-card">
+                <img src="../assets/covers/ai-agents-hardware-cover.png" alt="AI Agents for Hardware cover" class="book-cover" loading="lazy">
+                <div class="book-info">
+                    <div class="book-number">Book 4 &middot; Advanced</div>
+                    <div class="book-title">AI Agents for Hardware &mdash; RC, Drones &amp; Raspberry Pi</div>
+                    <div class="book-subtitle">Control RC cars, drones, and Raspberry Pi with local AI agents &mdash; no cloud required. 6 hands-on projects with complete code and wiring diagrams.</div>
+                    <div class="book-chapters">
+                        <span class="tag">Raspberry Pi</span>
+                        <span class="tag">LED Control</span>
+                        <span class="tag">Sensor Station</span>
+                        <span class="tag">Voice Assistant</span>
+                        <span class="tag">RC Car</span>
+                        <span class="tag">Drone Navigation</span>
+                    </div>
+                    <div class="book-price-row">
+                        <div class="book-price">$12.99</div>
+                        <a href="https://buy.stripe.com/5kQ7sLdWD1hd96w3LNfrY0y" class="book-buy-btn" target="_blank" rel="noopener">Buy Now &rarr;</a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</section>
+
+<!-- WHAT YOU'LL LEARN -->
+<section class="learn-section">
+    <div class="container">
+        <h2 class="section-title">What You&rsquo;ll Learn</h2>
+        <p class="section-subtitle">From total beginner to building autonomous hardware &mdash; all running on your own machine.</p>
+
+        <div class="learn-grid">
+            <div class="learn-item">
+                <div class="learn-icon">&#129433;</div>
+                <h3>Local AI Setup</h3>
+                <p>Install Ollama, pull models, and chat with AI &mdash; completely offline. Llama 3, Mistral, Code Llama, and more.</p>
+            </div>
+            <div class="learn-item">
+                <div class="learn-icon">&#128421;&#65039;</div>
+                <h3>Build a Budget PC</h3>
+                <p>Three complete builds ($300 / $500 / $800) optimized for running AI models locally. Step-by-step assembly.</p>
+            </div>
+            <div class="learn-item">
+                <div class="learn-icon">&#127891;</div>
+                <h3>AI in the Classroom</h3>
+                <p>Privacy-first AI for homework help, research, writing, math, coding &mdash; no student data leaves the school network.</p>
+            </div>
+            <div class="learn-item">
+                <div class="learn-icon">&#128225;</div>
+                <h3>Hardware Control</h3>
+                <p>Wire up a Raspberry Pi, connect motors and sensors, then let a local AI agent drive an RC car or navigate a drone.</p>
+            </div>
+            <div class="learn-item">
+                <div class="learn-icon">&#128274;</div>
+                <h3>100% Private</h3>
+                <p>Every model runs on YOUR machine. No data sent to the cloud. No API keys. No monthly fees. Ever.</p>
+            </div>
+            <div class="learn-item">
+                <div class="learn-icon">&#128187;</div>
+                <h3>Complete Code</h3>
+                <p>Every project includes full source code, wiring diagrams, parts lists, and troubleshooting guides.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="books-footer">
+    <div class="container">
+        <p>&copy; 2025 MyClover.Tech &mdash; <a href="../index.html">Home</a> &middot; <a href="ollama-guide.html">Free Ollama Guide</a> &middot; <a href="creators.html">Creator Tools</a></p>
+    </div>
+</footer>
+
+<!-- JS -->
+<script>
+// Nav scroll
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 20));
+
+// Dropdown
+const dd = document.getElementById('jumpDropdown');
+const ddBtn = dd.querySelector('.nav-dropdown-btn');
+ddBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    dd.classList.toggle('open');
+    ddBtn.setAttribute('aria-expanded', dd.classList.contains('open'));
+});
+document.addEventListener('click', () => { dd.classList.remove('open'); ddBtn.setAttribute('aria-expanded','false'); });
+
+// Mobile toggle
+const mt = document.getElementById('mobileToggle');
+const nl = document.getElementById('navLinks');
+mt.addEventListener('click', () => nl.classList.toggle('open'));
+</script>
+</body>
+</html>
