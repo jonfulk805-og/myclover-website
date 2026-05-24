@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloverBooks + CloverTax — AI Accounting &amp; Crypto Tax Platform | MyClover.Tech</title>
+    <meta name="description" content="Self-hosted, AI-powered double-entry accounting with native crypto tax engine. Invoicing, expense tracking, XRPL/BTC/ETH support, IRS form generation. Unlimited users, flat pricing. Replaces QuickBooks + CoinTracker.">
+    <meta property="og:title" content="CloverBooks — Your Books. Your Taxes. Your Rules.">
+    <meta property="og:description" content="Self-hosted AI accounting + crypto tax. Replaces QuickBooks + CoinTracker. Unlimited users. From $19/mo.">
+    <meta property="og:image" content="/assets/og-cloverbooks.png">
+    <meta property="og:url" content="https://myclover.tech/pages/cloverbooks.html">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        /* CloverBooks page-specific styles */
+        .cb-accent { color: #22c55e; }
+        .cb-gradient { background: linear-gradient(135deg, #22c55e, #3b82f6, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .tax-gradient { background: linear-gradient(135deg, #f59e0b, #ef4444, #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+        .chappie-demo-box { background: linear-gradient(135deg, var(--card), rgba(34,197,94,.08)); border: 1px solid rgba(34,197,94,.25); border-radius: 20px; padding: 40px; margin-top: 40px; position: relative; overflow: hidden; }
+        .chappie-demo-box::before { content:''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #22c55e, #3b82f6, #f59e0b); }
+        .chappie-prompt { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; font-family: var(--mono); font-size: .88rem; color: var(--green-l); margin-bottom: 16px; line-height: 1.7; }
+        .chappie-prompt .user-label { color: var(--dim); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; display: block; }
+        .chappie-response { background: var(--bg); border: 1px solid rgba(168,85,247,.2); border-radius: 12px; padding: 20px; font-size: .88rem; color: var(--dim); line-height: 1.8; }
+        .chappie-response .bot-label { color: var(--purple); font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; display: block; }
+
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-top: 32px; }
+        .feature-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; transition: all .3s; }
+        .feature-card:hover { border-color: var(--green); box-shadow: 0 0 40px var(--green-g); transform: translateY(-3px); }
+        .feature-icon { font-size: 2rem; margin-bottom: 12px; }
+        .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 8px; }
+        .feature-card p { font-size: .82rem; color: var(--dim); line-height: 1.6; }
+        .feature-card ul { list-style: none; padding: 0; margin: 8px 0 0; }
+        .feature-card ul li { font-size: .78rem; color: var(--dim); padding: 3px 0; }
+        .feature-card ul li::before { content: '✓ '; color: var(--green); font-weight: 700; }
+
+        .crypto-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-top: 32px; }
+        .crypto-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 16px; text-align: center; transition: all .25s; }
+        .crypto-card:hover { border-color: #f59e0b; transform: translateY(-3px); box-shadow: 0 0 30px rgba(245,158,11,.1); }
+        .crypto-icon { font-size: 1.6rem; margin-bottom: 8px; }
+        .crypto-card span { font-size: .78rem; font-weight: 600; color: var(--dim); display: block; }
+        .crypto-card .sub { font-size: .68rem; color: var(--muted); margin-top: 4px; }
+
+        .integration-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        .int-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px; transition: all .3s; }
+        .int-card:hover { border-color: var(--green); box-shadow: 0 0 40px var(--green-g); transform: translateY(-3px); }
+        .int-icon { font-size: 1.8rem; margin-bottom: 12px; }
+        .int-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+        .int-card p { font-size: .82rem; color: var(--dim); line-height: 1.6; }
+
+        .savings-highlight { background: linear-gradient(135deg, rgba(34,197,94,.1), rgba(34,197,94,.02)); border: 2px solid rgba(34,197,94,.3); border-radius: 16px; padding: 24px 32px; text-align: center; margin-top: 30px; }
+        .savings-number { font-size: 3rem; font-weight: 900; color: var(--green); }
+        .savings-label { font-size: 1rem; color: var(--dim); font-weight: 500; }
+
+        .tax-form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-top: 24px; }
+        .tax-form-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; transition: all .25s; }
+        .tax-form-card:hover { border-color: #f59e0b; box-shadow: 0 0 20px rgba(245,158,11,.1); }
+        .tax-form-card .form-name { font-size: .9rem; font-weight: 800; color: #f59e0b; }
+        .tax-form-card .form-desc { font-size: .72rem; color: var(--dim); margin-top: 4px; }
+
+        .industry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; margin-top: 32px; }
+        .industry-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 16px; text-align: center; transition: all .25s; cursor: default; }
+        .industry-card:hover { border-color: #3b82f6; transform: translateY(-3px); box-shadow: 0 0 30px rgba(59,130,246,.1); }
+        .industry-icon { font-size: 2rem; margin-bottom: 10px; }
+        .industry-card span { font-size: .78rem; font-weight: 600; color: var(--dim); display: block; }
+
+        .comparison-table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+        .comparison-table th, .comparison-table td { padding: 14px 18px; text-align: left; border-bottom: 1px solid var(--border); font-size: .82rem; }
+        .comparison-table th { color: var(--dim); font-weight: 700; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; }
+        .comparison-table td:first-child { font-weight: 600; }
+        .comparison-table .them { color: var(--red); }
+        .comparison-table .us { color: var(--green); font-weight: 700; }
+        .comparison-table tr:hover { background: rgba(34,197,94,.03); }
+
+        @media (max-width: 768px) {
+            .feature-grid { grid-template-columns: 1fr; }
+            .crypto-grid { grid-template-columns: repeat(2, 1fr); }
+            .tax-form-grid { grid-template-columns: repeat(2, 1fr); }
+            .industry-grid { grid-template-columns: repeat(3, 1fr); }
+            .comparison-table { font-size: .72rem; }
+            .comparison-table th, .comparison-table td { padding: 10px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- Navigation -->
+<nav id="nav">
+    <div class="container nav-inner">
+        <a href="../index.html" class="nav-logo">
+            <span class="green">&clubs;</span>
+        </a>
+        <div class="nav-links" id="navLinks">
+            <a href="../index.html">Home</a>
+            <div class="nav-dropdown" id="jumpDropdown">
+                <button class="nav-dropdown-btn" aria-expanded="false" aria-haspopup="true">
+                    Explore <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 4l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </button>
+                <div class="nav-dropdown-menu" role="menu" id="jumpMenu">
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--green)">&#9889; Products &amp; Tools</div>
+                    <a href="cloverbase.html" role="menuitem">&#128421;&#65039; CloverOS / CloverBase</a>
+                    <a href="cloverbooks.html" role="menuitem" style="color:rgba(34,197,94,.9);font-weight:600">&#128176; CloverBooks + CloverTax</a>
+                    <a href="cloverstrike.html" role="menuitem">&#128737;&#65039; Security Suite</a>
+                    <a href="clovermarket.html" role="menuitem">&#127978; CloverMarket</a>
+                    <a href="cloverbot.html" role="menuitem">&#129302; CloverBot</a>
+                    <a href="cloverdesign.html" role="menuitem">&#127912; CloverDesign</a>
+                    <a href="clovermesh-radio.html" role="menuitem">&#128225; CloverMesh Radio</a>
+                    <a href="cloverdrone.html" role="menuitem">&#128641; CloverDrone</a>
+                    <a href="clovervr.html" role="menuitem">&#129405; CloverVR</a>
+                    <a href="cloverpos.html" role="menuitem">&#128179; CloverPOS</a>
+                    <div style="height:1px;background:var(--border);margin:6px 0"></div>
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--cyan)">&#128188; Gigs &amp; Careers</div>
+                    <a href="qaqcgigs.html" role="menuitem" style="color:rgba(6,182,212,.9);font-weight:600">&#128187; QA/QC Gigs &mdash; EHBB</a>
+                    <a href="creators.html" role="menuitem">&#128640; Creator Tools</a>
+                    <a href="turnkey.html" role="menuitem">&#128273; Turnkey Businesses</a>
+                    <a href="creator-signup.html" role="menuitem">&#128221; Creator Sign-Up</a>
+                    <div style="height:1px;background:var(--border);margin:6px 0"></div>
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--purple)">&#127793; Community</div>
+                    <a href="bulletin.html" role="menuitem">&#128203; Bulletin Board</a>
+                    <a href="bulletin.html#game-arcade" role="menuitem">&#127918; Game Arcade</a>
+                    <a href="bulletin.html#citadel-grooming" role="menuitem">&#129532; Citadel Grooming Co.</a>
+                    <a href="bulletin.html#clovercoin" role="menuitem">&#127808; CloverCoin</a>
+                    <a href="bulletin.html#inkforge" role="menuitem">&#128218; InkForge</a>
+                    <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" role="menuitem" style="color:rgba(34,197,94,.9);font-weight:600">&#127808; MCTVS Method</a>
+                    <a href="partners.html" role="menuitem">&#129309; Partner Network</a>
+                    <a href="creator-handbook.html" role="menuitem" style="color:rgba(249,115,22,.85)">&#128214; Jon's Mistakes</a>
+                    <a href="viktor.html" role="menuitem">&#129302; Meet Viktor</a>
+                    <div style="height:1px;background:var(--border);margin:6px 0"></div>
+                    <div class="nav-menu-label" style="padding:6px 14px 4px;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">&#128279; External</div>
+                    <a href="https://github.com/jonfulk805-og" target="_blank" rel="noopener" role="menuitem">GitHub</a>
+                    <a href="../../keygen" role="menuitem">&#128272; License KeyGen</a>
+                </div>
+            </div>
+            <a href="qaqcgigs.html" style="color:rgba(6,182,212,.85);font-weight:600">QA/QC Gigs</a>
+            <a href="creators.html">Creators</a>
+            <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" class="nav-bulletin">MCTVS</a>
+            <a href="bulletin.html">Bulletin</a>
+            <a href="https://viktor.com" target="_blank" rel="noopener" class="nav-cta">Start Free</a>
+        </div>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
+    </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     HERO
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="hero" style="padding-top:140px;padding-bottom:80px;">
+    <div class="container center">
+        <div class="section-label" style="font-size:.8rem;">&#128176; CloverBooks + CloverTax</div>
+        <h1 style="font-size:clamp(2.2rem,5vw,3.4rem);font-weight:900;line-height:1.1;margin-top:16px;">
+            Your Books. Your Taxes.<br>
+            <span class="cb-gradient">Your Rules.</span>
+        </h1>
+        <p class="section-desc" style="max-width:680px;margin:24px auto 0;font-size:1.05rem;">
+            Self-hosted AI accounting with the first crypto-native tax engine. Double-entry books, invoicing, bank reconciliation, IRS form generation — powered by Chappie AI. Replaces QuickBooks <em>and</em> CoinTracker in one platform.
+        </p>
+        <div style="display:flex;gap:16px;justify-content:center;margin-top:36px;flex-wrap:wrap;">
+            <a href="#pricing" class="btn">See Pricing &darr;</a>
+            <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" target="_blank" class="btn btn-outline">Start Free &rarr;</a>
+        </div>
+        <div style="display:flex;gap:32px;justify-content:center;margin-top:40px;flex-wrap:wrap;">
+            <div style="text-align:center;">
+                <div style="font-size:2rem;font-weight:900;color:var(--green);">$19<span style="font-size:1rem;color:var(--dim);">/mo</span></div>
+                <div style="font-size:.72rem;color:var(--muted);font-weight:600;">STARTS AT</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:2rem;font-weight:900;color:#f59e0b;">&#8734;</div>
+                <div style="font-size:.72rem;color:var(--muted);font-weight:600;">UNLIMITED USERS</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:2rem;font-weight:900;color:#3b82f6;">100%</div>
+                <div style="font-size:.72rem;color:var(--muted);font-weight:600;">SELF-HOSTED</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:2rem;font-weight:900;color:#a855f7;">AI</div>
+                <div style="font-size:.72rem;color:var(--muted);font-weight:600;">CHAPPIE POWERED</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     VS QUICKBOOKS COMPARISON
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#128170; Why Switch</div>
+            <h2 class="section-title">CloverBooks vs. The Incumbents</h2>
+            <p class="section-desc">Same power. Self-hosted. Crypto-native. Half the price. You own your data.</p>
+        </div>
+
+        <table class="comparison-table">
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>QuickBooks Online</th>
+                    <th>CloverBooks</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Pricing</td><td class="them">$30&ndash;200/mo + per-user add-ons</td><td class="us">$19&ndash;99/mo flat, unlimited users</td></tr>
+                <tr><td>Data Ownership</td><td class="them">Cloud-only, Intuit owns your data</td><td class="us">Self-hosted, PostgreSQL, you own everything</td></tr>
+                <tr><td>Crypto Support</td><td class="them">Zero native crypto accounting</td><td class="us">XRPL, BTC, XMR, FET, DEX, mining, staking</td></tr>
+                <tr><td>AI Assistant</td><td class="them">Basic categorization</td><td class="us">Chappie AI: NL queries, anomaly detection, forecasting</td></tr>
+                <tr><td>Integrations</td><td class="them">Walled garden, expensive add-ons</td><td class="us">Deep CloverStack (POS, Mine, Market, NAS)</td></tr>
+                <tr><td>Lock-in</td><td class="them">Proprietary format, expensive export</td><td class="us">Open data: OFX, QIF, CSV, JSON</td></tr>
+                <tr><td>Privacy</td><td class="them">Intuit sells anonymized data</td><td class="us">Zero telemetry, air-gap capable</td></tr>
+                <tr><td>Multi-Entity</td><td class="them">Separate subscription per company</td><td class="us">Multi-entity from one dashboard</td></tr>
+            </tbody>
+        </table>
+
+        <div class="savings-highlight">
+            <div class="savings-number">$1,484/yr</div>
+            <div class="savings-label">saved vs. QuickBooks Advanced + CoinTracker (10-person business)</div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     CORE FEATURES — CLOVERBOOKS
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="section">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#128214; CloverBooks</div>
+            <h2 class="section-title">Full Double-Entry Accounting. <span class="cb-accent">AI-Powered.</span></h2>
+            <p class="section-desc">Everything you need to run your books — invoicing, expenses, reconciliation, reports — with Chappie AI handling the tedious work.</p>
+        </div>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="feature-icon">&#128209;</div>
+                <h3>Invoicing &amp; Receivables</h3>
+                <ul>
+                    <li>Professional templates with your branding</li>
+                    <li>Recurring invoices with auto-send</li>
+                    <li>Online payment via Stripe</li>
+                    <li>Crypto payments (XRP, BTC, CloverCoin)</li>
+                    <li>Auto late-payment reminders</li>
+                    <li>Estimates &rarr; one-click convert to invoice</li>
+                </ul>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128179;</div>
+                <h3>Expense Tracking</h3>
+                <ul>
+                    <li>Receipt scanning with AI OCR</li>
+                    <li>Auto-categorization (Chappie learns your patterns)</li>
+                    <li>Rule engine for recurring vendors</li>
+                    <li>Mileage tracking (IRS rate auto-updated)</li>
+                    <li>Per-project &amp; per-client tracking</li>
+                    <li>1099 vendor management</li>
+                </ul>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#127974;</div>
+                <h3>Bank &amp; Wallet Reconciliation</h3>
+                <ul>
+                    <li>Bank sync via Plaid (12,000+ institutions)</li>
+                    <li>XRPL wallet sync (Xaman, Ledger)</li>
+                    <li>Bitcoin xpub import</li>
+                    <li>Exchange import (Kraken, Coinbase, Binance)</li>
+                    <li>Auto-matching transactions &harr; invoices</li>
+                    <li>Fiat + crypto in one dashboard</li>
+                </ul>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128200;</div>
+                <h3>Financial Reports</h3>
+                <ul>
+                    <li>Profit &amp; Loss / Income Statement</li>
+                    <li>Balance Sheet</li>
+                    <li>Cash Flow Statement</li>
+                    <li>AR/AP Aging (30/60/90/120 day)</li>
+                    <li>Crypto Portfolio Report</li>
+                    <li>Custom report builder + scheduled delivery</li>
+                </ul>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#128176;</div>
+                <h3>Multi-Currency &amp; Crypto</h3>
+                <ul>
+                    <li>Fiat currencies with live exchange rates</li>
+                    <li>Crypto asset class: cost basis + FMV tracking</li>
+                    <li>Realized &amp; unrealized gains/losses</li>
+                    <li>CloverCoin native support</li>
+                    <li>XRPL DEX trade parsing</li>
+                    <li>Multi-entity / multi-LLC dashboard</li>
+                </ul>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">&#129302;</div>
+                <h3>Chappie AI Assistant</h3>
+                <ul>
+                    <li>&ldquo;How much did I spend on hosting last quarter?&rdquo;</li>
+                    <li>Anomaly detection on invoices &amp; expenses</li>
+                    <li>Cash flow forecasting</li>
+                    <li>Duplicate detection</li>
+                    <li>Tax deadline reminders</li>
+                    <li>Auto-reconciliation suggestions</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     CHAPPIE AI DEMO
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#9889; AI-Powered Bookkeeping</div>
+            <h2 class="section-title">Ask Chappie Anything About Your Finances</h2>
+            <p class="section-desc">No more digging through reports. Just ask in plain English.</p>
+        </div>
+
+        <div class="chappie-demo-box">
+            <div class="chappie-prompt">
+                <span class="user-label">You ask:</span>
+                &ldquo;What's my revenue this month vs. last month, and which clients are overdue?&rdquo;
+            </div>
+            <div class="chappie-response">
+                <span class="bot-label">&#127808; Chappie responds:</span>
+                <strong>Revenue this month: $14,280</strong> (up 12% from $12,750 last month). &#128200;<br><br>
+                You have <strong>3 overdue invoices</strong> totaling $2,340:<br>
+                &bull; Acme Corp &mdash; Invoice #1047 &mdash; $1,200 &mdash; <span style="color:var(--red)">14 days overdue</span> (reminder sent 3 days ago)<br>
+                &bull; TechStart Inc &mdash; Invoice #1052 &mdash; $840 &mdash; <span style="color:#f59e0b)">7 days overdue</span><br>
+                &bull; LocalShop &mdash; Invoice #1055 &mdash; $300 &mdash; <span style="color:#f59e0b)">3 days overdue</span><br><br>
+                Want me to send follow-up reminders to all three? &#128232;
+            </div>
+        </div>
+
+        <div class="chappie-demo-box" style="margin-top:20px;">
+            <div class="chappie-prompt">
+                <span class="user-label">You ask:</span>
+                &ldquo;What's my estimated tax liability so far this year including crypto?&rdquo;
+            </div>
+            <div class="chappie-response">
+                <span class="bot-label">&#127808; Chappie responds:</span>
+                <strong>Estimated 2026 tax liability: $8,420</strong><br><br>
+                Breakdown:<br>
+                &bull; Business income (Schedule C): $52,400 net &rarr; ~$7,860 SE tax + income tax<br>
+                &bull; Crypto gains (Schedule D): $3,200 short-term &rarr; ~$560 (using HIFO method)<br>
+                &bull; Mining income: $1,800 from CloverMine &rarr; already included above<br><br>
+                &#9888;&#65039; You've only paid <strong>$4,000</strong> in estimated taxes so far (Q1 + Q2). You're about <strong>$2,100 short</strong> of the safe harbor amount. Q3 estimated payment is due Sep 15 &mdash; I recommend paying $2,800. &#128197;
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     CLOVERTAX — CRYPTO TAX ENGINE
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="section">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#128176; CloverTax</div>
+            <h2 class="section-title">Crypto Tax? <span class="tax-gradient">Handled.</span></h2>
+            <p class="section-desc">The first self-hosted crypto tax engine that natively understands XRPL, CloverMine, and CloverCoin. Auto-generates every IRS form you need.</p>
+        </div>
+
+        <h3 style="font-size:1.1rem;font-weight:800;margin-top:40px;margin-bottom:8px;">Every Crypto Event — Auto-Detected</h3>
+        <div class="crypto-grid">
+            <div class="crypto-card">
+                <div class="crypto-icon">&#128184;</div>
+                <span>Buy / Sell</span>
+                <div class="sub">Exchanges &amp; DEX</div>
+            </div>
+            <div class="crypto-card">
+                <div class="crypto-icon">&#128260;</div>
+                <span>Swap / Trade</span>
+                <div class="sub">Token-to-token, NFT</div>
+            </div>
+            <div class="crypto-card">
+                <div class="crypto-icon">&#9935;</div>
+                <span>Mining Income</span>
+                <div class="sub">CloverMine auto-feed</div>
+            </div>
+            <div class="crypto-card">
+                <div class="crypto-icon">&#127793;</div>
+                <span>Staking Rewards</span>
+                <div class="sub">Auto-valued at receipt</div>
+            </div>
+            <div class="crypto-card">
+                <div class="crypto-icon">&#127873;</div>
+                <span>Airdrops</span>
+                <div class="sub">FMV at receipt date</div>
+            </div>
+            <div class="crypto-card">
+                <div class="crypto-icon">&#128300;</div>
+                <span>DeFi Yield</span>
+                <div class="sub">Lending, LPs, farming</div>
+            </div>
+            <div class="crypto-card">
+                <div class="crypto-icon">&#127912;</div>
+                <span>NFT Sales</span>
+                <div class="sub">Mint + secondary</div>
+            </div>
+            <div class="crypto-card">
+                <div class="crypto-icon">&#127808;</div>
+                <span>CloverCoin</span>
+                <div class="sub">Marketplace + payouts</div>
+            </div>
+            <div class="crypto-card">
+                <div class="crypto-icon">&#128640;</div>
+                <span>XRPL DEX</span>
+                <div class="sub">Native ledger parsing</div>
+            </div>
+            <div class="crypto-card">
+                <div class="crypto-icon">&#9888;&#65039;</div>
+                <span>Wash Sales</span>
+                <div class="sub">30-day window flagging</div>
+            </div>
+        </div>
+
+        <h3 style="font-size:1.1rem;font-weight:800;margin-top:48px;margin-bottom:8px;">IRS Forms — Auto-Generated</h3>
+        <div class="tax-form-grid">
+            <div class="tax-form-card">
+                <div class="form-name">Schedule D</div>
+                <div class="form-desc">Capital Gains &amp; Losses</div>
+            </div>
+            <div class="tax-form-card">
+                <div class="form-name">Form 8949</div>
+                <div class="form-desc">Sales &amp; Dispositions of Capital Assets</div>
+            </div>
+            <div class="tax-form-card">
+                <div class="form-name">Schedule C</div>
+                <div class="form-desc">Business Income (Mining/Staking)</div>
+            </div>
+            <div class="tax-form-card">
+                <div class="form-name">Schedule 1</div>
+                <div class="form-desc">Additional Income (Airdrops, Forks)</div>
+            </div>
+            <div class="tax-form-card">
+                <div class="form-name">1099-NEC</div>
+                <div class="form-desc">Contractor Payments</div>
+            </div>
+            <div class="tax-form-card">
+                <div class="form-name">1040-ES</div>
+                <div class="form-desc">Quarterly Estimated Tax</div>
+            </div>
+        </div>
+
+        <h3 style="font-size:1.1rem;font-weight:800;margin-top:48px;margin-bottom:8px;">Cost Basis Methods — You Choose</h3>
+        <p style="font-size:.88rem;color:var(--dim);line-height:1.6;">
+            Select per asset: <strong>FIFO</strong> (First In, First Out), <strong>LIFO</strong> (Last In, First Out), <strong>HIFO</strong> (Highest In, First Out), or <strong>Specific Identification</strong>. CloverTax calculates the optimal method and shows you the difference — Chappie will tell you which one saves the most.
+        </p>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:24px;">
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;text-align:center;">
+                <div style="font-size:1.5rem;font-weight:900;color:var(--green);">FIFO</div>
+                <div style="font-size:.75rem;color:var(--dim);margin-top:4px;">First In, First Out</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-top:8px;">IRS default. Sells oldest lots first.</div>
+            </div>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;text-align:center;">
+                <div style="font-size:1.5rem;font-weight:900;color:#f59e0b;">HIFO</div>
+                <div style="font-size:.75rem;color:var(--dim);margin-top:4px;">Highest In, First Out</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-top:8px;">Minimizes gains. Chappie's pick for most users.</div>
+            </div>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;text-align:center;">
+                <div style="font-size:1.5rem;font-weight:900;color:#3b82f6;">LIFO</div>
+                <div style="font-size:.75rem;color:var(--dim);margin-top:4px;">Last In, First Out</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-top:8px;">Sells newest lots first. Good in rising markets.</div>
+            </div>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;text-align:center;">
+                <div style="font-size:1.5rem;font-weight:900;color:#a855f7;">SPEC ID</div>
+                <div style="font-size:.75rem;color:var(--dim);margin-top:4px;">Specific Identification</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-top:8px;">Cherry-pick lots. Maximum control.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     CLOVERSTACK INTEGRATIONS
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="section-alt">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#128279; CloverStack Integration</div>
+            <h2 class="section-title">The Financial Nervous System of Your Stack</h2>
+            <p class="section-desc">Every CloverStack product feeds into CloverBooks automatically. No manual entry. No CSV imports. Just seamless data flow.</p>
+        </div>
+
+        <div class="integration-grid">
+            <div class="int-card">
+                <div class="int-icon">&#128179;</div>
+                <h3>CloverPOS &rarr; CloverBooks</h3>
+                <p>Every sale auto-journals. Sales tax calculated, collected, and reported. Inventory COGS tracked. Daily settlement reconciliation.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#9935;</div>
+                <h3>CloverMine &rarr; CloverBooks</h3>
+                <p>Mining income auto-logged with real-time coin valuation at receipt. Hash rate profitability reports. Electricity costs tracked as business expenses.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#127808;</div>
+                <h3>CloverCoin &rarr; CloverBooks</h3>
+                <p>All CC transactions — marketplace purchases, creator payouts, tips, referral rewards — auto-categorized with CC&harr;USD valuation for tax.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#127978;</div>
+                <h3>CloverMarket &rarr; CloverBooks</h3>
+                <p>Creator earnings, platform fees (20%), payout history. Revenue recognition per sale. Auto-generate 1099s for creators earning &gt;$600.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128179;</div>
+                <h3>Stripe &rarr; CloverBooks</h3>
+                <p>Already connected. Transaction sync, Stripe fee tracking, payout reconciliation. Subscription revenue recognition.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#127760;</div>
+                <h3>CloverMesh &rarr; Multi-Entity</h3>
+                <p>Multiple businesses/LLCs from one dashboard. Inter-company transactions. Consolidated reporting across all entities.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128274;</div>
+                <h3>MyCloverVault</h3>
+                <p>Encrypted storage for tax documents, W-9s, bank statements, receipts. Audit-ready document vault with 7-year retention.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128421;&#65039;</div>
+                <h3>CloverNAS Backup</h3>
+                <p>Automated backup of all financial data. Snapshot before year-end close. Offsite replication for disaster recovery.</p>
+            </div>
+            <div class="int-card">
+                <div class="int-icon">&#128187;</div>
+                <h3>NetMon / SentryLog</h3>
+                <p>IT expense auto-tagging — monitoring costs per client for MSP billing. Infrastructure costs tracked as business expenses.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     INDUSTRY TEMPLATES
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="section">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#127919; Industry Templates</div>
+            <h2 class="section-title">Pre-Built for Your Business Type</h2>
+            <p class="section-desc">Chart of accounts, categorization rules, and tax mappings — ready to go for 10+ industries.</p>
+        </div>
+
+        <div class="industry-grid">
+            <div class="industry-card">
+                <div class="industry-icon">&#128187;</div>
+                <span>MSP / IT</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#128100;</div>
+                <span>Freelancer</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#128722;</div>
+                <span>E-Commerce</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#9935;</div>
+                <span>Crypto / Mining</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#128295;</div>
+                <span>Construction</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127860;</div>
+                <span>Restaurant</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#9878;&#65039;</div>
+                <span>Legal</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127969;</div>
+                <span>Real Estate</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#127981;</div>
+                <span>Manufacturing</span>
+            </div>
+            <div class="industry-card">
+                <div class="industry-icon">&#128156;</div>
+                <span>Nonprofit</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     PRICING
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="section-alt" id="pricing">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#128176; Pricing</div>
+            <h2 class="section-title">Flat Price. Unlimited Users. No Surprises.</h2>
+            <p class="section-desc">Every tier includes full double-entry accounting, invoicing, expense tracking, and Chappie AI.</p>
+        </div>
+
+        <!-- CloverBooks Tiers -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;margin-top:40px;">
+            <!-- Freelancer -->
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px 28px;position:relative;">
+                <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-bottom:8px;">Freelancer</div>
+                <div style="font-size:2.4rem;font-weight:900;">$19<span style="font-size:1rem;color:var(--dim);font-weight:500;">/mo</span></div>
+                <div style="font-size:.78rem;color:var(--muted);margin-bottom:24px;">$189/yr (save $39)</div>
+                <ul style="list-style:none;padding:0;margin:0 0 28px;">
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; 1 user, 1 entity</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; 1,000 transactions/mo</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; 50 invoices/mo</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; 2 bank + 2 crypto wallets</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; 100 receipt scans/mo (AI OCR)</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; 100 Chappie AI queries/mo</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;">&#10003; Standard reports</li>
+                </ul>
+                <a href="https://buy.stripe.com/8x2aEX4m3cZV0A00zBfrY0E" target="_blank" class="btn" style="width:100%;text-align:center;">Get Freelancer</a>
+            </div>
+
+            <!-- Business (Popular) -->
+            <div style="background:var(--card);border:2px solid var(--green);border-radius:20px;padding:36px 28px;position:relative;box-shadow:0 0 60px var(--green-g);">
+                <div style="position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;font-size:.68rem;font-weight:800;padding:4px 16px;border-radius:20px;text-transform:uppercase;letter-spacing:.08em;">Most Popular</div>
+                <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--green);margin-bottom:8px;">Business</div>
+                <div style="font-size:2.4rem;font-weight:900;">$49<span style="font-size:1rem;color:var(--dim);font-weight:500;">/mo</span></div>
+                <div style="font-size:.78rem;color:var(--muted);margin-bottom:24px;">$469/yr (save $119)</div>
+                <ul style="list-style:none;padding:0;margin:0 0 28px;">
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; <strong>Unlimited users</strong>, 3 entities</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; <strong>Unlimited</strong> transactions</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; <strong>Unlimited</strong> invoices</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; 10 bank + 10 crypto wallets</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; 1,000 receipt scans/mo</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; 1,000 Chappie AI queries/mo</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; Custom reports + API read</li>
+                    <li style="font-size:.82rem;color:var(--green);padding:6px 0;font-weight:600;">&#10003; CloverTax Business INCLUDED</li>
+                </ul>
+                <a href="https://buy.stripe.com/eVq8wPcSz9NJ0A01DFfrY0G" target="_blank" class="btn" style="width:100%;text-align:center;">Get Business</a>
+            </div>
+
+            <!-- Enterprise -->
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px 28px;position:relative;">
+                <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-bottom:8px;">Enterprise</div>
+                <div style="font-size:2.4rem;font-weight:900;">$99<span style="font-size:1rem;color:var(--dim);font-weight:500;">/mo</span></div>
+                <div style="font-size:.78rem;color:var(--muted);margin-bottom:24px;">$949/yr (save $239)</div>
+                <ul style="list-style:none;padding:0;margin:0 0 28px;">
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; <strong>Unlimited</strong> everything</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; Unlimited entities</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; Unlimited bank + crypto wallets</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; Unlimited receipt scans + AI</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; Scheduled reports + full API</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; Consolidated multi-entity reporting</li>
+                    <li style="font-size:.82rem;color:var(--dim);padding:6px 0;border-bottom:1px solid var(--border);">&#10003; Priority support + phone</li>
+                    <li style="font-size:.82rem;color:var(--green);padding:6px 0;font-weight:600;">&#10003; CloverTax Business INCLUDED</li>
+                </ul>
+                <a href="https://buy.stripe.com/8x2bJ14m31hdciIcijfrY0I" target="_blank" class="btn" style="width:100%;text-align:center;">Get Enterprise</a>
+            </div>
+        </div>
+
+        <!-- CloverTax Add-Ons -->
+        <div style="margin-top:60px;">
+            <div class="section-header center">
+                <div class="section-label" style="color:#f59e0b;">&#128176; CloverTax Add-Ons</div>
+                <h2 class="section-title" style="font-size:1.6rem;">Add Tax &amp; Crypto Compliance</h2>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-top:24px;">
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;">
+                    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#f59e0b;margin-bottom:8px;">Business Tax</div>
+                    <div style="font-size:1.8rem;font-weight:900;">+$9<span style="font-size:.9rem;color:var(--dim);font-weight:500;">/mo</span></div>
+                    <div style="font-size:.72rem;color:var(--muted);margin-bottom:16px;">$89/yr</div>
+                    <p style="font-size:.82rem;color:var(--dim);line-height:1.6;">Schedule C / 1120-S prep, quarterly estimates, 1099 generation, state adjustments, home office &amp; mileage deductions.</p>
+                    <div style="margin-top:16px;font-size:.72rem;color:var(--green);font-weight:600;">&#10003; Included with Business + Enterprise tiers</div>
+                    <a href="https://buy.stripe.com/3cI9ATbOv9NJfuUeqrfrY0K" target="_blank" class="btn btn-outline" style="width:100%;text-align:center;margin-top:16px;">Add Business Tax</a>
+                </div>
+                <div style="background:var(--card);border:2px solid #f59e0b;border-radius:16px;padding:28px;box-shadow:0 0 40px rgba(245,158,11,.1);">
+                    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#f59e0b;margin-bottom:8px;">Crypto Tax &#9889;</div>
+                    <div style="font-size:1.8rem;font-weight:900;">+$15<span style="font-size:.9rem;color:var(--dim);font-weight:500;">/mo</span></div>
+                    <div style="font-size:.72rem;color:var(--muted);margin-bottom:16px;">$149/yr (saves $100-500 vs CoinTracker/Koinly)</div>
+                    <p style="font-size:.82rem;color:var(--dim);line-height:1.6;">Full crypto engine: Form 8949, Schedule D, FIFO/LIFO/HIFO, wash sale detection, mining/staking/DeFi/DEX/XRPL/CloverCoin.</p>
+                    <div style="margin-top:16px;font-size:.72rem;color:var(--green);font-weight:600;">&#10003; Included with Full Stack Bundle ($199/mo)</div>
+                    <a href="https://buy.stripe.com/14AaEX8CjaRNbeE5TVfrY0M" target="_blank" class="btn" style="width:100%;text-align:center;margin-top:16px;background:#f59e0b;border-color:#f59e0b;">Add Crypto Tax</a>
+                </div>
+                <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;">
+                    <div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#a855f7;margin-bottom:8px;">Complete Bundle</div>
+                    <div style="font-size:1.8rem;font-weight:900;">+$19<span style="font-size:.9rem;color:var(--dim);font-weight:500;">/mo</span></div>
+                    <div style="font-size:.72rem;color:var(--muted);margin-bottom:16px;">$189/yr (save $5/mo vs. separate)</div>
+                    <p style="font-size:.82rem;color:var(--dim);line-height:1.6;">Business Tax + Crypto Tax combined. Everything: IRS forms, crypto engine, quarterly estimates, 1099s, state compliance.</p>
+                    <a href="https://buy.stripe.com/dRmbJ119Rf830A00zBfrY0O" target="_blank" class="btn btn-outline" style="width:100%;text-align:center;margin-top:16px;">Add Complete Tax</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     OPEN SOURCE CREDITS
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="section">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">&#128156; Open Source</div>
+            <h2 class="section-title">Built on Shoulders of Giants</h2>
+            <p class="section-desc">CloverBooks is powered by incredible open-source projects. We always credit the creators.</p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:32px;">
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;">
+                <div style="font-weight:700;font-size:.88rem;">Akaunting</div>
+                <div style="font-size:.72rem;color:var(--muted);">AGPL-3.0 &bull; Core accounting engine</div>
+            </div>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;">
+                <div style="font-weight:700;font-size:.88rem;">ERPNext</div>
+                <div style="font-size:.72rem;color:var(--muted);">GPL-3.0 &bull; Alternative core (Frappe)</div>
+            </div>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;">
+                <div style="font-weight:700;font-size:.88rem;">Tesseract OCR</div>
+                <div style="font-size:.72rem;color:var(--muted);">Apache 2.0 &bull; Receipt text extraction</div>
+            </div>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;">
+                <div style="font-weight:700;font-size:.88rem;">xrpl-py</div>
+                <div style="font-size:.72rem;color:var(--muted);">ISC &bull; XRPL ledger by XRPLF</div>
+            </div>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;">
+                <div style="font-weight:700;font-size:.88rem;">PostgreSQL</div>
+                <div style="font-size:.72rem;color:var(--muted);">PostgreSQL License &bull; Database</div>
+            </div>
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;">
+                <div style="font-weight:700;font-size:.88rem;">Ollama</div>
+                <div style="font-size:.72rem;color:var(--muted);">MIT &bull; Chappie AI backend</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     CTA
+     ═══════════════════════════════════════════════════════════════════ -->
+<section class="section-alt" style="padding:80px 0;">
+    <div class="container center">
+        <h2 style="font-size:clamp(1.6rem,4vw,2.4rem);font-weight:900;margin-bottom:16px;">
+            Stop Paying QuickBooks to Own <em>Your</em> Data.
+        </h2>
+        <p style="font-size:1rem;color:var(--dim);max-width:560px;margin:0 auto 32px;line-height:1.7;">
+            Self-hosted. Crypto-native. AI-powered. Every transaction, every receipt, every tax form — on your hardware, under your control. From $19/mo.
+        </p>
+        <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;">
+            <a href="https://app.getviktor.com/signup?ref=myclovertech&plan=free&redirect=clovermarket" target="_blank" class="btn" style="font-size:1.05rem;padding:14px 36px;">Start Free &rarr;</a>
+            <a href="#pricing" class="btn btn-outline" style="font-size:1.05rem;padding:14px 36px;">View Pricing</a>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer style="padding:40px 0;border-top:1px solid var(--border);">
+    <div class="container center" style="font-size:.78rem;color:var(--muted);">
+        <p>&copy; 2026 MyClover Tech LLC. All rights reserved. &bull; <a href="../index.html" style="color:var(--green);">myclover.tech</a></p>
+        <p style="margin-top:8px;">CloverBooks &amp; CloverTax are part of the <strong>MyClover.Tech CloverStack</strong> platform.</p>
+    </div>
+</footer>
+
+<script src="../js/main.js"></script>
+</body>
+</html>
