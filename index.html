@@ -18,6 +18,62 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Structured Data (JSON-LD) for SEO -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "MyClover Technologies",
+        "alternateName": "MyClover.Tech",
+        "url": "https://myclover.tech",
+        "logo": "https://myclover.tech/assets/og-image-logo.png",
+        "description": "AI-powered creator platform where anyone can launch apps, brands, games, crypto, and entire businesses. No coding required.",
+        "foundingDate": "2026",
+        "founder": {
+            "@type": "Person",
+            "name": "Jon Fulkerson"
+        },
+        "address": {
+            "@type": "PostalAddress",
+            "addressRegion": "WY",
+            "addressCountry": "US"
+        },
+        "sameAs": [
+            "https://github.com/jonfulk805-og"
+        ],
+        "contactPoint": {
+            "@type": "ContactPoint",
+            "email": "inforequest@myclover.tech",
+            "contactType": "customer service"
+        }
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "MyClover.Tech",
+        "url": "https://myclover.tech",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://myclover.tech/?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+        }
+    }
+    </script>
+
+    <!-- Analytics — Replace YOUR_GA4_ID with your actual Measurement ID (G-XXXXXXXXXX) -->
+    <!-- To get one: https://analytics.google.com → Create Property → Get Measurement ID -->
+    <!--
+    <script async src="https://www.googletagmanager.com/gtag/js?id=YOUR_GA4_ID"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'YOUR_GA4_ID');
+    </script>
+    -->
+
     <link rel="stylesheet" href="css/style.css">
     <style>
         /* ═══════════════════════════════════════════════════════
@@ -304,7 +360,7 @@
             <a href="pages/creators.html">Creators</a>
             <a href="https://mctvs-consulting-15b53c7c.viktor.space" target="_blank" rel="noopener" class="nav-bulletin">MCTVS</a>
             <a href="pages/bulletin.html">Bulletin</a>
-            <a href="https://viktor.com" target="_blank" rel="noopener" class="nav-cta">Start Free</a>
+            <a href="pages/creator-signup.html" class="nav-cta">Start Free</a>
         </div>
         <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">&#9776;</button>
     </div>
@@ -319,7 +375,7 @@
     <div class="container">
         <div class="hero-badge">
             <span class="pulse"></span>
-            Welcome to the Rabbit Hole
+            🍀 Creator Program Open — Start Free Today
         </div>
         <h1>
             <span class="line">Your Idea.</span>
@@ -332,6 +388,12 @@
             Any age. Any skill level. <em>Build real businesses, gain real experience,
             and walk away with a resume that proves you can do it.</em>
         </p>
+        <p style="font-size:.88rem;color:var(--muted);margin-bottom:28px;text-align:center;letter-spacing:.02em">For creators, side-hustlers, and entrepreneurs who want to ship — not code.</p>
+
+        <!-- Primary CTA — visible on mobile above the fold -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:28px">
+            <a href="pages/creator-signup.html" class="btn btn-primary" style="font-size:1.1rem;padding:18px 44px;border-radius:16px;font-weight:800">🍀 Start Free — No Credit Card</a>
+        </div>
 
         <div class="pillars">
             <div class="pillar">
@@ -373,12 +435,69 @@
         </div>
 
         <div style="display:flex;flex-direction:column;align-items:center;gap:16px;margin-bottom:8px">
-            <a href="https://viktor.com" target="_blank" rel="noopener" class="btn-round">Start<br>Free</a>
+            <a href="pages/creator-signup.html" class="btn-round">Start<br>Free</a>
         </div>
         <div class="no-cc">No credit card required · Any age welcome</div>
         <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
             <a href="pages/creators.html" class="btn btn-secondary" style="font-size:.85rem;padding:10px 22px">Explore Creator Tools →</a>
             <a href="#discover" class="btn btn-secondary" style="font-size:.85rem;padding:10px 22px">See What's Been Built ↓</a>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TRUST BAR -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section style="position:relative;z-index:1;padding:40px 0 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--bg2)">
+    <div class="container">
+        <div style="display:flex;align-items:center;justify-content:center;gap:32px;flex-wrap:wrap;opacity:.7">
+            <span style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">🔒 Stripe-Secured Payments</span>
+            <span style="font-size:.75rem;color:var(--border)">|</span>
+            <span style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">🏛️ Wyoming LLC · Est. 2026</span>
+            <span style="font-size:.75rem;color:var(--border)">|</span>
+            <span style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">🛡️ 256-bit Encryption</span>
+            <span style="font-size:.75rem;color:var(--border)">|</span>
+            <span style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">💚 Open-Source Powered</span>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FIND YOUR PATH (moved up for visibility) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="paths-section" id="paths" style="padding:60px 0">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">🚀 Find Your Path</div>
+            <h2 class="section-title">Who Are You?</h2>
+            <p class="section-desc">Everyone starts somewhere. Pick the door that fits, and the AI will guide you through the rest.</p>
+        </div>
+
+        <div class="paths-grid">
+            <a href="pages/creators.html" class="path-card">
+                <span class="path-emoji">💡</span>
+                <h3>"I Have an Idea But Don't Know Where to Start"</h3>
+                <p>Perfect. You don't need a business plan or code skills. Describe your idea and watch it become a real product in days. Teens to retirees — if you can dream it, AI can build it.</p>
+                <span class="path-cta">Start Building →</span>
+            </a>
+            <a href="pages/turnkey.html" class="path-card">
+                <span class="path-emoji">🔑</span>
+                <h3>"I Want a Ready-Made Business"</h3>
+                <p>Skip the building phase entirely. Browse turnkey businesses that are already built, already proven, ready to generate revenue from day one. Just add your name and start selling.</p>
+                <span class="path-cta">Browse Turnkey Businesses →</span>
+            </a>
+            <a href="pages/cloverstrike.html" class="path-card">
+                <span class="path-emoji">🛡️</span>
+                <h3>"I'm a Tech Person / MSP"</h3>
+                <p>Self-hosted security suite, network monitoring, and full infrastructure. Enterprise-grade tools without enterprise prices. Free community tier. Deploy in minutes.</p>
+                <span class="path-cta">Explore Security & IT Tools →</span>
+            </a>
+            <a href="pages/partners.html" class="path-card">
+                <span class="path-emoji">🤝</span>
+                <h3>"I Want to Partner or Install"</h3>
+                <p>Join the CloverStack Partner Network. Install for clients, earn commissions, grow your business. MSPs, IT shops, and independent techs welcome.</p>
+                <span class="path-cta">Join Partner Network →</span>
+            </a>
         </div>
     </div>
 </section>
@@ -474,7 +593,7 @@
                 <span class="d-emoji">🛡️</span>
                 <span class="d-label red">Security</span>
                 <h3>Cybersecurity Tools</h3>
-                <p>NetMon (network monitoring), SentryLog (threat detection), CloverStinger (honeypot deception). Enterprise-grade security you can self-host.</p>
+                <p>NetMon (network monitoring), SentryLog (threat detection), CloverStinger (intrusion trapping). Enterprise-grade security that runs on your own hardware.</p>
                 <div class="d-tags">
                     <span class="d-tag">Self-Hosted</span>
                     <span class="d-tag">Docker</span>
@@ -488,7 +607,7 @@
                 <span class="d-emoji">🏪</span>
                 <span class="d-label cyan">Marketplace</span>
                 <h3>CloverMarket — App Store</h3>
-                <p>Browse, install, and sell Docker-powered apps. Your own app store on your own hardware. 80/20 creator split. Build an app, list it, earn CloverCoin.</p>
+                <p>Browse, install, and sell apps from your own marketplace. You keep 80% of every sale. Build an app, list it, and earn CloverCoin with every download.</p>
                 <div class="d-tags">
                     <span class="d-tag">Sell Apps</span>
                     <span class="d-tag">80/20 Split</span>
@@ -516,7 +635,7 @@
                 <span class="d-emoji">🖥️</span>
                 <span class="d-label green">Hardware</span>
                 <h3>Own Your Infrastructure</h3>
-                <p>CloverOS — Linux-based operating system for self-hosting everything. CloverMesh for radio networks. CloverDrone for aerial platforms. Your hardware, your rules.</p>
+                <p>Run your entire business on hardware you own. CloverOS for infrastructure, CloverMesh for radio networks, CloverDrone for aerial platforms. Your hardware, your rules.</p>
                 <div class="d-tags">
                     <span class="d-tag">CloverOS</span>
                     <span class="d-tag">CloverMesh</span>
@@ -752,7 +871,7 @@
         </div>
 
         <div style="text-align:center;margin-top:40px">
-            <a href="https://viktor.com" target="_blank" rel="noopener" class="btn btn-primary" style="font-size:1rem;padding:16px 36px">
+            <a href="pages/creator-signup.html" class="btn btn-primary" style="font-size:1rem;padding:16px 36px">
                 Start Building Your Resume — Free →
             </a>
         </div>
@@ -820,7 +939,7 @@
             <a href="pages/clovermarket.html" class="eco-card">
                 <span class="eco-icon">🏪</span>
                 <h4>CloverMarket</h4>
-                <p>Self-hosted app marketplace · Docker apps · 80/20 split</p>
+                <p>App marketplace · Install with one click · You keep 80% of every sale</p>
                 <span class="eco-status live">● Live</span>
             </a>
             <a href="pages/bulletin.html#inkforge" class="eco-card">
@@ -832,7 +951,7 @@
             <a href="pages/cloverstrike.html" class="eco-card">
                 <span class="eco-icon">🛡️</span>
                 <h4>NetMon / Overwatch</h4>
-                <p>Network monitoring · Threat detection · Docker self-hosted</p>
+                <p>Network monitoring · Threat detection · Runs on your hardware</p>
                 <span class="eco-status live">● Live</span>
             </a>
             <a href="pages/cloverstrike.html" class="eco-card">
@@ -874,7 +993,7 @@
             <a href="pages/cloverbase.html" class="eco-card">
                 <span class="eco-icon">🖥️</span>
                 <h4>CloverOS / CloverBase</h4>
-                <p>Linux-based OS · Self-hosting · Docker + Portainer stack</p>
+                <p>Your own operating system · Run everything on hardware you own · Full control</p>
                 <span class="eco-status live">● Live</span>
             </a>
             <a href="pages/clovermesh-radio.html" class="eco-card">
@@ -909,45 +1028,7 @@
     </div>
 </section>
 
-<!-- ═══════════════════════════════════════════════════════════ -->
-<!-- FIND YOUR PATH -->
-<!-- ═══════════════════════════════════════════════════════════ -->
-<section class="paths-section section-alt" id="paths">
-    <div class="container">
-        <div class="section-header center">
-            <div class="section-label">🚀 Find Your Path</div>
-            <h2 class="section-title">Who Are You?</h2>
-            <p class="section-desc">Everyone starts somewhere. Pick the door that fits, and the AI will guide you through the rest.</p>
-        </div>
-
-        <div class="paths-grid">
-            <a href="pages/creators.html" class="path-card">
-                <span class="path-emoji">💡</span>
-                <h3>"I Have an Idea But Don't Know Where to Start"</h3>
-                <p>Perfect. You don't need a business plan. You don't need to code. Tell Viktor your idea and watch it become a real product in days. Teens to retirees — if you can describe it, AI can build it.</p>
-                <span class="path-cta">Start Building →</span>
-            </a>
-            <a href="pages/turnkey.html" class="path-card">
-                <span class="path-emoji">🔑</span>
-                <h3>"I Want a Ready-Made Business"</h3>
-                <p>Skip the building phase entirely. Browse turnkey businesses that are already built, already proven, ready to generate revenue from day one. Just add your name and start selling.</p>
-                <span class="path-cta">Browse Turnkey Businesses →</span>
-            </a>
-            <a href="pages/cloverstrike.html" class="path-card">
-                <span class="path-emoji">🛡️</span>
-                <h3>"I'm a Tech Person / MSP"</h3>
-                <p>Self-hosted security suite, network monitoring, Docker stacks, CloverOS. Enterprise-grade tools without enterprise prices. Free community tier. Deploy in minutes.</p>
-                <span class="path-cta">Explore Security & IT Tools →</span>
-            </a>
-            <a href="pages/partners.html" class="path-card">
-                <span class="path-emoji">🤝</span>
-                <h3>"I Want to Partner or Install"</h3>
-                <p>Join the CloverStack Partner Network. Install for clients, earn commissions, grow your business. MSPs, IT shops, and independent techs welcome. Training and certification included.</p>
-                <span class="path-cta">Join Partner Network →</span>
-            </a>
-        </div>
-    </div>
-</section>
+<!-- "Who Are You?" section moved up — see above the discovery grid -->
 
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- HOW IT WORKS (Simplified) -->
@@ -989,8 +1070,8 @@
             <h2>Your Idea Deserves to Exist.</h2>
             <p>Stop thinking about it. Let AI build it. Start earning from your side hustle in days, not months. Every project builds your portfolio. Every launch proves you can ship. Every age. Every background. Every kind of idea.</p>
             <div class="hero-ctas">
-                <a href="https://viktor.com" target="_blank" rel="noopener" class="btn btn-primary" style="font-size:1rem;padding:16px 36px">Start Free →</a>
-                <a href="mailto:cloverbot@myclover.tech" class="btn btn-secondary">Talk to Us</a>
+                <a href="pages/creator-signup.html" class="btn btn-primary" style="font-size:1rem;padding:16px 36px">Start Free →</a>
+                <a href="pages/cloverbot.html" class="btn btn-secondary">Talk to CloverBot</a>
             </div>
             <div class="cta-brand">
                 <span class="green">&clubs;</span>
