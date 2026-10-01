@@ -2,11 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Hill Turret — prototype v3</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#05060a">
+<title>Hill Turret — prototype v4</title>
 <style>
-  html,body{margin:0;height:100%;background:#07080c;overflow:hidden}
-  body{display:flex;align-items:center;justify-content:center}
-  canvas{display:block;max-width:100vw;max-height:100vh;aspect-ratio:16/9;width:100vw;cursor:none}
+  html,body{margin:0;padding:0;width:100%;height:100%;background:#05060a;overflow:hidden;overscroll-behavior:none;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+  canvas{position:fixed;left:0;top:0;width:100vw;height:100vh;display:block;cursor:none;touch-action:none;outline:none}
 </style>
 </head>
 <body>
@@ -18,8 +22,38 @@
 const W = 960, H = 540;
 const cv = document.getElementById('c');
 const ctx = cv.getContext('2d');
-const S = Math.max(1, Math.min(2, (window.devicePixelRatio || 1) * Math.min(innerWidth / W, innerHeight / H)));
-cv.width = Math.round(W * S); cv.height = Math.round(H * S);
+let TOUCH = !!(window.matchMedia && matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints > 0 && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent));
+const MOBILE = TOUCH; // phones/tablets get lower render scale + particle caps
+const S = Math.max(1, Math.min(MOBILE ? 1.5 : 2, (window.devicePixelRatio || 1) * Math.min(innerWidth / W, innerHeight / H)));
+// Full-window canvas; the 960x540 playfield is scaled to fit and centred (letterbox bars elsewhere).
+const VIEW = { R: 1, k: 1, ox: 0, oy: 0, vw: W, vh: H, portrait: false };
+let portraitOK = false;
+const TB = { gren: { kind: 'gren', x: 60, y: 340, r: 46, held: false, anim: 0, flash: 0 }, rock: { kind: 'rock', x: 60, y: 460, r: 46, held: false, anim: 0, flash: 0 } };
+function resize() {
+  const vw = Math.max(1, window.innerWidth), vh = Math.max(1, window.innerHeight);
+  VIEW.portrait = vh > vw * 1.05;
+  const k = Math.min(vw / W, vh / H);
+  VIEW.k = k; VIEW.vw = vw; VIEW.vh = vh;
+  VIEW.ox = (vw - W * k) / 2;
+  VIEW.oy = VIEW.portrait && TOUCH ? Math.min((vh - H * k) / 2, Math.max(8, vh * 0.12)) : (vh - H * k) / 2;
+  VIEW.R = Math.max(0.75, Math.min(window.devicePixelRatio || 1, (MOBILE ? 1.6 : 2.5) / k, 3)); // capped DPR
+  cv.width = Math.round(vw * VIEW.R); cv.height = Math.round(vh * VIEW.R);
+  cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
+  // thumb buttons: >=36 CSS px radius, hugging the left edge (inside the letterbox bar when there is one)
+  const r = Math.max(42, 36 / k), left = -VIEW.ox / k, bottom = (vh - VIEW.oy) / k;
+  if (VIEW.portrait && TOUCH) {
+    const room = bottom - H, rr = Math.min(r * 1.2, room * 0.2);
+    TB.gren.r = TB.rock.r = rr; TB.gren.x = TB.rock.x = left + rr + 24 / k; TB.gren.y = H + room * 0.3; TB.rock.y = H + room * 0.68;
+  } else {
+    TB.gren.r = TB.rock.r = r; TB.gren.x = TB.rock.x = left + r + 14 / k;
+    TB.rock.y = Math.min(bottom, H + 40) - r - 22 / k; TB.gren.y = TB.rock.y - r * 2.5;
+  }
+}
+resize();
+addEventListener('resize', resize);
+if (window.visualViewport) visualViewport.addEventListener('resize', resize);
+addEventListener('orientationchange', () => setTimeout(resize, 150));
+const toGame = (cx, cy) => [(cx - VIEW.ox) / VIEW.k, (cy - VIEW.oy) / VIEW.k];
 function layer(w, h, scale = S) {
   const c = document.createElement('canvas');
   c.width = Math.ceil(w * scale); c.height = Math.ceil(h * scale);
@@ -286,13 +320,13 @@ G.ammo = lin(0, 7, 0, 12, [[0, '#f6dc8a'], [0.5, '#b88a2e'], [1, '#5a3f10']]);
 const mouse = { x: W / 2 + 150, y: 200, down: false };
 function toCanvas(e) {
   const r = cv.getBoundingClientRect();
-  mouse.x = (e.clientX - r.left) * W / r.width;
-  mouse.y = (e.clientY - r.top) * H / r.height;
+  [mouse.x, mouse.y] = toGame(e.clientX - r.left, e.clientY - r.top);
 }
 cv.addEventListener('mousemove', toCanvas);
 cv.addEventListener('mousedown', e => {
   toCanvas(e); audioInit();
-  if (inMute()) { setMuted(!AU.muted); sfx('toggle'); return; }
+  if (uiHit(mouse.x, mouse.y)) return;
+  if (state.mode === 'play' && state.paused) { setPaused(false); return; }
   if (e.button === 2) { if (state.mode === 'play') throwGrenade(); return; }
   if (e.button !== 0) return;
   mouse.down = true; onClick();
@@ -303,14 +337,13 @@ window.addEventListener('keydown', e => {
   audioInit();
   const k = e.key.toLowerCase();
   if (k === 'm') setMuted(!AU.muted);
+  else if (k === 'p' || k === 'escape') setPaused(!state.paused);
+  else if (k === 'f') toggleFS();
   else if (k === '1' || k === '2' || k === '3') state.weapon = +k - 1;
   else if (k === 'g') throwGrenade();
   else if (k === 'r') fireRocket();
 });
 window.addEventListener('mouseup', () => { mouse.down = false; });
-cv.addEventListener('touchstart', e => { e.preventDefault(); toCanvas(e.touches[0]); mouse.down = true; onClick(); }, { passive: false });
-cv.addEventListener('touchmove', e => { e.preventDefault(); toCanvas(e.touches[0]); }, { passive: false });
-cv.addEventListener('touchend', () => { mouse.down = false; });
 
 // ===== Robot types (gameplay stats identical to v1) =====
 const TYPES = {
@@ -494,7 +527,7 @@ function update(dt) {
     if (reach) {
       r.dead = true;
       s.hp -= TYPES[r.type].dmg;
-      s.hurt = 1; sfx('hurt');
+      s.hurt = 1; sfx('hurt'); buzz(60);
       s.shake = Math.min(18, s.shake + 8 + TYPES[r.type].dmg * 0.3);
       explode({ ...r, y: r.type === 'drone' ? r.y : r.y - r.r }, true);
       s.floaters.push({ x: TURRET.x, y: TURRET.y - 40, text: '-' + TYPES[r.type].dmg, color: '#ff5566', life: 0.9 });
@@ -534,7 +567,7 @@ function update(dt) {
     s.overAngle = s.angle;
     for (let i = 0; i < 4; i++) explode({ type: 'drone', x: TURRET.x + rnd(-30, 30), y: TURRET.y + rnd(-15, 5), side: 1 }, true);
     light(TURRET.x, TURRET.y, 500, 'orange', 0.6, 1);
-    sfx('gameover'); s.grenades = []; s.rockets = [];
+    sfx('gameover'); buzz([90, 50, 160]); s.grenades = []; s.rockets = [];
     s.shake = 22;
     return;
   }
@@ -583,7 +616,7 @@ function updateFx(dt) {
 const WEAPONS = [{ name: 'MG' }, { name: 'GRENADE', max: 8, cd: 0.55 }, { name: 'ROCKET', max: 6, cd: 0.9 }];
 const GRAV = 700;
 function throwGrenade() {
-  const s = state; if (s.mode !== 'play' || s.gcd > 0) return;
+  const s = state; if (s.mode !== 'play' || s.paused || s.gcd > 0) return;
   if (s.gren <= 0) { s.gcd = 0.3; sfx('empty'); return; }
   s.gren--; s.gcd = WEAPONS[1].cd;
   const ox = TURRET.x, oy = TURRET.y - 16, dx = mouse.x - ox, dy = mouse.y - oy;
@@ -596,7 +629,7 @@ function rocketPod() { // world position of the launch tube on the gun
   return [TURRET.x + Math.cos(a) * 14 - Math.sin(a) * ly, TURRET.y - 4 + Math.sin(a) * 14 + Math.cos(a) * ly];
 }
 function fireRocket() {
-  const s = state; if (s.mode !== 'play' || s.rcd > 0) return;
+  const s = state; if (s.mode !== 'play' || s.paused || s.rcd > 0) return;
   if (s.rock <= 0) { s.rcd = 0.3; sfx('empty'); return; }
   s.rock--; s.rcd = WEAPONS[2].cd;
   let tgt = null, bestD = 150; // lock onto the robot nearest the cursor
@@ -658,7 +691,7 @@ function blast(x, y, R, dmg, kind) { // area damage + knockback + FX
   const gy = hillY(x);
   if (y > gy - 45) add('scorch', { x, y: gy + 2, w: R * (big ? 1.25 : 1.05), a: Math.atan(slopeAt(x)), life: 22 });
   state.shake = Math.min(20, state.shake + (big ? 12 : 9));
-  sfx(big ? 'boomBig' : 'boom');
+  sfx(big ? 'boomBig' : 'boom'); buzz(big ? 70 : 40);
 }
 function updateOrdnance(dt) {
   const s = state;
@@ -744,9 +777,10 @@ function drawOrdnance() {
 const AU = { ctx: null, master: null, bus: null, muted: false, voices: 0, last: {}, drone: null, nextBoom: 4, MAXV: 28 };
 function audioInit() {
   const AC = window.AudioContext || window.webkitAudioContext;
-  if (AU.ctx) { if (AU.ctx.state === 'suspended') AU.ctx.resume(); return; }
+  if (AU.ctx) { if (AU.ctx.state !== 'running' && !(state && state.paused)) AU.ctx.resume().catch(() => {}); return; }
   if (!AC) return;
   const a = AU.ctx = new AC();
+  const unlock = a.createBufferSource(); unlock.buffer = a.createBuffer(1, 1, 22050); unlock.connect(a.destination); unlock.start(0); // iOS unlock
   const comp = a.createDynamicsCompressor(); // master limiter-ish compressor
   comp.threshold.value = -18; comp.knee.value = 10; comp.ratio.value = 8; comp.attack.value = 0.002; comp.release.value = 0.25;
   AU.master = a.createGain(); AU.master.gain.value = AU.muted ? 0 : 0.85;
@@ -833,17 +867,6 @@ function audioTick(dt) {
   AU.nextBoom -= dt; // distant artillery
   if (AU.nextBoom <= 0) { AU.nextBoom = rnd(4, 10); if (!AU.muted) { const t = AU.ctx.currentTime; nz('lowpass', 420, 50, 0.7, 1.8, 0.16, t, 0.04); tone('sine', 55, 28, 1.2, 0.12, t); } }
 }
-const MUTE_BOX = { x: W - 46, y: H - 46, w: 32, h: 32 };
-const inMute = () => mouse.x >= MUTE_BOX.x && mouse.x <= MUTE_BOX.x + MUTE_BOX.w && mouse.y >= MUTE_BOX.y && mouse.y <= MUTE_BOX.y + MUTE_BOX.h;
-function drawMute() {
-  const { x, y, w, h } = MUTE_BOX;
-  panel(x, y, w, h);
-  ctx.fillStyle = '#e6ebf2'; ctx.beginPath(); ctx.moveTo(x + 8, y + 13); ctx.lineTo(x + 12, y + 13); ctx.lineTo(x + 17, y + 8); ctx.lineTo(x + 17, y + 24); ctx.lineTo(x + 12, y + 19); ctx.lineTo(x + 8, y + 19); ctx.fill();
-  ctx.lineWidth = 1.8; ctx.lineCap = 'round';
-  if (AU.muted) { ctx.strokeStyle = '#ff6a6a'; ctx.beginPath(); ctx.moveTo(x + 20, y + 12); ctx.lineTo(x + 26, y + 20); ctx.moveTo(x + 26, y + 12); ctx.lineTo(x + 20, y + 20); ctx.stroke(); }
-  else { ctx.strokeStyle = '#e6ebf2'; ctx.beginPath(); ctx.arc(x + 17, y + 16, 5, -0.8, 0.8); ctx.stroke(); ctx.beginPath(); ctx.arc(x + 17, y + 16, 9, -0.8, 0.8); ctx.stroke(); }
-  text('M', x - 9, y + 16, 10, 'rgba(220,225,235,0.6)');
-}
 function drawIcon(i, cx, cy) {
   ctx.save(); ctx.translate(cx, cy);
   if (i === 0) { for (let k = -1; k <= 1; k++) { ctx.fillStyle = '#c9a040'; ctx.fillRect(k * 5 - 1.5, -3, 3, 9); ctx.fillStyle = '#e2c27a'; ctx.beginPath(); ctx.moveTo(k * 5 - 1.5, -3); ctx.lineTo(k * 5, -7); ctx.lineTo(k * 5 + 1.5, -3); ctx.fill(); } }
@@ -865,8 +888,140 @@ function drawWeapons() {
     text(ammo < 0 ? '∞' : '×' + ammo, x + 64, y + 26, 15, ammo === 0 ? '#ff6a6a' : '#ffffff');
     if (cd > 0) { ctx.fillStyle = 'rgba(255,200,90,0.85)'; ctx.fillRect(x + 2, y + 32, 90 * (1 - cd), 2); }
   });
-  text('LMB fire · RMB/G grenade · R rocket · 1-3/wheel switch', x0 + 314, H - 36, 11, 'rgba(220,225,235,0.75)', 'left');
+  text('LMB fire · RMB/G grenade · R rocket · 1-3/wheel switch · P pause · F fullscreen', x0 + 314, H - 36, 11, 'rgba(220,225,235,0.75)', 'left');
 }
+
+// ===== Mobile: touch controls, pause, fullscreen, haptics =====
+const FS_OK = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+const isFS = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function toggleFS() {
+  try {
+    if (isFS()) { const f = document.exitFullscreen || document.webkitExitFullscreen; const p = f && f.call(document); if (p && p.catch) p.catch(() => {}); }
+    else {
+      const el = document.documentElement, f = el.requestFullscreen || el.webkitRequestFullscreen;
+      const p = f && f.call(el, { navigationUI: 'hide' });
+      if (p && p.then) p.then(() => { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); }).catch(() => {});
+    }
+  } catch (e) { /* unsupported */ }
+}
+function setPaused(p) {
+  if (state.mode !== 'play') p = false;
+  state.paused = p; mouse.down = false; TB.gren.held = TB.rock.held = false;
+  if (AU.ctx) (p ? AU.ctx.suspend() : AU.ctx.resume()).catch(() => {});
+}
+const frozen = () => state.mode === 'play' && (state.paused || (TOUCH && VIEW.portrait && !portraitOK));
+function buzz(p) { if (AU.muted || !TOUCH || !navigator.vibrate) return; try { navigator.vibrate(p); } catch (e) {} }
+function uiButtons() { // pause / mute / fullscreen row under the score panel
+  const hs = TOUCH ? 1.3 : 1, w = TOUCH ? 58 : 40, h = TOUCH ? 48 : 34, gap = 8, y = 12 + 86 * hs + 8, list = [];
+  if (state.mode === 'play') list.push('pause');
+  list.push('mute'); if (FS_OK) list.push('fs');
+  return list.map((id, i) => ({ id, x: W - 14 - (list.length - i) * w - (list.length - 1 - i) * gap, y, w, h }));
+}
+function uiHit(x, y) {
+  for (const b of uiButtons()) if (x >= b.x - 8 && x <= b.x + b.w + 8 && y >= b.y - 8 && y <= b.y + b.h + 8) {
+    if (b.id === 'pause') setPaused(!state.paused);
+    else if (b.id === 'mute') { setMuted(!AU.muted); sfx('toggle'); }
+    else toggleFS();
+    return true;
+  }
+  return false;
+}
+function btnAt(x, y) { if (!TOUCH) return null; for (const b of [TB.gren, TB.rock]) if (Math.hypot(x - b.x, y - b.y) < b.r * 1.15) return b; return null; }
+function useBtn(b) { // fires at the current aim point (mouse.x/y = last aim touch)
+  const s = state, before = b.kind === 'gren' ? s.gren : s.rock;
+  if (b.kind === 'gren') throwGrenade(); else fireRocket();
+  if ((b.kind === 'gren' ? s.gren : s.rock) < before) b.flash = 1;
+}
+function touchTick() { if (state.mode === 'play') for (const b of [TB.gren, TB.rock]) if (b.held) useBtn(b); } // hold-to-repeat
+const touchRole = new Map(); let aimId = null;
+cv.addEventListener('touchstart', e => {
+  e.preventDefault(); if (!TOUCH) { TOUCH = true; resize(); } audioInit();
+  for (const t of e.changedTouches) {
+    const [x, y] = toGame(t.clientX, t.clientY);
+    let role = 'ui';
+    if (VIEW.portrait && !portraitOK) { portraitOK = true; resize(); }
+    else if (uiHit(x, y)) { /* handled */ }
+    else if (state.mode !== 'play') { mouse.x = x; mouse.y = y; onClick(); }
+    else if (state.paused) setPaused(false);
+    else {
+      const b = btnAt(x, y);
+      if (b) { b.held = true; role = b.kind; useBtn(b); }
+      else { role = 'aim'; aimId = t.identifier; mouse.x = x; mouse.y = y; mouse.down = true; state.weapon = 0; }
+    }
+    touchRole.set(t.identifier, role);
+  }
+}, { passive: false });
+cv.addEventListener('touchmove', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) if (touchRole.get(t.identifier) === 'aim') { const [x, y] = toGame(t.clientX, t.clientY); mouse.x = x; mouse.y = y; }
+}, { passive: false });
+const touchEnd = e => {
+  e.preventDefault(); audioInit(); // iOS unlocks audio on touchend too
+  for (const t of e.changedTouches) {
+    const role = touchRole.get(t.identifier);
+    if (role === 'aim' && t.identifier === aimId) { mouse.down = false; aimId = null; }
+    else if (role === 'gren' || role === 'rock') TB[role].held = false;
+    touchRole.delete(t.identifier);
+  }
+};
+cv.addEventListener('touchend', touchEnd, { passive: false });
+cv.addEventListener('touchcancel', touchEnd, { passive: false });
+document.addEventListener('touchmove', e => e.preventDefault(), { passive: false }); // no scroll / pull-to-refresh
+document.addEventListener('gesturestart', e => e.preventDefault()); // iOS pinch zoom
+document.addEventListener('dblclick', e => e.preventDefault());
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('visibilitychange', () => { if (document.hidden && state.mode === 'play') setPaused(true); });
+if (MOBILE) { Object.assign(CAP, { smoke: 150, fire: 90, sparks: 140, debris: 90, casings: 40, bg: 45, lights: 24, scorch: 8 }); fx.dust.length = 24; }
+function drawUIButtons() {
+  for (const b of uiButtons()) {
+    panel(b.x, b.y, b.w, b.h);
+    const u = b.h / 34;
+    ctx.save(); ctx.translate(b.x + b.w / 2, b.y + b.h / 2); ctx.scale(u, u);
+    ctx.fillStyle = '#e6ebf2'; ctx.strokeStyle = '#e6ebf2'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    if (b.id === 'pause') {
+      if (state.paused) { ctx.beginPath(); ctx.moveTo(-5, -8); ctx.lineTo(8, 0); ctx.lineTo(-5, 8); ctx.fill(); }
+      else { ctx.fillRect(-7, -8, 5, 16); ctx.fillRect(2, -8, 5, 16); }
+    } else if (b.id === 'mute') {
+      ctx.beginPath(); ctx.moveTo(-10, -3); ctx.lineTo(-6, -3); ctx.lineTo(-1, -8); ctx.lineTo(-1, 8); ctx.lineTo(-6, 3); ctx.lineTo(-10, 3); ctx.fill();
+      if (AU.muted) { ctx.strokeStyle = '#ff6a6a'; ctx.beginPath(); ctx.moveTo(3, -4); ctx.lineTo(9, 4); ctx.moveTo(9, -4); ctx.lineTo(3, 4); ctx.stroke(); }
+      else { ctx.beginPath(); ctx.arc(-1, 0, 5, -0.8, 0.8); ctx.stroke(); ctx.beginPath(); ctx.arc(-1, 0, 9, -0.8, 0.8); ctx.stroke(); }
+    } else {
+      const o = isFS() ? -1 : 1;
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const px = sx * 9, py = sy * 7; ctx.beginPath(); ctx.moveTo(px, py - sy * 5 * o); ctx.lineTo(px, py); ctx.lineTo(px - sx * 5 * o, py); ctx.stroke(); }
+    }
+    ctx.restore();
+    if (!TOUCH) text(b.id === 'pause' ? 'P' : b.id === 'mute' ? 'M' : 'F', b.x + b.w - 6, b.y + b.h - 7, 8, 'rgba(220,225,235,0.55)');
+  }
+}
+function drawThumb(b) {
+  const s = state, gren = b.kind === 'gren', ammo = gren ? s.gren : s.rock, cd = gren ? s.gcd / WEAPONS[1].cd : s.rcd / WEAPONS[2].cd;
+  b.anim += ((b.held ? 1 : 0) - b.anim) * 0.35; b.flash = Math.max(0, b.flash - 0.07);
+  const sc = 1 - 0.1 * b.anim + 0.08 * b.flash;
+  ctx.save(); ctx.translate(b.x, b.y); ctx.scale(sc, sc); ctx.globalAlpha = ammo > 0 ? 1 : 0.55;
+  ctx.fillStyle = b.held ? 'rgba(255,214,120,0.30)' : 'rgba(14,16,22,0.42)'; ctx.beginPath(); ctx.arc(0, 0, b.r, 0, 7); ctx.fill();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = b.held ? 'rgba(255,214,120,0.95)' : 'rgba(255,255,255,0.5)'; ctx.stroke();
+  if (b.flash > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = b.flash * 0.6; ctx.drawImage(GLOW.yellow, -b.r, -b.r, b.r * 2, b.r * 2); ctx.globalAlpha = ammo > 0 ? 1 : 0.55; ctx.globalCompositeOperation = 'source-over'; }
+  if (cd > 0) { ctx.strokeStyle = 'rgba(255,190,80,0.95)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, b.r - 5, -Math.PI / 2, -Math.PI / 2 + 6.2832 * (1 - cd)); ctx.stroke(); } // cooldown ring
+  const u = b.r / 46;
+  ctx.save(); ctx.scale(u, u); ctx.save(); ctx.scale(2.3, 2.3); drawIcon(gren ? 1 : 2, 0, -2.5); ctx.restore();
+  text(gren ? 'GRENADE' : 'ROCKET', 0, 24, 12, '#e6ebf2');
+  ctx.fillStyle = ammo > 0 ? '#ffd27a' : '#ff5a5a'; ctx.beginPath(); ctx.arc(31, -31, 15, 0, 7); ctx.fill(); // ammo badge
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.font = 'bold 17px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#1a1408'; ctx.fillText(String(ammo), 31, -30);
+  ctx.restore(); ctx.restore(); ctx.globalAlpha = 1;
+}
+function drawTouchUI() { if (TOUCH && state.mode === 'play' && !(VIEW.portrait && !portraitOK)) { drawThumb(TB.gren); drawThumb(TB.rock); } }
+function drawPortraitHint() {
+  if (!(TOUCH && VIEW.portrait && !portraitOK)) return;
+  ctx.setTransform(VIEW.R, 0, 0, VIEW.R, 0, 0);
+  const vw = VIEW.vw, vh = VIEW.vh, cx = vw / 2, cy = vh * 0.6, a = (Math.sin(clock * 2) * 0.5 + 0.5) * Math.PI / 2;
+  ctx.fillStyle = 'rgba(6,7,12,0.88)'; ctx.fillRect(0, 0, vw, vh);
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(-a); ctx.strokeStyle = '#e6ebf2'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(-22, -38, 44, 76, 7); ctx.stroke(); ctx.fillStyle = '#e6ebf2'; ctx.fillRect(-6, 29, 12, 3); ctx.restore();
+  text('Rotate your phone', cx, cy + 82, 24, '#ffe08a');
+  text('Hill Turret plays best in landscape', cx, cy + 114, 15, '#d8e0ec');
+  text('or tap to play in portrait', cx, cy + 142, 15, '#8df59f');
+}
+window.__hillView = () => ({ VIEW, TB, TOUCH, MOBILE, portraitOK, roles: [...touchRole.entries()], down: mouse.down, ui: uiButtons(), cap: CAP });
 
 // ===== Drawing =====
 function drawBackground() {
@@ -1106,6 +1261,8 @@ function panel(x, y, w, h) {
 }
 function drawHud() {
   const s = state, pct = s.hp / s.maxHp;
+  const HS = TOUCH ? 1.3 : 1; // bigger HUD on phones
+  ctx.save(); ctx.scale(HS, HS);
   panel(14, 12, 238, 34);
   ctx.fillStyle = '#0b0c0f'; ctx.fillRect(21, 19, 224, 20);
   ctx.fillStyle = pct > 0.5 ? '#4fd06a' : pct > 0.25 ? '#e6b440' : '#e04050'; ctx.fillRect(22, 20, 222 * pct, 18);
@@ -1113,10 +1270,12 @@ function drawHud() {
   ctx.fillStyle = 'rgba(0,0,0,0.25)'; for (let i = 1; i < 10; i++) ctx.fillRect(22 + i * 22.2, 20, 1, 18);
   text(`TURRET ${Math.ceil(s.hp)}/${s.maxHp}`, 133, 29.5, 13, '#fff');
   if (s.heat > 0.05) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(22, 50, 100, 4); ctx.fillStyle = `rgb(255,${200 - 120 * s.heat | 0},60)`; ctx.fillRect(22, 50, 100 * s.heat, 4); }
+  ctx.restore(); ctx.save(); ctx.translate(W, 0); ctx.scale(HS, HS); ctx.translate(-W, 0);
   panel(W - 190, 12, 176, 74);
   text(`SCORE ${s.score}`, W - 24, 30, 20, '#ffe08a', 'right');
   text(`WAVE ${s.wave}`, W - 24, 55, 15, '#d8e0ec', 'right');
   text(`left: ${s.toSpawn.length + s.robots.length}`, W - 24, 74, 12, '#9aa7c7', 'right');
+  ctx.restore();
   if (s.banner > 0) {
     ctx.globalAlpha = Math.min(1, s.banner);
     text(`WAVE ${s.wave}`, W / 2, 120, 46, '#ffffff');
@@ -1132,7 +1291,9 @@ function crosshair() {
 }
 function draw() {
   const s = state;
-  ctx.setTransform(S, 0, 0, S, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#05060a'; ctx.fillRect(0, 0, cv.width, cv.height);
+  const gk = VIEW.R * VIEW.k; ctx.setTransform(gk, 0, 0, gk, VIEW.R * VIEW.ox, VIEW.R * VIEW.oy);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
   ctx.save();
   if (s.shake > 0) ctx.translate((Math.random() - 0.5) * s.shake, (Math.random() - 0.5) * s.shake);
   drawBackground();
@@ -1158,25 +1319,39 @@ function draw() {
   ctx.drawImage(vignette, 0, 0, W, H);
   if (s.hurt > 0) { ctx.fillStyle = `rgba(255,30,40,${s.hurt * 0.22})`; ctx.fillRect(0, 0, W, H); }
   if (s.mode === 'play') {
-    drawHud(); drawWeapons();
+    drawHud(); if (!TOUCH) drawWeapons();
     ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 3.5; crosshair();
     ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1.5; crosshair();
   } else if (s.mode === 'title') {
     ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 0, W, H);
     text('HILL TURRET', W / 2, 170, 64, '#ffe08a');
     text('Hold the hill. Stop the horde.', W / 2, 225, 20, '#d8e0ec');
-    text('Mouse aim · hold Left Mouse to fire the selected weapon', W / 2, 272, 16, '#ffffff');
-    text('1 Machine gun · 2 Grenade · 3 Rocket   (or mouse wheel)', W / 2, 296, 16, '#ffffff');
-    text('Right-click / G: quick grenade · R: quick rocket · M: mute', W / 2, 320, 16, '#ffffff');
-    text('Click to start', W / 2, 372, 24, '#8df59f');
+    if (TOUCH) {
+      text('Touch & drag anywhere to aim · hold to fire the machine gun', W / 2, 268, 18, '#ffffff');
+      text('Left thumb buttons: GRENADE (top) · ROCKET (bottom)', W / 2, 296, 18, '#ffffff');
+      text('Grenades & rockets fly to your aim point · pause / mute / fullscreen top-right', W / 2, 324, 15, '#d8e0ec');
+    } else {
+      text('Mouse aim · hold Left Mouse to fire the selected weapon', W / 2, 272, 16, '#ffffff');
+      text('1 Machine gun · 2 Grenade · 3 Rocket   (or mouse wheel)', W / 2, 296, 16, '#ffffff');
+      text('Right-click / G: quick grenade · R: quick rocket · M: mute · P: pause · F: fullscreen', W / 2, 320, 16, '#ffffff');
+    }
+    text(TOUCH ? 'Tap to start' : 'Click to start', W / 2, 372, 26, '#8df59f');
   } else {
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
     text('THE HILL HAS FALLEN', W / 2, 170, 48, '#ff5566');
     text(`Score ${s.score}  ·  Wave ${s.wave}  ·  ${s.kills} robots scrapped`, W / 2, 235, 20, '#ffffff');
     text(`Best ${best}`, W / 2, 270, 18, '#ffe08a');
-    if (s.t > 0.8) text('Click to restart', W / 2, 340, 24, '#8df59f');
+    if (s.t > 0.8) text(TOUCH ? 'Tap to restart' : 'Click to restart', W / 2, 340, 26, '#8df59f');
   }
-  drawMute();
+  if (s.paused && s.mode === 'play') {
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, H);
+    text('PAUSED', W / 2, 220, 56, '#ffe08a');
+    text(TOUCH ? 'Tap anywhere to resume' : 'Click or press P to resume', W / 2, 282, 20, '#ffffff');
+  }
+  drawUIButtons();
+  ctx.restore();
+  drawTouchUI();
+  drawPortraitHint();
 }
 
 // ===== Loop =====
@@ -1188,7 +1363,8 @@ function frame(now) {
   const target = state.mode === 'title' ? Math.sin(clock * 0.3) * 20 : (mouse.x - W / 2) * 0.05; // subtle parallax camera
   camX += (target - camX) * Math.min(1, dt * 3);
   const t0 = performance.now();
-  update(dt); updateFx(dt); audioTick(dt); draw();
+  if (!frozen()) { touchTick(); update(dt); updateFx(dt); audioTick(dt); }
+  draw();
   const ms = performance.now() - t0; perf.acc += ms; perf.frames++; perf.worst = Math.max(perf.worst, ms);
   requestAnimationFrame(frame);
 }
