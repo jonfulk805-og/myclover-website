@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arcade | MyClover.Tech</title>
+<meta name="description" content="Free browser games from MyClover.Tech. No installs, no accounts, no ads. Just click and play.">
+<meta name="theme-color" content="#05070c">
+<meta property="og:title" content="MyClover.Tech Arcade">
+<meta property="og:description" content="Free browser games. No installs, no accounts, no ads.">
+<meta property="og:image" content="https://myclover.tech/games/thumbs/robot-hunter.jpg">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#05070c;--card:#0f1522;--border:#232c40;--text:#f1f5f9;--dim:#94a3b8;--muted:#64748b;
+--green:#22c55e;--gold:#f5c542;--red:#ef4444;--orange:#f97316;
+--metal:linear-gradient(180deg,#fff6d5 0%,#f5c542 38%,#b8860b 55%,#ffe08a 72%,#c99a2e 100%);
+--font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;--mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+.bg{position:fixed;inset:0;pointer-events:none;z-index:0;
+background:radial-gradient(900px 600px at 15% -10%,rgba(239,68,68,.10),transparent 60%),
+radial-gradient(900px 600px at 85% -10%,rgba(34,197,94,.10),transparent 60%),
+radial-gradient(900px 700px at 50% 110%,rgba(245,197,66,.08),transparent 60%)}
+.bg::after{content:"";position:absolute;inset:0;opacity:.35;
+background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+background-size:48px 48px;mask-image:radial-gradient(ellipse at 50% 30%,#000 30%,transparent 75%)}
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:28px 24px 64px}
+nav{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.2px}
+.brand img{width:34px;height:34px;filter:drop-shadow(0 0 10px rgba(245,197,66,.35))}
+.back{font-size:.85rem;color:var(--dim);border:1px solid var(--border);padding:8px 14px;border-radius:999px;transition:.2s}
+.back:hover{color:var(--text);border-color:#3a4766}
+header{text-align:center;padding:64px 0 44px}
+.clover{width:96px;height:96px;margin:0 auto 18px;filter:drop-shadow(0 0 28px rgba(245,197,66,.35));animation:float 6s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-6px) rotate(4deg)}}
+h1{font-size:clamp(2.6rem,7vw,4.6rem);font-weight:900;letter-spacing:-.02em;line-height:1;
+background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent;
+filter:drop-shadow(0 3px 0 #3a2a05) drop-shadow(0 10px 30px rgba(245,197,66,.18))}
+.tag{margin-top:14px;font-family:var(--mono);font-size:.8rem;letter-spacing:.35em;text-transform:uppercase;color:var(--gold)}
+.sub{margin:18px auto 0;max-width:560px;color:var(--dim);font-size:1.05rem;line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:22px}
+.card{position:relative;display:flex;flex-direction:column;background:linear-gradient(180deg,#121a2a,#0c111c);
+border:1px solid var(--border);border-radius:18px;overflow:hidden;transition:transform .25s,border-color .25s,box-shadow .25s}
+.card::before{content:"";position:absolute;inset:0;border-radius:18px;padding:1px;pointer-events:none;opacity:0;transition:opacity .25s;
+background:linear-gradient(135deg,var(--red),var(--orange),var(--gold),var(--green));
+-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.card:hover{transform:translateY(-4px);box-shadow:0 20px 50px rgba(0,0,0,.5),0 0 40px rgba(245,197,66,.08)}
+.card:hover::before{opacity:1}
+.thumb{position:relative;aspect-ratio:16/9;overflow:hidden;background:#000}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s}
+.card:hover .thumb img{transform:scale(1.05)}
+.thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(8,11,18,.9))}
+.play{position:absolute;right:14px;bottom:14px;z-index:2;display:flex;align-items:center;gap:8px;font-weight:800;font-size:.85rem;
+padding:9px 16px;border-radius:999px;color:#0a0e17;background:var(--metal);box-shadow:0 6px 20px rgba(245,197,66,.25);
+opacity:.92;transition:.2s}
+.card:hover .play{opacity:1;transform:scale(1.04)}
+.badge{position:absolute;left:14px;top:14px;z-index:2;font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;
+padding:5px 10px;border-radius:999px;background:rgba(5,7,12,.75);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(6px)}
+.badge.new{color:#0a0e17;background:var(--green);border-color:var(--green)}
+.body{padding:18px 20px 20px;display:flex;flex-direction:column;gap:10px;flex:1}
+.body h2{font-size:1.3rem;font-weight:800;letter-spacing:-.01em}
+.genre{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.body p{color:var(--dim);font-size:.93rem;line-height:1.55}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto;padding-top:6px}
+.chip{font-size:.72rem;color:var(--dim);border:1px solid var(--border);padding:4px 9px;border-radius:999px}
+.stretch{position:absolute;inset:0;z-index:3;border-radius:18px}
+.extra{position:relative;z-index:4;font-size:.8rem;color:var(--muted)}
+.extra a{color:var(--green)}.extra a:hover{text-decoration:underline}
+footer{margin-top:56px;text-align:center;color:var(--muted);font-size:.82rem;line-height:1.8}
+footer a{color:var(--dim)}footer a:hover{color:var(--text)}
+@media (max-width:420px){.grid{grid-template-columns:1fr}header{padding:40px 0 30px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="/"><img src="/assets/clover_hero_glow.png" alt="">MyClover.Tech</a>
+    <a class="back" href="/">&larr; Back to site</a>
+  </nav>
+
+  <header>
+    <img class="clover" src="/assets/clover_hero_glow.png" alt="MyClover clover">
+    <h1>The Clover Arcade</h1>
+    <div class="tag">Insert coin &middot; not required</div>
+    <p class="sub">Free browser games, each one a single file. Nothing to install, no account, no ads. Click a cabinet and play.</p>
+  </header>
+
+  <main class="grid">
+    <a class="card" href="/games/robot-hunter/">
+      <div class="thumb"><img src="/games/thumbs/robot-hunter.jpg" alt="Robot Hunter: Scrap Season title screen" loading="lazy">
+        <span class="badge new">New</span><span class="play">&#9654; Play</span></div>
+      <div class="body">
+        <div class="genre">Shooting gallery</div>
+        <h2>Robot Hunter: Scrap Season</h2>
+        <p>Duck Hunt with a pump shotgun. Seven kinds of robot, from twitchy quadcopters and laser turrets to golden jackpot drones, across a scrapyard, a ruined forest and the edge of the city. Leave the civilian haulers alone.</p>
+        <div class="chips"><span class="chip">Mouse</span><span class="chip">Touch</span><span class="chip">3 biomes</span><span class="chip">Scope zoom</span></div>
+      </div>
+    </a>
+
+    <a class="card" href="/games/neural-clash/">
+      <div class="thumb"><img src="/games/thumbs/neural-clash.jpg" alt="Neural Clash title screen" loading="lazy">
+        <span class="badge">AI vs AI</span><span class="play">&#9654; Play</span></div>
+      <div class="body">
+        <div class="genre">Arena ladder</div>
+        <h2>Neural Clash</h2>
+        <p>Your AI boots with random stats and three random abilities. Fight 12 rival AIs across physical, drone and cyber domains, spend skill points between bouts, or hit T and let it fight on autopilot.</p>
+        <div class="chips"><span class="chip">Kbd + mouse</span><span class="chip">Gamepad</span><span class="chip">Touch</span><span class="chip">4 difficulties</span></div>
+      </div>
+    </a>
+
+    <a class="card" href="/games/iron-clover/">
+      <div class="thumb"><img src="/games/thumbs/iron-clover.jpg" alt="Iron Clover title screen" loading="lazy">
+        <span class="badge">Run &amp; gun</span><span class="play">&#9654; Play</span></div>
+      <div class="body">
+        <div class="genre">Contra tribute</div>
+        <h2>Iron Clover</h2>
+        <p>Side-scrolling run and gun: four stages, four bosses and 26 weapons to pick up and swap. Old-school hard, with a certain code if you need it.</p>
+        <div class="chips"><span class="chip">Keyboard</span><span class="chip">Gamepad</span><span class="chip">Touch</span><span class="chip">26 weapons</span></div>
+      </div>
+    </a>
+
+    <div class="card"><a class="stretch" href="/games/king-of-the-hill/" aria-label="Play King of the Hill"></a>
+      <div class="thumb"><img src="/games/thumbs/king-of-the-hill.jpg" alt="Hill Turret title screen" loading="lazy">
+        <span class="badge">Defense</span><span class="play">&#9654; Play</span></div>
+      <div class="body">
+        <div class="genre">Turret defense</div>
+        <h2>King of the Hill</h2>
+        <p>You're a turret on a hill and the horde is coming. Machine gun, grenades and rockets. Hold out as long as you can.</p>
+        <div class="extra">Try the <a href="/games/king-of-the-hill/v5/">v5 preview</a>: armory shop, shield bots, Siege Walker boss.</div>
+        <div class="chips"><span class="chip">Mouse + keyboard</span><span class="chip">Desktop</span></div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Built with plain HTML5 canvas and Web Audio, no engines and no trackers.<br>
+    Fonts: <a href="https://rsms.me/inter/" target="_blank" rel="noopener">Inter</a> by Rasmus Andersson &amp; <a href="https://www.jetbrains.com/lp/mono/" target="_blank" rel="noopener">JetBrains Mono</a> (SIL OFL).<br>
+    &copy; MyClover Tech LLC &middot; <a href="/">myclover.tech</a>
+  </footer>
+</div>
+</body>
+</html>
