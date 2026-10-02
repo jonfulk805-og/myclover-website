@@ -1591,18 +1591,31 @@ function logo(x, y, sc, t) {
 }
 
 // ---------- game state + screens ----------
+const DIFFS = [
+  { k: 'easy', name: 'SCRIPT KIDDIE', tag: 'EASY', col: '#3cff7a', stat: -6, q: -0.12, hp: 0.8, dmg: 0.8, reboots: 5, sp: 1, desc: 'Weaker rivals, 5 reboots, +1 SP per win' },
+  { k: 'normal', name: 'OPERATOR', tag: 'NORMAL', col: '#3cf0ff', stat: 0, q: 0, hp: 1, dmg: 1, reboots: 3, sp: 0, desc: 'The intended ladder. 3 reboots' },
+  { k: 'hard', name: 'BLACK HAT', tag: 'HARD', col: '#ff9a1f', stat: 8, q: 0.1, hp: 1.15, dmg: 1.15, reboots: 2, sp: 0, desc: 'Tougher, smarter rivals. 2 reboots' },
+  { k: 'nightmare', name: 'ZERO DAY', tag: 'NIGHTMARE', col: '#ff3b3b', stat: 14, q: 0.18, hp: 1.25, dmg: 1.25, reboots: 1, sp: 0, desc: 'Maxed-out rivals. 1 reboot. Good luck' }
+];
+let diffIx = (() => { try { const s = localStorage.getItem('nc_diff'); const v = s == null ? 1 : +s; return v >= 0 && v < DIFFS.length ? v : 1; } catch (e) { return 1; } })();
+const DF = () => DIFFS[diffIx];
+function bestKey() { return diffIx === 1 ? 'nc_best' : 'nc_best_' + DF().k; }
+function setDiff(i, midRun) {
+  diffIx = (i + DIFFS.length) % DIFFS.length; try { localStorage.setItem('nc_diff', diffIx); } catch (e) { }
+  game.best = loadBest(); if (midRun) buildLadder(); sfx('select');
+}
 const game = { state: 'title', t: 0, auto: false, paused: false, level: 0, tier: 0, sp: 0, reboots: 3, pname: 'CLOVER-7', build: null, ladder: [], rerolls: 3, best: loadBest(), anim: 0, last: null, offers: [], offerSel: -1, swapped: false, base: null, statsLog: [] };
-function loadBest() { try { return JSON.parse(localStorage.getItem('nc_best')) || { bouts: 0, tier: 0 }; } catch (e) { return { bouts: 0, tier: 0 }; } }
-function saveBest() { const score = game.tier * 100 + game.level; const b = game.best; if (score > b.tier * 100 + b.bouts) { game.best = { bouts: game.level, tier: game.tier }; try { localStorage.setItem('nc_best', JSON.stringify(game.best)); } catch (e) { } } }
+function loadBest() { try { return JSON.parse(localStorage.getItem(bestKey())) || { bouts: 0, tier: 0 }; } catch (e) { return { bouts: 0, tier: 0 }; } }
+function saveBest() { const score = game.tier * 100 + game.level; const b = game.best; if (score > b.tier * 100 + b.bouts) { game.best = { bouts: game.level, tier: game.tier }; try { localStorage.setItem(bestKey(), JSON.stringify(game.best)); } catch (e) { } } }
 function toggleAuto() { game.auto = !game.auto; sfx(game.auto ? 'power' : 'select'); if (F && F.p) ftext(F.p.x, F.p.y - 40, game.auto ? 'AUTOPILOT ENGAGED' : 'MANUAL CONTROL', game.auto ? '#3cf0ff' : '#ffffff', 1.1); }
 function buildLadder() {
   game.ladder = LADDER.map((o, i) => {
-    const total = 24 + i * 5 + game.tier * 24;
-    return Object.assign({}, o, { stats: rollStats(Math.min(total, STAT_MAX * 8), o.bias), q: Math.min(0.97, 0.4 + i * 0.045 + game.tier * 0.1), hpScale: (o.boss ? 1.8 : 1 + i * 0.03) * (o.hpMul || 1) * (1 + game.tier * 0.15) });
+    const D = DF(), total = Math.max(12, 24 + i * 5 + game.tier * 24 + D.stat);
+    return Object.assign({}, o, { stats: rollStats(Math.min(total, STAT_MAX * 8), o.bias), q: clamp(0.4 + i * 0.045 + game.tier * 0.1 + D.q, 0.2, 0.97), hpScale: (o.boss ? 1.8 : 1 + i * 0.03) * (o.hpMul || 1) * (1 + game.tier * 0.15) * D.hp, dmgScale: (o.dmgScale || 1) * D.dmg });
   });
 }
 function newRun() {
-  game.level = 0; game.tier = 0; game.sp = 0; game.reboots = 3; game.rerolls = 3; game.auto = false;
+  game.level = 0; game.tier = 0; game.sp = 0; game.reboots = DF().reboots; game.rerolls = 3; game.auto = false;
   game.build = { stats: rollStats(START_POINTS), abil: rollAbilities(3) };
   buildLadder(); game.state = 'draft'; game.anim = 0; sfx('power'); playSong('title');
 }
@@ -1624,6 +1637,7 @@ function endFight() {
     if (r.time < 30) r.bonus.push(['FAST KILL (<30s)', 1]);
     if (!F.usedAuto) r.bonus.push(['MANUAL PILOT (no autopilot)', 1]);
     if (game.ladder[game.level].boss) r.bonus.push(['CORE DEFEATED', 3]);
+    if (DF().sp) r.bonus.push(['TRAINING WHEELS (' + DF().tag + ')', DF().sp]);
     sfx('win');
   } else { r.bonus.push(['CONSOLATION DATA', 2]); game.reboots--; sfx('lose'); }
   r.sp = r.bonus.reduce((a, b) => a + b[1], 0); game.sp += r.sp;
@@ -1641,7 +1655,7 @@ function openUpgrade(win) {
   game.state = 'upgrade'; game.anim = 0; game.base = Object.assign({}, game.build.stats); game.spStart = game.sp; game.swapped = false; game.offerSel = -1;
   game.offers = win ? rollAbilities(3, game.build.abil) : [];
 }
-function newGamePlus() { game.tier++; game.level = 0; game.reboots = Math.min(3, game.reboots + 2); buildLadder(); openUpgrade(true); }
+function newGamePlus() { game.tier++; game.level = 0; game.reboots = Math.min(DF().reboots, game.reboots + 2); buildLadder(); openUpgrade(true); }
 
 // ---------- demo (title attract mode: AI vs AI) ----------
 let demoT = 0;
@@ -1668,11 +1682,14 @@ function drawTitle(dt) {
   logo(W / 2, 140, 1, t);
   txtS('A I   v s   A I', W / 2, 196, 16, '#3cf0ff', 'center', 900);
   txtS('PHYSICAL  ·  DRONE  ·  CYBER', W / 2, 220, 12, 'rgba(255,255,255,0.75)', 'center', 800);
-  txtS('LIVE DEMO: ' + F.p.name + ' vs ' + F.e.name, W / 2, 246, 10.5, 'rgba(255,210,63,0.75)', 'center', 800);
+  txtS('LIVE DEMO: ' + F.p.name + ' vs ' + F.e.name, W / 2, 240, 10.5, 'rgba(255,210,63,0.75)', 'center', 800);
   const pul = 0.6 + 0.4 * Math.sin(t * 4);
-  button('boot', W / 2 - 120, 280, 240, 50, 'BOOT YOUR AI', { col: '#3cff7a', size: 19, fn: newRun, hot: true });
-  cx.globalAlpha = pul; txtS(TOUCH ? 'TAP TO BEGIN' : 'ENTER / CLICK', W / 2, 344, 11, '#fff', 'center', 800); cx.globalAlpha = 1;
-  panel(W / 2 - 330, 372, 660, 108, '#ffd23f', 0.7);
+  DIFFS.forEach((D, i) => button('df' + i, W / 2 - 290 + i * 148, 256, 136, 28, D.tag, { col: i === diffIx ? D.col : '#4a505c', size: 11.5, hot: i === diffIx, fn: () => setDiff(i) }));
+  txtS(DF().name + ': ' + DF().desc + (TOUCH ? '' : '   (\u2190 \u2192 to change)'), W / 2, 296, 10.5, DF().col, 'center', 800);
+  button('boot', W / 2 - 120, 308, 240, 44, 'BOOT YOUR AI', { col: '#3cff7a', size: 19, fn: newRun, hot: true });
+  cx.globalAlpha = pul; txtS(TOUCH ? 'TAP TO BEGIN' : 'ENTER / CLICK', W / 2, 362, 10, '#fff', 'center', 800); cx.globalAlpha = 1;
+  if (pressed.left) setDiff(diffIx - 1); if (pressed.right) setDiff(diffIx + 1);
+  panel(W / 2 - 330, 374, 660, 106, '#ffd23f', 0.7);
   const lines = [
     ['1. SHUFFLE', 'Your AI boots with random skills + 3 random abilities.'],
     ['2. FIGHT', '12 rival AIs: robot fighters, combat drones, cyber agents.'],
@@ -1681,7 +1698,7 @@ function drawTitle(dt) {
   ];
   lines.forEach((l, i) => { txt(l[0], W / 2 - 310, 392 + i * 23, 12, ['#ffd23f', '#ff9a1f', '#3cff7a', '#3cf0ff'][i], 'left', 900); txt(l[1], W / 2 - 200, 392 + i * 23, 12, 'rgba(235,240,248,0.85)', 'left', 600); });
   txt(TOUCH ? 'Left stick move · right stick aim/fire · buttons for dash, strike, abilities' : 'WASD move · mouse aim · click fire · SPACE strike · SHIFT/right-click dash · Q E R abilities · T autopilot · M mute', W / 2, 500, 10.5, 'rgba(255,255,255,0.55)', 'center', 700);
-  if (game.best.bouts || game.best.tier) txt('BEST: ' + (game.best.tier ? 'NG+' + game.best.tier + ' · ' : '') + game.best.bouts + ' bouts cleared', W / 2, 520, 10.5, '#ffd23f', 'center', 800);
+  if (game.best.bouts || game.best.tier) txt('BEST (' + DF().tag + '): ' + (game.best.tier ? 'NG+' + game.best.tier + ' · ' : '') + game.best.bouts + ' bouts cleared', W / 2, 520, 10.5, '#ffd23f', 'center', 800);
   txt('MyClover.Tech · original game by Viktor · art drawn in code', W - 12, H - 10, 9, 'rgba(255,255,255,0.35)', 'right', 600);
   if (pressed.start) newRun();
 }
@@ -1723,7 +1740,7 @@ function drawVersus(dt) {
   const o = game.ladder[game.level], d = DOMAINS[o.dom];
   drawBackdrop(game.t, o.dom);
   const a = Math.min(1, game.anim * 2.5), sl = (1 - a) * 300;
-  txtS('BOUT ' + (game.level + 1) + ' OF ' + LADDER.length + (game.tier ? '  ·  NG+' + game.tier : ''), W / 2, 34, 13, '#ffd23f', 'center', 900);
+  txtS('BOUT ' + (game.level + 1) + ' OF ' + LADDER.length + (game.tier ? '  ·  NG+' + game.tier : '') + '  ·  ' + DF().tag, W / 2, 34, 13, '#ffd23f', 'center', 900);
   txtS(d.name + ' DOMAIN  ·  ' + d.arena, W / 2, 56, 20, d.col, 'center', 900);
   txtS(d.sub + '  ·  ' + d.mod, W / 2, 78, 11, 'rgba(255,255,255,0.7)', 'center', 700);
   // player card
@@ -1806,6 +1823,8 @@ function drawUpgrade(dt) {
   button('gamble', 250, 74, 170, 40, 'RESHUFFLE (2 SP)', { col: '#ff4fd8', size: 12, disabled: game.sp < 2, fn: () => { game.sp -= 2; const tot = statSum(game.build.stats); game.build.stats = rollStats(tot); game.base = Object.assign({}, game.build.stats); sfx('roll'); sfx('lock'); } });
   txt('re-rolls ALL points', 335, 124, 9, 'rgba(255,79,216,0.7)', 'center', 700);
   button('auto2', 430, 74, 130, 40, game.auto ? 'AUTOPILOT ON' : 'AUTOPILOT OFF', { col: game.auto ? '#3cf0ff' : '#6b7380', size: 11.5, fn: () => { game.auto = !game.auto; } });
+  button('diffU', 40, 484, 200, 36, 'DIFFICULTY: ' + DF().tag, { col: DF().col, size: 11.5, fn: () => setDiff(diffIx + 1, true) });
+  txt('click to cycle · rivals rescale', 140, 528, 9, 'rgba(255,255,255,0.5)', 'center', 600);
   button('next', W / 2 - 130, 478, 260, 48, 'NEXT BOUT: ' + nxt.id, { col: '#ff3b3b', size: 15, fn: () => { game.state = 'versus'; game.anim = 0; sfx('lock'); }, hot: true });
 }
 function drawEnd(dt, won) {
@@ -1819,7 +1838,7 @@ function drawEnd(dt, won) {
   } else {
     bigText('GAME OVER', W / 2, 140, 64, '#ff3b3b', 1);
     txtS('Out of reboots. ' + game.pname + ' cleared ' + game.level + ' bout' + (game.level === 1 ? '' : 's') + (game.tier ? ' on NG+' + game.tier : '') + '.', W / 2, 200, 15, '#fff', 'center', 700);
-    txtS('Best: ' + (game.best.tier ? 'NG+' + game.best.tier + ' · ' : '') + game.best.bouts + ' bouts', W / 2, 226, 12, '#ffd23f', 'center', 700);
+    txtS('Best (' + DF().tag + '): ' + (game.best.tier ? 'NG+' + game.best.tier + ' · ' : '') + game.best.bouts + ' bouts', W / 2, 226, 12, '#ffd23f', 'center', 700);
     button('again', W / 2 - 120, 290, 240, 50, 'NEW SHUFFLE', { col: '#3cff7a', size: 18, fn: newRun, hot: true });
     button('menu', W / 2 - 120, 352, 240, 40, 'MAIN MENU', { col: '#6b7380', size: 14, fn: () => { game.state = 'title'; F = null; } });
   }
@@ -1923,7 +1942,7 @@ function simOne(lvl, total) {
   let n = 0; while (game.state === 'fight' && n < 60 * 140) { stepFight(1 / 60); n++; if (n % 120 === 0) tr.push([Math.round(F.t), Math.round(F.p.x), Math.round(F.p.y), Math.round(F.e.x), Math.round(F.e.y), Math.round(F.p.hp), Math.round(F.e.hp), F.units.length, F.p.brain.target && F.p.brain.target.kind, F.e.brain.target && F.e.brain.target.kind, F.phase]); }
   return { win: game.last && game.last.win, tr, ab: game.build.abil };
 }
-window.__NC = { simRun, simOne, game, F: () => F, step: (n, dt) => { for (let i = 0; i < n; i++) frame(dt || 1 / 60); }, newRun, startFight, endFight, LADDER, setAuto: v => game.auto = v };
+window.__NC = { simRun, simOne, game, F: () => F, step: (n, dt) => { for (let i = 0; i < n; i++) frame(dt || 1 / 60); }, newRun, startFight, endFight, LADDER, setAuto: v => game.auto = v, setDiff, diff: () => diffIx };
 
 })();
 </script>
