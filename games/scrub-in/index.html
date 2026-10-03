@@ -1,0 +1,1322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#030809">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%230a0603%22/%3E%3Ccircle cx=%2222%22 cy=%2222%22 r=%2212%22 fill=%22%23ff3b3b%22/%3E%3Ccircle cx=%2242%22 cy=%2222%22 r=%2212%22 fill=%22%233cff7a%22/%3E%3Ccircle cx=%2222%22 cy=%2242%22 r=%2212%22 fill=%22%23ff9a1f%22/%3E%3Ccircle cx=%2242%22 cy=%2242%22 r=%2212%22 fill=%22%23ffd23f%22/%3E%3C/svg%3E">
+<title>SCRUB IN: Clover General | MyClover.Tech</title>
+<meta name="description" content="SCRUB IN - a surgery game from MyClover.Tech. Cut on the line, clamp the bleeders and lift out the foreign objects without touching anything, all before the anesthesia wears off. Push more sedation to buy time, but too deep and the heart stops. Free browser game.">
+<style>
+html,body{margin:0;height:100%;background:#030809;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+body{display:flex;align-items:center;justify-content:center}
+canvas{display:block;box-shadow:0 0 60px rgba(60,255,122,.08);outline:none}
+#rot{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#030809;color:#fff;font:800 18px system-ui,sans-serif;text-align:center;z-index:9;padding:24px}
+#rot .ph{width:46px;height:78px;border:3px solid #ffd23f;border-radius:9px;animation:rt 1.6s ease-in-out infinite}
+@keyframes rt{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (orientation:portrait) and (max-width:820px){#rot{display:flex}}
+html,body{cursor:default}
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="0" role="img" aria-label="SCRUB IN surgery game. Operate with mouse or touch; keys 1 anesthesia, 2 epinephrine, 3 blood, D defibrillate. Game events are announced in the live region."></canvas>
+<div id="live" class="sr" aria-live="polite"></div>
+<div id="rot"><div class="ph"></div><div>Rotate your phone to landscape</div><div style="font-weight:600;font-size:13px;opacity:.65">SCRUB IN needs the wide view</div></div>
+<script>
+(function(){
+'use strict';
+// ===== SCRUB IN: Clover General =====
+// Original code + procedurally drawn art by Viktor for MyClover.Tech. No external assets.
+const W = 960, H = 540;
+const cv = document.getElementById('c');
+const cx = cv.getContext('2d');
+const TOUCH = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1 || /Mobi|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent);
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
+let RMOTION = LS.get('si_rm', null) != null ? LS.get('bd_rm') === '1' : !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+let SC = 1, CRect = null;
+function fit() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  const cw = Math.max(1, Math.floor(W * s)), ch = Math.max(1, Math.floor(H * s));
+  cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  SC = Math.max(1, Math.min(2, cw * (window.devicePixelRatio || 1) / W));
+  cv.width = Math.round(W * SC); cv.height = Math.round(H * SC);
+  CRect = null;
+}
+addEventListener('resize', fit); fit();
+
+// ---------- utils ----------
+const R = (a, b) => a + Math.random() * (b - a);
+const RI = (a, b) => Math.floor(R(a, b + 1));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const angTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+const wrapA = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
+const turnTo = (a, t, m) => { const d = wrapA(t - a); return a + clamp(d, -m, m); };
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const MONO = 'ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace';
+
+// ---------- global game state ----------
+const game = { state: 'title', t: 0, paused: false, ci: 0, cs: null, V: null, S: null, stats: null, shake: 0, fox: 0, foy: 0, flashRed: 0, shockFlash: 0, timers: [] };
+function later(fn, d) { game.timers.push({ fn, t: d }); }
+const setTimeout0 = later;
+// ---------- input: pointer (mouse/touch/pen) + keyboard ----------
+const ptr = { x: W * 0.33, y: H / 2, down: false, px: 0, py: 0, vx: 0, vy: 0, type: 'mouse', seen: false };
+const pressed = {};
+function toLogical(e) {
+  if (!CRect) CRect = cv.getBoundingClientRect();
+  return { x: (e.clientX - CRect.left) / CRect.width * W, y: (e.clientY - CRect.top) / CRect.height * H };
+}
+addEventListener('scroll', () => CRect = null);
+cv.addEventListener('pointerdown', e => {
+  ensureAudio(); const p = toLogical(e); ptr.x = p.x; ptr.y = p.y; ptr.down = true; ptr.type = e.pointerType; ptr.seen = true;
+  pressed.click = true; pressed.down = true;
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', e => { const p = toLogical(e); ptr.x = p.x; ptr.y = p.y; ptr.type = e.pointerType; ptr.seen = true; });
+const up = e => { if (ptr.down) pressed.up = true; ptr.down = false; };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); addEventListener('pointerup', up);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+const KM = { Digit1: 'anes', Numpad1: 'anes', KeyA: 'anes', Digit2: 'epi', Numpad2: 'epi', KeyE: 'epi', Digit3: 'blood', Numpad3: 'blood', KeyB: 'blood',
+  KeyD: 'defib', Space: 'defib', Escape: 'pause', KeyP: 'pause', Enter: 'start', KeyM: 'mute', KeyR: 'retry' };
+addEventListener('keydown', e => {
+  ensureAudio(); const a = KM[e.code];
+  if (a && !e.repeat) { pressed[a] = true; e.preventDefault(); }
+});
+addEventListener('blur', () => { ptr.down = false; if (game.state === 'play') game.paused = true; });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (game.state === 'play') game.paused = true; if (AC && AC.state === 'running') AC.suspend(); }
+  else if (AC && AC.state === 'suspended') AC.resume();
+});
+
+// ---------- audio (all synthesized) ----------
+let AC = null, master = null, noiseBuf = null, muted = LS.get('si_mute', '0') === '1';
+function ensureAudio() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = muted ? 0 : 0.34; master.connect(AC.destination);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (err) { AC = null; }
+}
+function tone(f, d, type, v, slide, when) {
+  if (!AC || muted) return;
+  const t = when || AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square'; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, f + slide), t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v || 0.1, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + d + 0.02);
+}
+function noise(d, v, freq, slide, type, when, q) {
+  if (!AC || muted) return;
+  const t = when || AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf; f.type = type || 'lowpass'; f.frequency.setValueAtTime(freq || 1200, t); if (q) f.Q.value = q;
+  if (slide) f.frequency.exponentialRampToValueAtTime(Math.max(40, (freq || 1200) + slide), t + d);
+  g.gain.setValueAtTime(v || 0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * 0.5); s.stop(t + d);
+}
+const SFX = {
+  // pulse-ox beep: pitch tracks SpO2 like a real monitor
+  beep: k => tone(440 + (k - 80) * 22, 0.09, 'sine', 0.07),
+  alarm: () => { tone(988, 0.12, 'square', 0.035); tone(784, 0.12, 'square', 0.035, 0, AC.currentTime + 0.16); tone(988, 0.12, 'square', 0.035, 0, AC.currentTime + 0.32); },
+  buzz: () => { tone(110, 0.28, 'sawtooth', 0.12, 0); tone(113, 0.28, 'square', 0.05, 0); }, // the classic board-game buzzer
+  cut: () => noise(0.05, 0.05, 5200, 0, 'highpass'),
+  nick: () => { noise(0.12, 0.18, 1800, -1200, 'bandpass', 0, 3); tone(300, 0.12, 'sine', 0.06, -150); },
+  clamp: () => { tone(2400, 0.03, 'square', 0.04); tone(1600, 0.05, 'triangle', 0.05, 0, AC.currentTime + 0.03); },
+  grab: () => tone(900, 0.05, 'triangle', 0.04, 300),
+  plink: () => { tone(1568, 0.25, 'triangle', 0.07); tone(2093, 0.3, 'sine', 0.04, 0, AC.currentTime + 0.05); },
+  stitch: () => { noise(0.05, 0.08, 3000, 0, 'bandpass', 0, 4); tone(1200, 0.04, 'sine', 0.03); },
+  inject: () => { noise(0.3, 0.06, 700, 600, 'bandpass', 0, 2); tone(520, 0.15, 'sine', 0.04, 140); },
+  bag: () => { for (let i = 0; i < 4; i++) tone(300 + i * 60, 0.08, 'sine', 0.04, -60, AC.currentTime + i * 0.07); },
+  charge: () => tone(400, 1.0, 'sine', 0.05, 2600),
+  shock: () => { noise(0.35, 0.45, 300, -150); tone(70, 0.3, 'sine', 0.3, -40); },
+  flat: () => tone(880, 1.4, 'sine', 0.06),
+  win: () => { [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, 0.22, 'triangle', 0.07, 0, AC.currentTime + i * 0.1)); },
+  lose: () => { [392, 330, 262, 196].forEach((f, i) => tone(f, 0.3, 'triangle', 0.08, 0, AC.currentTime + i * 0.16)); },
+  star: () => tone(1568, 0.25, 'triangle', 0.07, 400),
+  select: () => tone(1200, 0.05, 'triangle', 0.05),
+  deny: () => tone(160, 0.12, 'square', 0.05, -40),
+  warn: () => tone(660, 0.1, 'square', 0.03, -100),
+  open: () => noise(0.5, 0.08, 400, 900, 'bandpass', 0, 1.5),
+  stir: () => { tone(220, 0.35, 'sawtooth', 0.03, 60); noise(0.3, 0.05, 800, 0, 'bandpass'); }
+};
+const sfxLast = {};
+function sfx(n, k) {
+  if (!AC || muted || !SFX[n]) return;
+  const t = performance.now(); if (sfxLast[n] && t - sfxLast[n] < 45) return;
+  sfxLast[n] = t; SFX[n](k);
+}
+function setMute(v) { muted = v; LS.set('si_mute', v ? '1' : '0'); if (master) master.gain.value = muted ? 0 : 0.34; }
+// low OR ambience: ventilator hiss + room hum, generated per breath
+let nextBreath = 0;
+function ambience(dt) {
+  if (!AC || muted || game.state !== 'play' || game.paused) return;
+  nextBreath -= dt;
+  if (nextBreath <= 0) { nextBreath = 4.2; noise(1.6, 0.025, 500, 300, 'bandpass', 0, 0.8); noise(1.3, 0.018, 300, -100, 'bandpass', AC.currentTime + 2.0, 0.8); }
+}
+
+// ---------- GFX: noise, glow sprites, painted arenas ----------
+function layer(w, h, s) {
+  s = s || Math.min(2, SC);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w * s)); c.height = Math.max(1, Math.ceil(h * s));
+  const g = c.getContext('2d'); g.scale(s, s); return [c, g];
+}
+let seed = 1337;
+const srand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const sr = (a, b) => a + srand() * (b - a);
+function hash(x, y) { let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y, o) { o = o || 4; let s = 0, a = 0.5, f = 1, n = 0; for (let i = 0; i < o; i++) { s += a * vnoise(x * f, y * f); n += a; f *= 2; a *= 0.5; } return s / n; }
+const RGBC = {};
+function hexRgb(c) {
+  if (RGBC[c]) return RGBC[c];
+  let r = 255, g = 255, b = 255;
+  if (c[0] === '#') { let h = c.slice(1); if (h.length === 3) h = h.split('').map(q => q + q).join(''); const n = parseInt(h, 16); r = (n >> 16) & 255; g = (n >> 8) & 255; b = n & 255; }
+  else { const m = c.match(/\d+/g); if (m) { r = +m[0]; g = +m[1]; b = +m[2]; } }
+  return (RGBC[c] = [r, g, b]);
+}
+const SHC = {};
+function shade(c, k) { const key = c + k; if (SHC[key]) return SHC[key]; const f = v => Math.max(0, Math.min(255, Math.round(k > 0 ? v + (255 - v) * k : v * (1 + k)))); const [r, g, b] = hexRgb(c); return (SHC[key] = 'rgb(' + f(r) + ',' + f(g) + ',' + f(b) + ')'); }
+const rgba = (c, a) => { const [r, g, b] = hexRgb(c); return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'; };
+function glowSprite(rgb, size) {
+  size = size || 128; const [c, g] = layer(size, size, 1);
+  const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gr.addColorStop(0, 'rgba(' + rgb + ',1)'); gr.addColorStop(0.22, 'rgba(' + rgb + ',0.5)'); gr.addColorStop(0.55, 'rgba(' + rgb + ',0.13)'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+  g.fillStyle = gr; g.fillRect(0, 0, size, size); return c;
+}
+const GLOWC = {};
+function glowOf(c) { return GLOWC[c] || (GLOWC[c] = glowSprite(hexRgb(c).join(','), 64)); }
+function glowAt(x, y, r, c, a, g) {
+  g = g || cx; g.globalCompositeOperation = 'lighter'; g.globalAlpha = a == null ? 1 : a;
+  g.drawImage(glowOf(c), x - r, y - r, r * 2, r * 2); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+}
+const SMOKE = [0, 1, 2].map(i => { seed = 50 + i; const size = 96, [c, g] = layer(size, size, 1);
+  for (let k = 0; k < 14; k++) { const a = srand() * 6.28, d = srand() * 22, r = 14 + srand() * 20, x = 48 + Math.cos(a) * d, y = 48 + Math.sin(a) * d, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(70,66,74,0.36)'); gr.addColorStop(1, 'rgba(70,66,74,0)'); g.fillStyle = gr; g.fillRect(0, 0, size, size); }
+  return c; });
+const FIRE = (() => { const [c, g] = layer(64, 64, 1), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,250,225,1)'); gr.addColorStop(0.25, 'rgba(255,200,90,0.9)'); gr.addColorStop(0.55, 'rgba(230,90,20,0.45)'); gr.addColorStop(1, 'rgba(120,20,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
+function pnoise(x, y, p) { // periodic value noise (period p cells) so grain tiles seamlessly
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), m = q => ((q % p) + p) % p;
+  const a = hash(m(xi), m(yi)), b = hash(m(xi + 1), m(yi)), c = hash(m(xi), m(yi + 1)), d = hash(m(xi + 1), m(yi + 1));
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+const NOISE = (() => { const N = 256, [c, g] = layer(N, N, 1), id = g.createImageData(N, N), d = id.data;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let n = 0, a = 0.5, f = 8, s = 0; for (let o = 0; o < 4; o++) { n += a * pnoise(x / N * f, y / N * f, f); s += a; a *= 0.5; f *= 2; }
+    n = n / s * 0.6 + hash(x * 7 + 1, y * 13 + 5) * 0.4; const v = clamp(128 + (n - 0.5) * 220, 0, 255), i = (y * N + x) * 4; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  g.putImageData(id, 0, 0); return c; })();
+let VIG = null;
+function vignette() {
+  if (!VIG) { const [c, g] = layer(W, H, 1), vg = g.createRadialGradient(W / 2, H * 0.52, H * 0.35, W / 2, H / 2, W * 0.66);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(0.7, 'rgba(4,3,10,0.25)'); vg.addColorStop(1, 'rgba(2,1,6,0.7)'); g.fillStyle = vg; g.fillRect(0, 0, W, H); VIG = c; }
+  cx.drawImage(VIG, 0, 0, W, H);
+}
+const lin = (g, x0, y0, x1, y1, stops) => { const gr = g.createLinearGradient(x0, y0, x1, y1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+const radg = (g, x0, y0, r0, x1, y1, r1, stops) => { const gr = g.createRadialGradient(x0, y0, r0, x1, y1, r1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function grain(g, x, y, w, h, alpha, mode) {
+  g.save(); g.globalAlpha = alpha; g.globalCompositeOperation = mode || 'overlay';
+  for (let yy = y; yy < y + h; yy += 256) for (let xx = x; xx < x + w; xx += 256) g.drawImage(NOISE, xx, yy);
+  g.restore();
+}
+
+
+// ---------- ART: operating room, patient, organs, objects, instruments ----------
+const FX = 318, FY = 292;               // field centre (cavity centre)
+const SKIN = { x: 74, y: 118, w: 488, h: 350 };
+const CAV = { rx: 196, ry: 122 };
+const PANEL_X = 646;
+
+function buildRoom(skinTone) {
+  const [c, g] = layer(W, H);
+  // floor / room
+  g.fillStyle = lin(g, 0, 0, 0, H, [[0, '#0b1418'], [1, '#05090b']]); g.fillRect(0, 0, W, H);
+  // table + drapes
+  seed = 4242;
+  const dr = { x: 18, y: 58, w: 604, h: 470 };
+  g.save(); g.shadowColor = 'rgba(0,0,0,0.7)'; g.shadowBlur = 30; g.shadowOffsetY = 10;
+  g.fillStyle = '#1c5d66'; rrect(g, dr.x, dr.y, dr.w, dr.h, 22); g.fill(); g.restore();
+  g.save(); rrect(g, dr.x, dr.y, dr.w, dr.h, 22); g.clip();
+  g.fillStyle = lin(g, 0, dr.y, 0, dr.y + dr.h, [[0, '#2a7b84'], [0.5, '#1f6a73'], [1, '#164f57']]); g.fillRect(dr.x, dr.y, dr.w, dr.h);
+  // cloth folds: soft light/dark streaks radiating from the window
+  for (let i = 0; i < 46; i++) {
+    const side = i % 4, t = srand();
+    let x0, y0, x1, y1;
+    if (side === 0) { x0 = lerp(dr.x, dr.x + dr.w, t); y0 = dr.y; x1 = x0 + sr(-60, 60); y1 = SKIN.y; }
+    else if (side === 1) { x0 = lerp(dr.x, dr.x + dr.w, t); y0 = dr.y + dr.h; x1 = x0 + sr(-60, 60); y1 = SKIN.y + SKIN.h; }
+    else if (side === 2) { x0 = dr.x; y0 = lerp(dr.y, dr.y + dr.h, t); x1 = SKIN.x; y1 = y0 + sr(-50, 50); }
+    else { x0 = dr.x + dr.w; y0 = lerp(dr.y, dr.y + dr.h, t); x1 = SKIN.x + SKIN.w; y1 = y0 + sr(-50, 50); }
+    g.strokeStyle = srand() < 0.5 ? 'rgba(170,240,245,0.07)' : 'rgba(0,20,25,0.22)';
+    g.lineWidth = sr(4, 16); g.lineCap = 'round'; g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo((x0 + x1) / 2 + sr(-30, 30), (y0 + y1) / 2 + sr(-30, 30), x1, y1); g.stroke();
+  }
+  grain(g, dr.x, dr.y, dr.w, dr.h, 0.22, 'overlay');
+  // weave texture
+  g.globalAlpha = 0.05; g.strokeStyle = '#000'; g.lineWidth = 1;
+  for (let x = dr.x; x < dr.x + dr.w; x += 3) { g.beginPath(); g.moveTo(x, dr.y); g.lineTo(x, dr.y + dr.h); g.stroke(); }
+  g.globalAlpha = 1; g.restore();
+  // skin window
+  const s = SKIN; const tone = skinTone || '#e0ad8a';
+  g.save(); rrect(g, s.x, s.y, s.w, s.h, 14); g.clip();
+  g.fillStyle = radg(g, FX - 40, FY - 60, 20, FX, FY, 320, [[0, shade(tone, 0.15)], [0.6, tone], [1, shade(tone, -0.3)]]); g.fillRect(s.x, s.y, s.w, s.h);
+  // betadine prep stain around the site
+  g.globalCompositeOperation = 'multiply';
+  g.fillStyle = radg(g, FX, FY, 40, FX, FY, 250, [[0, 'rgba(196,110,40,0.75)'], [0.75, 'rgba(206,130,60,0.5)'], [0.92, 'rgba(220,160,90,0.18)'], [1, 'rgba(255,255,255,0)']]);
+  g.beginPath(); g.ellipse(FX, FY, 250, 170, 0, 0, 6.29); g.fill();
+  g.globalCompositeOperation = 'source-over';
+  grain(g, s.x, s.y, s.w, s.h, 0.16, 'soft-light');
+  // pores / fine skin detail
+  for (let i = 0; i < 900; i++) { g.fillStyle = 'rgba(90,40,20,' + sr(0.03, 0.09) + ')'; g.fillRect(sr(s.x, s.x + s.w), sr(s.y, s.y + s.h), 1, 1); }
+  // inner shadow where drape overlaps
+  g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 18; g.filter = 'blur(6px)'; rrect(g, s.x, s.y, s.w, s.h, 14); g.stroke(); g.filter = 'none';
+  g.restore();
+  g.strokeStyle = 'rgba(160,230,235,0.25)'; g.lineWidth = 1.5; rrect(g, s.x, s.y, s.w, s.h, 14); g.stroke();
+  // towel clamps at window corners
+  for (const [x, y] of [[s.x, s.y], [s.x + s.w, s.y], [s.x, s.y + s.h], [s.x + s.w, s.y + s.h]]) drawTowelClamp(g, x, y, Math.atan2(FY - y, FX - x));
+  // monitor housing
+  g.save(); g.shadowColor = 'rgba(0,0,0,0.8)'; g.shadowBlur = 24;
+  g.fillStyle = lin(g, PANEL_X, 0, W, 0, [[0, '#20262b'], [0.5, '#171b1f'], [1, '#101316']]); rrect(g, PANEL_X - 6, 6, W - PANEL_X, H - 12, 16); g.fill(); g.restore();
+  g.strokeStyle = 'rgba(255,255,255,0.08)'; g.lineWidth = 1.5; rrect(g, PANEL_X - 5.5, 6.5, W - PANEL_X - 1, H - 13, 16); g.stroke();
+  grain(g, PANEL_X - 6, 6, W - PANEL_X, H - 12, 0.08, 'overlay');
+  return c;
+}
+function drawTowelClamp(g, x, y, a) {
+  g.save(); g.translate(x, y); g.rotate(a);
+  g.shadowColor = 'rgba(0,0,0,0.5)'; g.shadowBlur = 5; g.shadowOffsetY = 3;
+  g.strokeStyle = lin(g, -20, -6, -20, 6, [[0, '#f4f7fa'], [0.5, '#9aa4ad'], [1, '#55606a']]); g.lineWidth = 3.2; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-30, -7); g.lineTo(6, -2); g.moveTo(-30, 7); g.lineTo(6, 2); g.stroke();
+  g.lineWidth = 2.6; g.beginPath(); g.arc(-36, -9, 5, 0, 6.29); g.stroke(); g.beginPath(); g.arc(-36, 9, 5, 0, 6.29); g.stroke();
+  g.restore();
+}
+
+// ----- cavity interior (pre-rendered, revealed through an animated ellipse) -----
+function buildCavity() {
+  const pad = 30, w = CAV.rx * 2 + pad * 2, h = CAV.ry * 2 + pad * 2, [c, g] = layer(w, h);
+  const ox = w / 2, oy = h / 2;
+  g.fillStyle = radg(g, ox, oy - 10, 10, ox, oy, CAV.rx * 1.05, [[0, '#8e1f22'], [0.55, '#6a1316'], [0.85, '#3a0709'], [1, '#1d0304']]);
+  g.beginPath(); g.ellipse(ox, oy, CAV.rx + 4, CAV.ry + 4, 0, 0, 6.29); g.fill();
+  seed = 99;
+  // peritoneal sheen + vessels on the cavity wall
+  g.save(); g.beginPath(); g.ellipse(ox, oy, CAV.rx, CAV.ry, 0, 0, 6.29); g.clip();
+  grain(g, 0, 0, w, h, 0.3, 'soft-light');
+  for (let i = 0; i < 26; i++) {
+    const a = sr(0, 6.28), r0 = sr(0.7, 1.0), x0 = ox + Math.cos(a) * CAV.rx * r0, y0 = oy + Math.sin(a) * CAV.ry * r0;
+    g.strokeStyle = srand() < 0.6 ? 'rgba(60,0,10,0.5)' : 'rgba(70,60,150,0.35)'; g.lineWidth = sr(0.8, 2.2);
+    g.beginPath(); g.moveTo(x0, y0); let x = x0, y = y0;
+    for (let k = 0; k < 5; k++) { x += (ox - x) * 0.18 + sr(-12, 12); y += (oy - y) * 0.18 + sr(-10, 10); g.lineTo(x, y); } g.stroke();
+  }
+  for (let i = 0; i < 12; i++) {
+    const a = sr(0, 6.28), f = sr(0.2, 0.95), fx = ox + Math.cos(a) * CAV.rx * f, fy = oy + Math.sin(a) * CAV.ry * f, r = sr(6, 16);
+    g.fillStyle = radg(g, fx - r * 0.3, fy - r * 0.3, 0, fx, fy, r, [[0, 'rgba(230,190,110,0.28)'], [0.6, 'rgba(200,150,70,0.18)'], [1, 'rgba(160,90,40,0)']]);
+    g.beginPath(); g.ellipse(fx, fy, r * 1.3, r, sr(0, 3), 0, 6.29); g.fill();
+  }
+  // inner rim shadow -> depth
+  g.strokeStyle = 'rgba(0,0,0,0.75)'; g.lineWidth = 36; g.filter = 'blur(14px)';
+  g.beginPath(); g.ellipse(ox, oy, CAV.rx + 6, CAV.ry + 6, 0, 0, 6.29); g.stroke(); g.filter = 'none';
+  g.restore();
+  return { c, w, h };
+}
+
+// ----- organs -----
+const ORGAN = {
+  gut: { col: '#c87468', rim: '#7a2f2a' }, liver: { col: '#7c2622', rim: '#3a0c0a' }, stomach: { col: '#cf8478', rim: '#8a3c34' },
+  kidney: { col: '#8c3030', rim: '#3e0d0d' }, heart: { col: '#b51f2a', rim: '#4a0508' }, lung: { col: '#c9727e', rim: '#6a2a35' },
+  spleen: { col: '#6a2440', rim: '#2a0818' }, bladder: { col: '#d0a088', rim: '#8a6a50' }
+};
+function renderOrgan(o) {
+  const pad = 14, w = o.rx * 2 + pad * 2, h = o.ry * 2 + pad * 2, [c, g] = layer(w, h, Math.min(2, SC) * 1.0), P = ORGAN[o.type];
+  const x = w / 2, y = h / 2; seed = o.seed;
+  // contact shadow
+  g.fillStyle = 'rgba(20,0,0,0.55)'; g.filter = 'blur(6px)'; g.beginPath(); g.ellipse(x + 3, y + 5, o.rx, o.ry, 0, 0, 6.29); g.fill(); g.filter = 'none';
+  g.save(); g.beginPath();
+  if (o.type === 'kidney') { // bean shape
+    g.ellipse(x, y, o.rx, o.ry, 0, 0, 6.29);
+  } else g.ellipse(x, y, o.rx, o.ry, 0, 0, 6.29);
+  g.clip();
+  g.fillStyle = radg(g, x - o.rx * 0.35, y - o.ry * 0.45, 2, x, y, Math.max(o.rx, o.ry) * 1.1, [[0, shade(P.col, 0.35)], [0.45, P.col], [1, shade(P.col, -0.55)]]);
+  g.fillRect(0, 0, w, h);
+  if (o.type === 'gut') { // coils
+    for (let i = 0; i < 9; i++) {
+      const cx0 = x + sr(-o.rx * 0.7, o.rx * 0.7), cy0 = y + sr(-o.ry * 0.6, o.ry * 0.6), r = sr(8, 15);
+      g.fillStyle = radg(g, cx0 - r * 0.3, cy0 - r * 0.4, 1, cx0, cy0, r, [[0, shade(P.col, 0.22)], [0.6, P.col], [1, shade(P.col, -0.5)]]);
+      g.beginPath(); g.ellipse(cx0, cy0, r * 1.5, r, sr(0, 3), 0, 6.29); g.fill();
+      g.strokeStyle = 'rgba(90,20,20,0.5)'; g.lineWidth = 1.2; g.stroke();
+    }
+  } else if (o.type === 'lung') {
+    for (let i = 0; i < 160; i++) { g.fillStyle = 'rgba(120,40,60,' + sr(0.08, 0.2) + ')'; g.beginPath(); g.arc(x + sr(-o.rx, o.rx), y + sr(-o.ry, o.ry), sr(1, 3), 0, 6.29); g.fill(); }
+  } else if (o.type === 'heart') {
+    g.strokeStyle = 'rgba(255,220,120,0.55)'; g.lineWidth = 5; g.beginPath(); g.moveTo(x - o.rx * 0.2, y - o.ry); g.quadraticCurveTo(x + o.rx * 0.1, y, x - o.rx * 0.1, y + o.ry); g.stroke(); // fat along the groove
+    g.strokeStyle = 'rgba(90,20,140,0.55)'; g.lineWidth = 2.2; g.beginPath(); g.moveTo(x - o.rx * 0.2, y - o.ry); g.quadraticCurveTo(x + o.rx * 0.1, y, x - o.rx * 0.1, y + o.ry); g.stroke();
+  } else if (o.type === 'stomach') {
+    g.strokeStyle = 'rgba(140,60,50,0.25)'; g.lineWidth = 1.5;
+    for (let i = 0; i < 9; i++) { const yy = y - o.ry + (i + 0.5) * o.ry * 2 / 9; g.beginPath(); g.moveTo(x - o.rx, yy + sr(-4, 4)); g.quadraticCurveTo(x, yy + sr(-10, 10), x + o.rx, yy + sr(-4, 4)); g.stroke(); }
+  }
+  // vessels
+  for (let i = 0; i < 5; i++) {
+    g.strokeStyle = i % 2 ? 'rgba(70,40,140,0.4)' : 'rgba(120,0,20,0.45)'; g.lineWidth = sr(0.8, 1.8);
+    let vx = x + sr(-o.rx, o.rx), vy = y + sr(-o.ry, o.ry); g.beginPath(); g.moveTo(vx, vy);
+    for (let k = 0; k < 4; k++) { vx += sr(-14, 14); vy += sr(-10, 10); g.lineTo(vx, vy); } g.stroke();
+  }
+  grain(g, 0, 0, w, h, 0.28, 'soft-light');
+  // wet specular highlights
+  g.globalCompositeOperation = 'lighter';
+  g.fillStyle = radg(g, x - o.rx * 0.3, y - o.ry * 0.45, 0, x - o.rx * 0.3, y - o.ry * 0.45, o.rx * 0.5, [[0, 'rgba(255,240,235,0.22)'], [1, 'rgba(255,240,235,0)']]);
+  g.beginPath(); g.ellipse(x - o.rx * 0.3, y - o.ry * 0.45, o.rx * 0.45, o.ry * 0.28, -0.3, 0, 6.29); g.fill();
+  for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(255,255,255,' + sr(0.15, 0.4) + ')'; g.beginPath(); g.ellipse(x + sr(-o.rx * 0.6, o.rx * 0.4), y + sr(-o.ry * 0.6, 0), sr(1, 2.5), sr(0.5, 1.2), sr(0, 3), 0, 6.29); g.fill(); }
+  g.globalCompositeOperation = 'source-over';
+  g.restore();
+  g.strokeStyle = rgba(P.rim, 0.8); g.lineWidth = 1.6; g.beginPath(); g.ellipse(x, y, o.rx, o.ry, 0, 0, 6.29); g.stroke();
+  o.img = c; o.iw = w; o.ih = h;
+}
+function drawOrgan(o, sc) {
+  cx.save(); cx.translate(o.x, o.y); cx.rotate(o.a); cx.scale(sc, sc);
+  cx.drawImage(o.img, -o.iw / 2, -o.ih / 2, o.iw, o.ih);
+  if (o.hit > 0) { cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = o.hit; cx.fillStyle = '#ff3030'; cx.beginPath(); cx.ellipse(0, 0, o.rx, o.ry, 0, 0, 6.29); cx.fill(); }
+  cx.restore();
+}
+
+// ----- foreign objects -----
+function metal(g, x0, y0, x1, y1, base) {
+  return lin(g, x0, y0, x1, y1, [[0, shade(base, 0.6)], [0.35, base], [0.55, shade(base, -0.35)], [0.75, shade(base, 0.2)], [1, shade(base, -0.5)]]);
+}
+function drawItem(it, t, held) {
+  const g = cx, r = it.r;
+  g.save(); g.translate(it.x, it.y); g.rotate(it.a);
+  if (held) { g.translate(0, -3); }
+  // shadow
+  g.save(); g.fillStyle = 'rgba(0,0,0,' + (held ? 0.35 : 0.5) + ')'; g.filter = 'blur(3px)'; g.beginPath(); g.ellipse(held ? 5 : 2, held ? 8 : 3, r * 1.05, r * 0.8, 0, 0, 6.29); g.fill(); g.restore();
+  switch (it.kind) {
+    case 'brick': {
+      const w = r * 1.9, h = r * 1.3;
+      g.fillStyle = lin(g, 0, -h / 2, 0, h / 2, [[0, '#ff5a4a'], [1, '#a5150c']]); rrect(g, -w / 2, -h / 2, w, h, 3); g.fill();
+      g.strokeStyle = '#6a0a05'; g.lineWidth = 1; g.stroke();
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) {
+        const sx = -w / 2 + w * (i + 0.5) / 3, sy = -h / 2 + h * (j + 0.5) / 2;
+        g.fillStyle = radg(g, sx - 1.5, sy - 1.5, 0, sx, sy, 4.5, [[0, '#ffb0a0'], [0.5, '#e8301f'], [1, '#8a1006']]); g.beginPath(); g.arc(sx, sy, 3.6, 0, 6.29); g.fill();
+      }
+      break; }
+    case 'wishbone': {
+      g.lineCap = 'round'; g.strokeStyle = lin(g, -r, -r, r, r, [[0, '#fff6e0'], [0.5, '#e6cf9c'], [1, '#a88a50']]); g.lineWidth = 5;
+      g.beginPath(); g.moveTo(-r * 0.9, -r * 0.8); g.quadraticCurveTo(-r * 0.2, r * 0.2, 0, r * 0.95); g.quadraticCurveTo(r * 0.2, r * 0.2, r * 0.9, -r * 0.8); g.stroke();
+      g.fillStyle = '#f2e2b8'; g.beginPath(); g.arc(0, r * 0.85, 4.5, 0, 6.29); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-r * 0.75, -r * 0.75); g.quadraticCurveTo(-r * 0.25, 0, -0.5, r * 0.6); g.stroke();
+      break; }
+    case 'stone': {
+      seed = it.seed; g.beginPath();
+      for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283, rr = r * sr(0.78, 1.05); i ? g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : g.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+      g.closePath(); g.fillStyle = radg(g, -r * 0.3, -r * 0.4, 0, 0, 0, r * 1.1, [[0, '#fff1c0'], [0.5, '#c9a35a'], [1, '#6a4a1a']]); g.fill();
+      g.strokeStyle = 'rgba(60,40,10,0.7)'; g.lineWidth = 1; g.stroke();
+      g.fillStyle = 'rgba(255,255,230,0.8)'; g.beginPath(); g.arc(-r * 0.3, -r * 0.35, 1.6, 0, 6.29); g.fill();
+      break; }
+    case 'butterfly': {
+      const f = held ? 0.25 : 0.5 + 0.5 * Math.sin(t * 22 + it.seed);
+      const cols = [['#ffd23f', '#ff7a1f'], ['#3cd0ff', '#2a40ff'], ['#ff6fa8', '#a01ad0']][it.seed % 3];
+      for (const s of [-1, 1]) {
+        g.save(); g.scale(s * (0.35 + 0.65 * f), 1);
+        g.fillStyle = radg(g, r * 0.4, -r * 0.3, 0, r * 0.4, -r * 0.3, r, [[0, cols[0]], [0.7, cols[1]], [1, '#1a0a10']]);
+        g.beginPath(); g.ellipse(r * 0.55, -r * 0.35, r * 0.62, r * 0.5, -0.5, 0, 6.29); g.fill();
+        g.fillStyle = radg(g, r * 0.4, r * 0.4, 0, r * 0.4, r * 0.4, r * 0.6, [[0, cols[1]], [1, '#1a0a10']]);
+        g.beginPath(); g.ellipse(r * 0.4, r * 0.4, r * 0.42, r * 0.34, 0.6, 0, 6.29); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.8)'; g.beginPath(); g.arc(r * 0.75, -r * 0.45, 1.6, 0, 6.29); g.fill();
+        g.restore();
+      }
+      g.fillStyle = '#1a1010'; g.beginPath(); g.ellipse(0, 0, 2, r * 0.6, 0, 0, 6.29); g.fill();
+      g.strokeStyle = '#1a1010'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(0, -r * 0.55); g.lineTo(-4, -r); g.moveTo(0, -r * 0.55); g.lineTo(4, -r); g.stroke();
+      break; }
+    case 'clover': {
+      const cols = ['#ff3b3b', '#3cff7a', '#ff9a1f', '#ffd23f'];
+      g.strokeStyle = metal(g, -r, -r, r, r, '#d8b04a'); g.lineWidth = 2.2; g.beginPath(); g.arc(0, r * 1.05, r * 0.45, 0, 6.29); g.stroke(); // key ring
+      for (let i = 0; i < 4; i++) {
+        const a = -2.356 + i * 1.5708, lx = Math.cos(a) * r * 0.48, ly = Math.sin(a) * r * 0.48;
+        g.fillStyle = radg(g, lx - 2, ly - 2, 0, lx, ly, r * 0.6, [[0, '#fff8d8'], [0.35, cols[i]], [1, shade(cols[i], -0.6)]]);
+        g.beginPath(); g.arc(lx, ly, r * 0.5, 0, 6.29); g.fill();
+        g.strokeStyle = 'rgba(255,230,150,0.9)'; g.lineWidth = 1; g.stroke();
+      }
+      g.fillStyle = '#ffe680'; g.beginPath(); g.arc(0, 0, 2.2, 0, 6.29); g.fill();
+      break; }
+    case 'shrapnel': {
+      seed = it.seed; g.beginPath();
+      for (let i = 0; i < 7; i++) { const a = i / 7 * 6.283, rr = r * (i % 2 ? sr(0.45, 0.65) : sr(0.95, 1.15)); i ? g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr) : g.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+      g.closePath(); g.fillStyle = metal(g, -r, -r, r, r, '#7d858c'); g.fill(); g.strokeStyle = '#2a2e33'; g.lineWidth = 1; g.stroke();
+      break; }
+    case 'appendix': {
+      g.lineCap = 'round'; g.strokeStyle = lin(g, -r, 0, r, 0, [[0, '#f0a090'], [1, '#d0302a']]); g.lineWidth = 9;
+      g.beginPath(); g.moveTo(-r, -2); g.bezierCurveTo(-r * 0.3, -r * 0.7, r * 0.2, r * 0.6, r, 0); g.stroke();
+      g.strokeStyle = 'rgba(255,230,220,0.5)'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(-r * 0.9, -4); g.bezierCurveTo(-r * 0.3, -r * 0.75, r * 0.1, r * 0.35, r * 0.75, -2); g.stroke();
+      break; }
+    case 'battery': {
+      const w = r * 2, h = r * 1.0;
+      g.fillStyle = metal(g, 0, -h / 2, 0, h / 2, '#3a3f45'); rrect(g, -w / 2, -h / 2, w * 0.72, h, 3); g.fill();
+      g.fillStyle = metal(g, 0, -h / 2, 0, h / 2, '#d8a838'); rrect(g, -w / 2 + w * 0.68, -h / 2, w * 0.3, h, 3); g.fill();
+      g.fillStyle = metal(g, 0, -h / 4, 0, h / 4, '#c8ccd0'); g.fillRect(w / 2 - 1, -h / 5, 3, h * 0.4);
+      break; }
+  }
+  glowAt(0, 0, r * 2.4, held ? '#bfefff' : '#fff2c0', held ? 0.2 : 0.06 + 0.05 * Math.sin(t * 3 + it.seed));
+  g.restore();
+}
+
+// ----- instruments (cursor). tip sits at (0,0), handle trails down-right -----
+function drawInstrument(kind, x, y, open, t) {
+  const g = cx; g.save(); g.translate(x, y);
+  const a = 0.7; // handle direction
+  // drop shadow
+  g.save(); g.translate(10, 14); g.rotate(a); g.globalAlpha = 0.3; g.fillStyle = '#000'; g.filter = 'blur(4px)'; g.fillRect(0, -4, 90, 8); g.restore();
+  g.rotate(a);
+  if (kind === 'scalpel') {
+    g.fillStyle = metal(g, 0, -5, 0, 5, '#b9c3cc'); g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(10, -9, 30, -5); g.lineTo(30, 4); g.lineTo(6, 2); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = 0.8; g.beginPath(); g.moveTo(1, -0.5); g.quadraticCurveTo(10, -8.5, 29, -5); g.stroke();
+    g.fillStyle = metal(g, 0, -5, 0, 5, '#8a949e'); rrect(g, 28, -4.5, 74, 9, 3); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.3)'; for (let i = 0; i < 6; i++) g.fillRect(50 + i * 7, -3.5, 2, 7);
+  } else if (kind === 'forceps') {
+    const s = open ? 4.5 : 1;
+    for (const k of [-1, 1]) { g.fillStyle = metal(g, 0, -4, 0, 4, '#c9d1d8'); g.beginPath(); g.moveTo(0, k * s * 0.4); g.lineTo(96, k * (s + 5)); g.lineTo(96, k * (s + 1)); g.lineTo(2, k * 0.5); g.closePath(); g.fill(); }
+    g.fillStyle = 'rgba(0,0,0,0.25)'; for (let i = 0; i < 5; i++) g.fillRect(60 + i * 6, -9, 1.5, 18);
+  } else if (kind === 'needle') {
+    g.strokeStyle = metal(g, -10, -10, 10, 10, '#e0e6ea'); g.lineWidth = 1.6; g.beginPath(); g.arc(4, -6, 7, 1.2, 4.2); g.stroke();
+    g.strokeStyle = 'rgba(80,140,255,0.9)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(8, 1); g.quadraticCurveTo(-10, 20, -24, 14); g.stroke();
+    g.fillStyle = metal(g, 0, -4, 0, 4, '#aab3bb'); g.beginPath(); g.moveTo(6, -3); g.lineTo(70, -5); g.lineTo(70, 5); g.lineTo(6, 3); g.closePath(); g.fill();
+    g.strokeStyle = metal(g, 70, -12, 70, 12, '#c0c8cf'); g.lineWidth = 3; g.beginPath(); g.ellipse(84, -9, 10, 6, 0, 0, 6.29); g.stroke(); g.beginPath(); g.ellipse(84, 9, 10, 6, 0, 0, 6.29); g.stroke();
+  } else if (kind === 'clamp') {
+    g.fillStyle = metal(g, 0, -4, 0, 4, '#c3ccd4');
+    g.beginPath(); g.moveTo(0, -1.5); g.lineTo(26, -3); g.lineTo(26, 3); g.lineTo(0, 1.5); g.closePath(); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.35)'; for (let i = 0; i < 6; i++) g.fillRect(3 + i * 3.6, -2, 1, 4);
+    g.strokeStyle = metal(g, 26, -10, 26, 10, '#aeb8c1'); g.lineWidth = 3.4; g.beginPath(); g.moveTo(26, -2); g.lineTo(72, -7); g.moveTo(26, 2); g.lineTo(72, 7); g.stroke();
+    g.lineWidth = 2.6; g.beginPath(); g.ellipse(80, -10, 8, 5.5, 0, 0, 6.29); g.stroke(); g.beginPath(); g.ellipse(80, 10, 8, 5.5, 0, 0, 6.29); g.stroke();
+  } else if (kind === 'gauze') {
+    g.rotate(-a); g.fillStyle = 'rgba(245,248,250,0.92)'; rrect(g, -14, -14, 28, 28, 4); g.fill(); g.strokeStyle = 'rgba(160,180,190,0.5)'; g.lineWidth = 0.8;
+    for (let i = -12; i < 14; i += 4) { g.beginPath(); g.moveTo(i, -14); g.lineTo(i, 14); g.moveTo(-14, i); g.lineTo(14, i); g.stroke(); }
+  }
+  g.restore();
+}
+// a placed hemostat clamping a bleeder
+function drawPlacedClamp(x, y, a) {
+  cx.save(); cx.translate(x, y); cx.scale(0.7, 0.7); cx.translate(-x, -y);
+  drawInstrument('clamp', x, y, false, 0); cx.restore();
+}
+
+// ---------- VITALS: physiology-ish model + monitor traces ----------
+// Sedation clock = the time limit. Pushing anesthetic buys time but deepens the patient;
+// deep + repeated dosing drops pressure/heart rate and can tip them into V-fib.
+const TRACE_N = 300; // samples across the trace (~5 s)
+function newVitals(cs) {
+  return {
+    hr: 74, sys: 122, dia: 78, spo2: 99, blood: 100, depth: 45, sed: cs.sed, sedMax: cs.sed,
+    epi: 0, epiCD: 0, bags: cs.bags, doses: 0, rhythm: 'sinus', arrestT: 0, arrests: 0, charge: -1, shocks: 0,
+    phase: 0, lowBP: 0, lowO2: 0, tachy: 0, ecg: new Float32Array(TRACE_N), pleth: new Float32Array(TRACE_N), head: 0, acc: 0,
+    beatFlash: 0, stir: 0, alarmT: 0, msg: '', msgT: 0, vfSeed: Math.random() * 100, stirCue: 0
+  };
+}
+function anesRisk(V) { // chance this push throws them into V-fib
+  const after = V.depth + 22;
+  return clamp((after - 72) / 55, 0, 0.7) + 0.035 * Math.max(0, V.doses - 2) + (V.sys < 80 ? 0.12 : 0);
+}
+function pushAnes() {
+  const V = game.V; if (!V || V.rhythm !== 'sinus' && V.rhythm !== 'vf') return;
+  const risk = anesRisk(V);
+  V.sed = Math.min(V.sed + 15, 99); V.depth += 22; V.doses++; sfx('inject'); toast('+15s sedation', '#ffd23f');
+  game.stats.doses++;
+  if (V.rhythm === 'sinus' && Math.random() < risk) setTimeout0(() => arrest('Anesthetic overdose: V-FIB!'), 1.2);
+}
+function pushEpi() {
+  const V = game.V; if (V.epiCD > 0) { sfx('deny'); return; }
+  V.epi = 1; V.epiCD = 12; sfx('inject'); toast('Epinephrine in', '#3cd0ff');
+  V.depth = Math.max(20, V.depth - 6);
+}
+function hangBlood() {
+  const V = game.V; if (V.bags <= 0) { sfx('deny'); toast('No units left', '#ff6060'); return; }
+  V.bags--; V.blood = Math.min(100, V.blood + 28); sfx('bag'); toast('Unit of O-neg hung', '#ff5a5a');
+}
+function arrest(why) {
+  const V = game.V; if (!V || V.rhythm !== 'sinus' || game.state !== 'play') return;
+  V.rhythm = 'vf'; V.arrestT = 12; V.arrests++; game.stats.arrests++; toast(why || 'V-FIB! Defibrillate!', '#ff3040', 3);
+  sfx('alarm'); announce('Cardiac arrest. Press D to defibrillate.');
+}
+function defib() {
+  const V = game.V; if (V.rhythm !== 'vf' || V.charge >= 0) { sfx('deny'); return; }
+  V.charge = 0; sfx('charge');
+}
+function updateVitals(dt) {
+  const V = game.V, cs = game.cs;
+  // sedation clock
+  V.sed -= dt; V.depth = Math.max(15, V.depth - 1.3 * dt);
+  V.epi = Math.max(0, V.epi - dt / 9); V.epiCD = Math.max(0, V.epiCD - dt);
+  // bleeding
+  const bleed = game.bleedRate();
+  V.blood = Math.max(0, V.blood - bleed * dt);
+  const deep = Math.max(0, V.depth - 72);
+  if (V.rhythm === 'sinus') {
+    const vol = clamp((V.blood - 28) / 72, 0, 1);
+    const sysT = 122 * (0.32 + 0.68 * vol) - deep * 1.6 + V.epi * 34 + (V.sed < 8 ? 14 : 0);
+    const hrT = 72 + Math.max(0, 105 - V.sys) * 0.75 - deep * 1.1 + V.epi * 55 + (V.sed < 8 ? 22 : 0);
+    V.sys = lerp(V.sys, sysT, 1 - Math.exp(-dt * 0.8)); V.hr = lerp(V.hr, clamp(hrT, 30, 190), 1 - Math.exp(-dt * 0.9));
+    V.dia = V.sys * 0.64;
+    const o2T = 99 - Math.max(0, V.depth - 84) * 1.5 - Math.max(0, 72 - V.sys) * 0.7;
+    V.spo2 = lerp(V.spo2, clamp(o2T, 50, 100), 1 - Math.exp(-dt * 0.5));
+    V.lowBP = V.sys < 52 ? V.lowBP + dt : 0; V.lowO2 = V.spo2 < 76 ? V.lowO2 + dt : 0; V.tachy = V.hr > 165 ? V.tachy + dt : 0;
+    if (V.lowBP > 3) arrest('Pressure crashed: V-FIB!');
+    else if (V.lowO2 > 3.5) arrest('Hypoxic arrest: V-FIB!');
+    else if (V.tachy > 2.5) arrest('Runaway tachycardia: V-FIB!');
+    V.phase += dt * V.hr / 60;
+    if (V.phase >= 1) { V.phase -= 1; V.beatFlash = 1; sfx('beep', V.spo2); game.onBeat(); }
+  } else if (V.rhythm === 'vf') {
+    V.arrestT -= dt; V.sys = lerp(V.sys, 0, 1 - Math.exp(-dt * 2)); V.dia = V.sys * 0.5; V.hr = 0; V.spo2 = lerp(V.spo2, 40, 1 - Math.exp(-dt * 0.25));
+    V.alarmT -= dt; if (V.alarmT <= 0) { V.alarmT = 1.2; sfx('alarm'); }
+    if (V.charge >= 0) {
+      V.charge += dt / 1.1;
+      if (V.charge >= 1) {
+        V.charge = -1; V.shocks++; game.stats.shocks++; sfx('shock'); game.shockFlash = 1; game.shake = Math.max(game.shake, 10);
+        const p = clamp(0.82 - V.shocks * 0.12 + (V.blood > 40 ? 0 : -0.3) + V.epi * 0.15, 0.15, 0.9);
+        if (Math.random() < p) {
+          V.rhythm = 'sinus'; V.shocks = 0; V.hr = 58; V.sys = Math.max(78, V.sys); V.spo2 = Math.max(V.spo2, 82); V.depth = Math.min(V.depth, 60); V.lowBP = V.lowO2 = V.tachy = 0;
+          if (V.blood < 45) V.blood = 45; // anaesthetist squeezes in fluids during the code
+          toast('Sinus rhythm restored!', '#3cff7a', 2); announce('Rhythm restored.');
+        } else toast('No conversion - shock again!', '#ff9a1f');
+      }
+    }
+    if (V.arrestT <= 0) { V.rhythm = 'flat'; sfx('flat'); game.fail('flat'); }
+  }
+  // patient stirring as sedation runs out
+  if (V.sed < 8 && V.rhythm === 'sinus') { V.stir = clamp((8 - V.sed) / 8, 0, 1); V.stirCue -= dt; if (V.stirCue <= 0) { V.stirCue = 2.2; sfx('stir'); toast('Patient is stirring!', '#ffd23f'); } }
+  else V.stir = 0;
+  if (V.sed <= 0) { V.sed = 0; game.fail('woke'); }
+  V.beatFlash = Math.max(0, V.beatFlash - dt * 4);
+  // traces
+  V.acc += dt * 60;
+  while (V.acc >= 1) {
+    V.acc -= 1; const i = V.head = (V.head + 1) % TRACE_N;
+    V.ecg[i] = ecgAt(V); V.pleth[i] = plethAt(V);
+  }
+}
+function ecgAt(V) {
+  if (V.rhythm === 'vf') { const t = game.t * 7 + V.vfSeed; return 0.45 * Math.sin(t * 1.3) * Math.sin(t * 0.37 + 1) + 0.25 * Math.sin(t * 2.9 + Math.sin(t)); }
+  if (V.rhythm === 'flat') return (Math.random() - 0.5) * 0.02;
+  const p = V.phase, g = (c, w, a) => a * Math.exp(-((p - c) * (p - c)) / (2 * w * w));
+  return g(0.12, 0.025, 0.12) + g(0.235, 0.006, -0.12) + g(0.25, 0.008, 1.0) + g(0.27, 0.008, -0.28) + g(0.48, 0.045, 0.24) + (Math.random() - 0.5) * 0.02;
+}
+function plethAt(V) {
+  if (V.rhythm !== 'sinus') return Math.max(0, V.sys / 120) * 0.1 * Math.sin(game.t * 9);
+  const p = (V.phase + 0.8) % 1, amp = clamp(V.sys / 120, 0.1, 1.2);
+  return amp * (Math.exp(-((p - 0.2) * (p - 0.2)) / 0.006) * 0.9 + Math.exp(-((p - 0.42) * (p - 0.42)) / 0.004) * 0.25 + (p > 0.2 ? Math.exp(-(p - 0.2) * 4) * 0.25 : 0));
+}
+
+// ---------- CASES ----------
+const CASES = [
+  { title: 'Appy Days', proc: 'Appendectomy', patient: 'Penny Lane, 34', blurb: 'Classic inflamed appendix. Cut on the line, clamp what bleeds, lift it out, close up. Your first day: the attending is watching.',
+    skin: '#e6b490', sed: 40, bags: 3, tol: 16, margin: 14, incBleed: 1, spont: 0, stitches: 5, items: ['appendix'], organs: ['gut', 'gut', 'gut', 'gut'], tut: true },
+  { title: 'Brick by Brick', proc: 'Gastrotomy', patient: 'Tommy Bricks, 7', blurb: 'Swallowed two toy bricks "to see what happens." Here is what happens.',
+    skin: '#f0c4a4', sed: 34, bags: 3, tol: 14, margin: 11, incBleed: 2, spont: 0, stitches: 6, items: ['brick', 'brick'], organs: ['stomach', 'liver', 'gut', 'gut', 'spleen'] },
+  { title: 'The Wishbone Incident', proc: 'Foreign body removal', patient: 'Gus Turkey, 58', blurb: 'Thanksgiving dare. Also, somehow, a watch battery. Tighter gaps - steady hands.',
+    skin: '#c48a66', sed: 32, bags: 2, tol: 13, margin: 8, incBleed: 2, spont: 18, stitches: 6, items: ['wishbone', 'battery'], organs: ['liver', 'stomach', 'gut', 'gut', 'kidney', 'spleen'] },
+  { title: 'Stone Cold', proc: 'Open lithotomy', patient: 'Rocky Stone, 46', blurb: 'Four stones, all small, all slippery. Vessels pop on their own in here.',
+    skin: '#e0a882', sed: 30, bags: 2, tol: 12, margin: 7, incBleed: 2, spont: 15, stitches: 7, items: ['stone', 'stone', 'stone', 'stone'], organs: ['kidney', 'gut', 'kidney', 'gut', 'bladder', 'gut'] },
+  { title: 'Butterflies', proc: 'Exploratory laparotomy', patient: 'Mona Flutter, 22', blurb: 'She said she had butterflies in her stomach. She meant it. They move - grab them when they settle.',
+    skin: '#8d5a3c', sed: 30, bags: 2, tol: 12, margin: 9, incBleed: 2, spont: 14, stitches: 6, items: ['butterfly', 'butterfly', 'butterfly'], organs: ['stomach', 'gut', 'gut', 'liver', 'gut'], wander: true },
+  { title: 'Lucky Charm', proc: 'Thoracoabdominal exploration', patient: 'Clove R. Leaf, 31', blurb: 'Swallowed a lucky four-leaf clover keychain. It is sitting right beside a beating heart. Every beat moves the walls.',
+    skin: '#d9a07a', sed: 27, bags: 2, tol: 12, margin: 8, incBleed: 2, spont: 12, stitches: 7, items: ['clover', 'battery', 'brick'], organs: ['heart', 'lung', 'stomach', 'gut', 'liver', 'lung'] },
+  { title: 'Shrapnel', proc: 'Trauma laparotomy', patient: 'Sgt. Iron, 39', blurb: 'Five fragments, tight spaces, a pounding heart. Keep his pressure up - epinephrine makes the heart jump.',
+    skin: '#b07850', sed: 25, bags: 2, tol: 11, margin: 6, incBleed: 3, spont: 10, stitches: 8, items: ['shrapnel', 'shrapnel', 'shrapnel', 'shrapnel', 'shrapnel'], organs: ['heart', 'lung', 'liver', 'gut', 'gut', 'spleen'] },
+  { title: "The Chief's Gauntlet", proc: 'Everything, all at once', patient: 'Dr. Chief, 61 (yes, your boss)', blurb: 'The chief of surgery swallowed... all of it. Six objects, six organs, a beating heart and a short clock. No pressure.',
+    skin: '#e8b898', sed: 25, bags: 2, tol: 10, margin: 5, incBleed: 3, spont: 8, stitches: 8, items: ['clover', 'butterfly', 'wishbone', 'stone', 'shrapnel', 'battery'], organs: ['heart', 'lung', 'liver', 'stomach', 'gut', 'kidney'], wander: true }
+];
+const ITEM_R = { brick: 12, wishbone: 14, stone: 8, butterfly: 12, clover: 12, shrapnel: 9, appendix: 15, battery: 10 };
+const ITEM_NAME = { brick: 'toy brick', wishbone: 'wishbone', stone: 'kidney stone', butterfly: 'butterfly', clover: 'clover keychain', shrapnel: 'fragment', appendix: 'appendix', battery: 'watch battery' };
+const LIFT_R = 30;
+
+// organ collision: is a circle (x,y,r) touching organ o at scale s?
+function organHit(o, x, y, r, s) {
+  const dx = x - o.x, dy = y - o.y - (o.dy || 0), ca = Math.cos(-o.a), sa = Math.sin(-o.a);
+  const lx = dx * ca - dy * sa, ly = dx * sa + dy * ca, ax = o.rx * s + r, ay = o.ry * s + r;
+  return (lx * lx) / (ax * ax) + (ly * ly) / (ay * ay) < 1;
+}
+function rimHit(x, y, r) { const ax = CAV.rx - r, ay = CAV.ry - r, dx = x - FX, dy = y - FY; return (dx * dx) / (ax * ax) + (dy * dy) / (ay * ay) > 1; }
+function pathClear(organs, x0, y0, x1, y1, r, smax) {
+  const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 2);
+  for (let i = 0; i <= n; i++) { const t = i / n, x = lerp(x0, x1, t), y = lerp(y0, y1, t);
+    for (const o of organs) if (organHit(o, x, y, r, smax)) return false; }
+  return true;
+}
+function buildLayout(cs, ci) {
+  seed = 1000 + ci * 77; const N = cs.organs.length, off = sr(0, 6.28 / N);
+  const rimD = th => 1 / Math.sqrt(Math.cos(th) ** 2 / (CAV.rx * CAV.rx) + Math.sin(th) ** 2 / (CAV.ry * CAV.ry));
+  const IN = 66; // clear disc around the lift ring
+  const organs = cs.organs.map((type, i) => {
+    const th = off + i * 6.2832 / N, outer = rimD(th) + 8, d = (IN + outer) / 2, ry = (outer - IN) / 2;
+    const x = FX + Math.cos(th) * d, y = FY + Math.sin(th) * d;
+    return { type, th, x, y, a: th + Math.PI / 2, rx: d * 6.2832 / N * 0.48, ry, seed: 500 + ci * 31 + i, pulse: type === 'heart', hit: 0 };
+  });
+  const gaps = []; for (let i = 0; i < N; i++) gaps.push(off + (i + 0.5) * 6.2832 / N);
+  const order = gaps.map((g, i) => i).sort((a, b) => (hash(a, ci) - hash(b, ci)));
+  const items = cs.items.map((kind, k) => {
+    const th = gaps[order[k % N]], r = ITEM_R[kind], d = rimD(th) - r - 12;
+    return { kind, r, x: FX + Math.cos(th) * d, y: FY + Math.sin(th) * d, a: sr(-0.6, 0.6), seed: k * 7 + ci, glow: 0, done: false, vx: 0, vy: 0, wt: 0 };
+  });
+  // shrink organs until every straight lift path clears by the case margin (beating heart at full size)
+  for (let pass = 0; pass < 80; pass++) {
+    let ok = true;
+    for (const it of items) {
+      if (pathClear(organs, it.x, it.y, FX, FY, it.r + cs.margin, 1.1)) continue;
+      ok = false;
+      for (const o of organs) {
+        let hit = false; const n = 40;
+        for (let i = 0; i <= n && !hit; i++) { const t = i / n; if (organHit(o, lerp(it.x, FX, t), lerp(it.y, FY, t), it.r + cs.margin, 1.1)) hit = true; }
+        if (hit) { o.rx *= 0.95; }
+      }
+    }
+    if (ok) break;
+  }
+  // keep the lift zone clear
+  for (const o of organs) while (organHit(o, FX, FY, LIFT_R + 8, 1.1)) { o.ry *= 0.95; o.rx *= 0.98; }
+  organs.forEach(renderOrgan);
+  return { organs, items };
+}
+
+// ---------- SURGERY: incise -> open -> clamp/extract -> close -> suture ----------
+function incisionPath() {
+  const pts = [];
+  for (let i = 0; i <= 64; i++) { const t = i / 64; pts.push({ x: FX - 172 + 344 * t, y: FY - Math.sin(t * Math.PI) * 7 + Math.sin(t * Math.PI * 3) * 4 }); }
+  return pts;
+}
+function newSurgery(cs, ci) {
+  const lay = buildLayout(cs, ci), path = incisionPath();
+  const stitches = [];
+  for (let k = 0; k < cs.stitches; k++) {
+    const t = (k + 0.5) / cs.stitches, idx = Math.round(t * 64), p = path[idx], q = path[Math.min(64, idx + 1)], p0 = path[Math.max(0, idx - 1)];
+    const nx = -(q.y - p0.y), ny = q.x - p0.x, nl = Math.hypot(nx, ny) || 1, side = k % 2 ? 1 : -1;
+    stitches.push({ x: p.x + nx / nl * 15 * side, y: p.y + ny / nl * 15 * side, ox: p.x - nx / nl * 15 * side, oy: p.y - ny / nl * 15 * side, done: 0 });
+  }
+  return { step: 'incise', path, prog: 0, cutting: false, open: 0, organs: lay.organs, items: lay.items, held: null, grabOff: { x: 0, y: 0 },
+    bleeders: [], spontT: cs.spont || 0, stitches, sIdx: 0, specimens: 0, drops: [], fly: [], waitMsgT: 0, nickCD: 0, buzzCD: 0, gripCD: 0 };
+}
+// pointer in field space (undo the tremor/shake offset; add hand tremor when the patient stirs)
+function fieldPtr() {
+  const V = game.V, S = game.S, j = V.stir * 3.5;
+  return { x: ptr.x - game.fox + Math.sin(game.t * 23) * j, y: ptr.y - game.foy + Math.cos(game.t * 19) * j };
+}
+function addBleeder(x, y, rate, why) {
+  const S = game.S;
+  const dx = (x - FX) / CAV.rx, dy = (y - FY) / CAV.ry;
+  S.bleeders.push({ inCav: S.open > 0.5 && dx * dx + dy * dy < 1, x, y, rate: rate || 1.3, t: 0, clamped: false, pool: 3, a: R(0, 6.28), ca: R(-0.5, 0.5) });
+  if (why) toast(why, '#ff4a4a');
+}
+game.bleedRate = () => { let s = 0; if (game.S) for (const b of game.S.bleeders) if (!b.clamped) s += b.rate; return s; };
+game.onBeat = () => {
+  const S = game.S; if (!S) return;
+  for (const b of S.bleeders) if (!b.clamped) for (let i = 0; i < 4; i++) S.drops.push({ x: b.x, y: b.y, vx: R(-40, 40) + Math.cos(b.a) * 50, vy: R(-70, -20) + Math.sin(b.a) * 20, z: 0, vz: R(60, 120), life: 0.6 });
+};
+function mistake(n) { game.stats.mistakes += n || 1; game.flashRed = 1; }
+function surgeryInput() {
+  const S = game.S, V = game.V, cs = game.cs, p = fieldPtr();
+  if (V.rhythm !== 'sinus') { if (pressed.down && inField(ptr.x, ptr.y)) toast('Patient is in V-fib - DEFIB first! (D)', '#ff3040'); S.cutting = false; if (S.held) S.held = null; return; }
+  // clamp any open bleeder first
+  if (pressed.down) {
+    let best = null, bd = 20;
+    for (const b of S.bleeders) if (!b.clamped) { const d = Math.hypot(b.x - p.x, b.y - p.y); if (d < bd) { bd = d; best = b; } }
+    if (best) { best.clamped = true; sfx('clamp'); game.stats.clamps++; toast('Clamped', '#9fe8ff', 0.8); pressed.down = false; return; }
+  }
+  if (S.step === 'incise') {
+    const P = S.path;
+    if (pressed.down) {
+      const d0 = Math.hypot(p.x - P[S.prog].x, p.y - P[S.prog].y);
+      if (d0 < 24) { S.cutting = true; }
+      else if (inSkin(p.x, p.y)) toast(S.prog ? 'Pick up where the cut ends' : 'Start the cut at the left end of the line', '#ffd23f', 1.2);
+    }
+    if (S.cutting && ptr.down) {
+      let bj = S.prog, bdd = 1e9;
+      for (let j = S.prog; j <= Math.min(64, S.prog + 10); j++) { const d = Math.hypot(P[j].x - p.x, P[j].y - p.y); if (d < bdd) { bdd = d; bj = j; } }
+      if (bdd > cs.tol) {
+        S.cutting = false;
+        if (S.nickCD <= 0) { addBleeder(p.x, p.y, 0.9, 'Off the line - you nicked a vessel!'); sfx('nick'); mistake(); S.nickCD = 0.6; game.shake = 4; }
+      } else if (bj > S.prog) { S.prog = bj; if (bj % 3 === 0) sfx('cut'); }
+      if (S.prog >= 64) { S.step = 'opening'; S.cutting = false; sfx('open'); announce('Incision complete. Opening.'); }
+    } else S.cutting = false;
+  } else if (S.step === 'extract') {
+    if (pressed.down && !S.held && S.gripCD <= 0) {
+      let best = null, bd = 1e9;
+      for (const it of S.items) if (!it.done) { const d = Math.hypot(it.x - p.x, it.y - p.y); if (d < it.r + 12 && d < bd) { bd = d; best = it; } }
+      if (best) { S.held = best; S.grabOff = { x: best.x - p.x, y: best.y - p.y }; sfx('grab'); }
+    }
+    if (S.held && !ptr.down) S.held = null;
+  } else if (S.step === 'suture') {
+    if (pressed.down && inSkin(p.x, p.y)) {
+      const s = S.stitches[S.sIdx]; const d = Math.hypot(s.x - p.x, s.y - p.y);
+      if (d < 15) { s.done = 0.001; S.sIdx++; sfx('stitch'); if (S.sIdx >= S.stitches.length) { S.step = 'done'; game.win(); } }
+      else { mistake(); V.blood = Math.max(0, V.blood - 1.5); sfx('nick'); toast('Missed the stitch point', '#ff9a1f', 1); game.shake = 3; }
+    }
+  }
+}
+function inSkin(x, y) { return x > SKIN.x && x < SKIN.x + SKIN.w && y > SKIN.y && y < SKIN.y + SKIN.h; }
+function inField(x, y) { return x < PANEL_X - 10; }
+function moveHeld(dt) {
+  const S = game.S, it = S.held; if (!it) return;
+  const p = fieldPtr(), tx = p.x + S.grabOff.x, ty = p.y + S.grabOff.y;
+  const dx = tx - it.x, dy = ty - it.y, d = Math.hypot(dx, dy); if (d < 0.01) return;
+  const n = Math.ceil(d / 2.5);
+  for (let i = 1; i <= n; i++) {
+    const x = it.x + dx / n, y = it.y + dy / n;
+    let hitO = null;
+    for (const o of S.organs) if (organHit(o, x, y, it.r, o.sc || 1)) { hitO = o; break; }
+    if (hitO || rimHit(x, y, it.r)) { touch(it, x, y, hitO); return; }
+    it.x = x; it.y = y;
+  }
+  if (Math.hypot(it.x - FX, it.y - FY) < LIFT_R - 6) liftOut(it);
+}
+// the buzzer moment
+function touch(it, x, y, o) {
+  const S = game.S;
+  S.held = null; S.gripCD = 0.25; sfx('buzz'); mistake(); game.shake = 7; game.stats.touches++;
+  game.V.blood = Math.max(0, game.V.blood - 2);
+  if (o) o.hit = 1;
+  // nudge the item back out of contact
+  if (o) { const a = Math.atan2(it.y - o.y, it.x - o.x); for (let k = 0; k < 20 && organHit(o, it.x, it.y, it.r, o.sc || 1); k++) { it.x += Math.cos(a) * 1.5; it.y += Math.sin(a) * 1.5; } }
+  else { const a = Math.atan2(FY - it.y, FX - it.x); for (let k = 0; k < 20 && rimHit(it.x, it.y, it.r); k++) { it.x += Math.cos(a) * 1.5; it.y += Math.sin(a) * 1.5; } }
+  if (S.buzzCD <= 0) { const bx = lerp(it.x, x, 2), by = lerp(it.y, y, 2); addBleeder(clamp(bx, FX - CAV.rx + 20, FX + CAV.rx - 20), by, 1.1, o ? 'Buzz! You hit the ' + o.type + ' - it is bleeding' : 'Buzz! You scraped the wall'); S.buzzCD = 0.8; }
+}
+function liftOut(it) {
+  const S = game.S; it.done = true; S.held = null; S.specimens++; sfx('plink'); game.stats.extracted++;
+  S.fly.push({ it, x: it.x, y: it.y, t: 0 });
+  const left = S.items.filter(q => !q.done).length;
+  toast(left ? ITEM_NAME[it.kind] + ' out! ' + left + ' to go' : 'All out! Close him up', '#3cff7a', 1.5);
+  announce(ITEM_NAME[it.kind] + ' removed. ' + left + ' remaining.');
+}
+function updateSurgery(dt) {
+  const S = game.S, cs = game.cs, V = game.V;
+  S.nickCD -= dt; S.buzzCD -= dt; S.gripCD -= dt; S.waitMsgT -= dt;
+  const breath = Math.sin(game.t * 6.2832 / 4.2) * 1.4;
+  for (const o of S.organs) {
+    o.hit = Math.max(0, o.hit - dt * 2.5); o.dy = breath;
+    o.sc = o.pulse && V.rhythm === 'sinus' ? 1 + 0.085 * Math.exp(-V.phase * 7) * (1 + V.epi * 0.4) : 1;
+    if (o.pulse && V.rhythm === 'vf') o.sc = 1 + 0.02 * Math.sin(game.t * 40);
+  }
+  if (S.step === 'opening') { S.open = Math.min(1, S.open + dt / 0.9); if (S.open >= 1) { S.step = 'extract'; for (let i = 0; i < cs.incBleed; i++) spawnRimBleeder(); if (cs.tut) toast('Clamp the bleeders, then drag the appendix to the centre ring', '#9fe8ff', 4); } }
+  if (S.step === 'extract') {
+    moveHeld(dt);
+    if (cs.spont) { S.spontT -= dt; if (S.spontT <= 0) { S.spontT = cs.spont * R(0.8, 1.2); spawnRimBleeder('A vessel let go!'); sfx('nick'); } }
+    if (cs.wander) for (const it of S.items) if (!it.done && it !== S.held && it.kind === 'butterfly') wander(it, dt);
+    if (S.items.every(q => q.done) && !S.fly.length) {
+      if (S.bleeders.some(b => !b.clamped)) { if (S.waitMsgT <= 0) { toast('Clamp every bleeder before closing', '#ff4a4a', 1.6); S.waitMsgT = 2; } }
+      else { S.step = 'closing'; sfx('open'); }
+    }
+  }
+  if (S.step === 'closing') { S.open = Math.max(0, S.open - dt / 0.8); if (S.open <= 0) { S.step = 'suture'; S.bleeders = []; if (cs.tut) toast('Click the glowing stitch points in order', '#9fe8ff', 3); } }
+  for (const it of S.items) it.glow = (it.glow || 0) + dt;
+  for (const b of S.bleeders) { b.t += dt; if (!b.clamped) b.pool = Math.min(16, b.pool + dt * 2.2 * b.rate); }
+  for (const s of S.stitches) if (s.done) s.done = Math.min(1, s.done + dt * 5);
+  for (const f of S.fly) f.t += dt / 0.6; S.fly = S.fly.filter(f => f.t < 1);
+  for (const d of S.drops) { d.x += d.vx * dt; d.y += d.vy * dt; d.vy += 260 * dt; d.life -= dt; } S.drops = S.drops.filter(d => d.life > 0);
+}
+function spawnRimBleeder(msg) {
+  const S = game.S;
+  for (let k = 0; k < 30; k++) {
+    const a = R(0, 6.28), f = R(0.55, 0.9), x = FX + Math.cos(a) * CAV.rx * f, y = FY + Math.sin(a) * CAV.ry * f;
+    if (S.organs.some(o => organHit(o, x, y, 4, 1)) && k < 25) continue;
+    if (S.items.some(it => !it.done && Math.hypot(it.x - x, it.y - y) < it.r + 22)) continue;
+    if (S.bleeders.some(b => Math.hypot(b.x - x, b.y - y) < 30)) continue;
+    addBleeder(x, y, 1.3, msg); return;
+  }
+}
+function wander(it, dt) {
+  const S = game.S; it.wt -= dt;
+  if (it.wt <= 0) { it.wt = R(1.2, 3); const a = R(0, 6.28), sp = Math.random() < 0.35 ? 0 : R(14, 30); it.vx = Math.cos(a) * sp; it.vy = Math.sin(a) * sp; }
+  const x = it.x + it.vx * dt, y = it.y + it.vy * dt;
+  if (rimHit(x, y, it.r + 2) || S.organs.some(o => organHit(o, x, y, it.r + 3, 1.12))) { it.vx = -it.vx; it.vy = -it.vy; it.wt = Math.min(it.wt, 0.5); return; }
+  it.x = x; it.y = y; it.a += Math.sin(game.t * 2 + it.seed) * dt;
+}
+
+// ---------- RENDER: field ----------
+let ROOM = null, CAVIMG = null, LIGHT = null, ROOMTONE = null;
+function ensureArt(cs) {
+  const tone = cs ? cs.skin : '#e0ad8a';
+  if (!ROOM || ROOMTONE !== tone || ROOM.sc !== SC) { ROOM = buildRoom(tone); ROOM.sc = SC; ROOMTONE = tone; }
+  if (!CAVIMG || CAVIMG.sc !== SC) { CAVIMG = buildCavity(); CAVIMG.sc = SC; }
+  if (!LIGHT || LIGHT.sc !== SC) {
+    const [c, g] = layer(W, H, 1);
+    g.fillStyle = radg(g, FX, FY - 10, 30, FX, FY, 360, [[0, 'rgba(255,250,235,0.16)'], [0.5, 'rgba(255,250,235,0.05)'], [1, 'rgba(255,250,235,0)']]); g.fillRect(0, 0, W, H);
+    LIGHT = c; LIGHT.sc = SC;
+  }
+}
+let VIGF = null;
+function fieldVignette() {
+  if (!VIGF) { const [c, g] = layer(W, H, 1); const vg = g.createRadialGradient(FX, FY, 150, FX, FY, 470);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,4,6,0.62)'); g.fillStyle = vg; g.fillRect(0, 0, PANEL_X - 6, H); VIGF = c; }
+  cx.drawImage(VIGF, 0, 0, W, H);
+}
+function drawField() {
+  const S = game.S, V = game.V, cs = game.cs, t = game.t;
+  cx.drawImage(ROOM, 0, 0, W, H);
+  cx.save(); cx.translate(game.fox, game.foy);
+  // breathing: the whole site rises/falls subtly
+  const P = S.path;
+  // marker line for the planned incision
+  if (S.step === 'incise') {
+    cx.fillStyle = 'rgba(80,30,140,0.85)';
+    for (let i = S.prog; i <= 64; i += 2) { cx.beginPath(); cx.arc(P[i].x, P[i].y, 1.7, 0, 6.29); cx.fill(); }
+    // start marker / resume marker
+    const q = P[S.prog], pul = 0.5 + 0.5 * Math.sin(t * 6);
+    cx.strokeStyle = 'rgba(255,230,120,' + (0.5 + pul * 0.5) + ')'; cx.lineWidth = 2; cx.beginPath(); cx.arc(q.x, q.y, 10 + pul * 4, 0, 6.29); cx.stroke();
+    glowAt(q.x, q.y, 26, '#ffd23f', 0.25 + pul * 0.2);
+  }
+  // the cut
+  if (S.step === 'incise' || S.step === 'opening' || S.step === 'suture' || S.step === 'done' || S.step === 'closing') {
+    const n = S.step === 'incise' ? S.prog : 64;
+    if (n > 0) {
+      cx.lineCap = 'round'; cx.lineJoin = 'round';
+      cx.strokeStyle = 'rgba(90,10,10,0.55)'; cx.lineWidth = 6; cx.beginPath(); P.slice(0, n + 1).forEach((p, i) => i ? cx.lineTo(p.x, p.y) : cx.moveTo(p.x, p.y)); cx.stroke();
+      cx.strokeStyle = '#7a0e10'; cx.lineWidth = 2.6; cx.stroke();
+      cx.strokeStyle = 'rgba(255,120,110,0.5)'; cx.lineWidth = 0.8; cx.beginPath(); P.slice(0, n + 1).forEach((p, i) => i ? cx.lineTo(p.x, p.y - 1.5) : cx.moveTo(p.x, p.y - 1.5)); cx.stroke();
+    }
+  }
+  if (S.open > 0) drawCavity();
+  // stitches
+  if (S.step === 'suture' || S.step === 'done') {
+    S.stitches.forEach((s, k) => {
+      if (s.done) {
+        const e = s.done;
+        cx.strokeStyle = '#1d3fae'; cx.lineWidth = 1.8; cx.lineCap = 'round';
+        cx.beginPath(); cx.moveTo(s.x, s.y); cx.lineTo(lerp(s.x, s.ox, e), lerp(s.y, s.oy, e)); cx.stroke();
+        cx.strokeStyle = 'rgba(140,170,255,0.6)'; cx.lineWidth = 0.7; cx.stroke();
+        if (e >= 1) { cx.fillStyle = '#1d3fae'; cx.beginPath(); cx.arc(s.ox, s.oy, 2.2, 0, 6.29); cx.fill(); cx.beginPath(); cx.arc(s.x, s.y, 1.6, 0, 6.29); cx.fill(); }
+        if (k > 0 && S.stitches[k - 1].done >= 1) { const p0 = S.stitches[k - 1]; cx.strokeStyle = 'rgba(29,63,174,0.55)'; cx.lineWidth = 1.2; cx.beginPath(); cx.moveTo(p0.ox, p0.oy); cx.lineTo(s.x, s.y); cx.stroke(); }
+      } else {
+        const nx = k === S.sIdx, pul = 0.5 + 0.5 * Math.sin(t * 7);
+        cx.fillStyle = nx ? 'rgba(255,230,120,0.95)' : 'rgba(80,30,140,0.55)'; cx.beginPath(); cx.arc(s.x, s.y, nx ? 3 : 2, 0, 6.29); cx.fill();
+        if (nx) { cx.strokeStyle = 'rgba(255,230,120,' + (0.4 + 0.6 * pul) + ')'; cx.lineWidth = 2; cx.beginPath(); cx.arc(s.x, s.y, 9 + pul * 4, 0, 6.29); cx.stroke(); glowAt(s.x, s.y, 26, '#ffd23f', 0.3); }
+      }
+    });
+  }
+  // bleeders outside the cavity (nicks on skin)
+  for (const b of S.bleeders) if (!b.inCav) drawBleeder(b);
+  // blood droplets
+  cx.fillStyle = '#a8121a';
+  for (const d of S.drops) { cx.globalAlpha = clamp(d.life * 2, 0, 1); cx.beginPath(); cx.arc(d.x, d.y, 1.8, 0, 6.29); cx.fill(); }
+  cx.globalAlpha = 1;
+  cx.restore();
+  // specimen dish
+  drawDish();
+  for (const f of S.fly) { const e = 1 - Math.pow(1 - f.t, 3), dx = 100, dy = 500; const it = f.it, ox = it.x, oy = it.y; it.x = lerp(f.x, dx + (S.specimens - 1) * 6 - 12, e); it.y = lerp(f.y, dy, e) - Math.sin(e * Math.PI) * 60; drawItem(it, t, true); it.x = ox; it.y = oy; }
+  cx.globalCompositeOperation = 'lighter'; cx.drawImage(LIGHT, 0, 0, W, H); cx.globalCompositeOperation = 'source-over';
+  fieldVignette();
+  if (game.flashRed > 0) { cx.fillStyle = 'rgba(255,20,30,' + game.flashRed * 0.22 + ')'; cx.fillRect(0, 0, PANEL_X - 6, H); }
+  if (V.rhythm === 'vf') { const a = 0.12 + 0.1 * Math.sin(t * 8); cx.fillStyle = 'rgba(255,0,20,' + a + ')'; cx.fillRect(0, 0, PANEL_X - 6, H); }
+  if (game.shockFlash > 0) { cx.fillStyle = 'rgba(220,240,255,' + game.shockFlash * 0.7 + ')'; cx.fillRect(0, 0, W, H); }
+}
+function drawCavity() {
+  const S = game.S, t = game.t, o = S.open, ry = CAV.ry * o;
+  cx.save();
+  cx.beginPath(); cx.ellipse(FX, FY, CAV.rx, Math.max(1, ry), 0, 0, 6.29); cx.clip();
+  cx.drawImage(CAVIMG.c, FX - CAVIMG.w / 2, FY - CAVIMG.h / 2, CAVIMG.w, CAVIMG.h);
+  // lift ring
+  if (S.step === 'extract') {
+    const pul = 0.5 + 0.5 * Math.sin(t * 3);
+    cx.fillStyle = radg(cx, FX, FY, 0, FX, FY, LIFT_R, [[0, 'rgba(160,255,200,0.10)'], [1, 'rgba(160,255,200,0.02)']]); cx.beginPath(); cx.arc(FX, FY, LIFT_R, 0, 6.29); cx.fill();
+    cx.setLineDash([5, 5]); cx.lineDashOffset = -t * 12; cx.strokeStyle = 'rgba(150,255,190,' + (0.35 + pul * 0.35) + ')'; cx.lineWidth = 1.8; cx.beginPath(); cx.arc(FX, FY, LIFT_R, 0, 6.29); cx.stroke(); cx.setLineDash([]);
+    txt('LIFT', FX, FY, 10, 'rgba(170,255,200,0.75)', 'center', 900);
+  }
+  for (const og of S.organs) drawOrgan(og, og.sc || 1);
+  for (const b of S.bleeders) if (b.inCav) drawBleeder(b);
+  for (const it of S.items) if (!it.done && it !== S.held) drawItem(it, t, false);
+  // pooled blood darkens the cavity as you lose volume
+  const lost = 1 - game.V.blood / 100; if (lost > 0.05) { cx.fillStyle = 'rgba(70,0,4,' + lost * 0.5 + ')'; cx.fillRect(FX - CAV.rx, FY - CAV.ry, CAV.rx * 2, CAV.ry * 2); }
+  cx.restore();
+  if (S.held) drawItem(S.held, t, true);
+  // rim: cut skin edge, fat layer, retractors
+  cx.save();
+  cx.strokeStyle = '#e8c870'; cx.lineWidth = 7; cx.beginPath(); cx.ellipse(FX, FY, CAV.rx + 3, ry + 3, 0, 0, 6.29); cx.stroke();
+  cx.strokeStyle = 'rgba(255,240,180,0.6)'; cx.lineWidth = 1.5; cx.beginPath(); cx.ellipse(FX, FY, CAV.rx + 1, ry + 1, 0, 0, 6.29); cx.stroke();
+  cx.strokeStyle = '#8a2a20'; cx.lineWidth = 3; cx.beginPath(); cx.ellipse(FX, FY, CAV.rx + 7.5, ry + 7.5, 0, 0, 6.29); cx.stroke();
+  for (const s of [-1, 1]) {
+    const y = FY + s * (ry + 4);
+    cx.save(); cx.shadowColor = 'rgba(0,0,0,0.55)'; cx.shadowBlur = 8; cx.shadowOffsetY = 4;
+    cx.fillStyle = metal(cx, FX - 46, y - 6, FX - 46, y + 6, '#c4ccd3'); rrect(cx, FX - 46, y - 6, 92, 12, 4); cx.fill();
+    cx.fillStyle = metal(cx, FX - 9, 0, FX + 9, 0, '#aab3bb'); cx.fillRect(FX - 8, s < 0 ? y - 6 - (y - SKIN.y + 40) : y + 6, 16, y - SKIN.y + 40);
+    cx.restore();
+  }
+  cx.restore();
+}
+function drawBleeder(b) {
+  const t = game.t, V = game.V;
+  cx.save();
+  cx.fillStyle = radg(cx, b.x, b.y, 0, b.x, b.y, b.pool * 1.6, [[0, 'rgba(120,0,8,0.95)'], [0.6, 'rgba(150,8,16,0.75)'], [1, 'rgba(150,8,16,0)']]);
+  cx.beginPath(); cx.ellipse(b.x, b.y, b.pool * 1.6, b.pool * 1.25, 0.3, 0, 6.29); cx.fill();
+  cx.fillStyle = 'rgba(255,190,190,0.6)'; cx.beginPath(); cx.ellipse(b.x - b.pool * 0.4, b.y - b.pool * 0.4, b.pool * 0.3, b.pool * 0.15, -0.4, 0, 6.29); cx.fill();
+  if (!b.clamped) {
+    const beat = V.rhythm === 'sinus' ? Math.exp(-V.phase * 6) : 0.2;
+    cx.fillStyle = '#d0141e'; cx.beginPath(); cx.arc(b.x, b.y, 3 + beat * 2.5, 0, 6.29); cx.fill();
+    glowAt(b.x, b.y, 22 + beat * 8, '#ff2030', 0.35 + beat * 0.3);
+    cx.strokeStyle = 'rgba(255,90,90,' + (0.4 + 0.4 * Math.sin(t * 8)) + ')'; cx.lineWidth = 1.5; cx.beginPath(); cx.arc(b.x, b.y, 14, 0, 6.29); cx.stroke();
+  } else { cx.save(); cx.translate(b.x, b.y); cx.rotate(b.ca); cx.scale(0.62, 0.62); drawInstrument('clamp', 0, 0, false, 0); cx.restore(); }
+  cx.restore();
+}
+function drawDish() {
+  const x = 100, y = 500, S = game.S;
+  cx.save(); cx.shadowColor = 'rgba(0,0,0,0.6)'; cx.shadowBlur = 10; cx.shadowOffsetY = 4;
+  cx.fillStyle = metal(cx, x - 60, y - 22, x + 60, y + 22, '#b8c1c9'); cx.beginPath(); cx.ellipse(x, y, 62, 22, 0, 0, 6.29); cx.fill(); cx.restore();
+  cx.fillStyle = metal(cx, x + 50, y + 16, x - 50, y - 16, '#9aa4ad'); cx.beginPath(); cx.ellipse(x, y + 1, 52, 16, 0, 0, 6.29); cx.fill();
+  const done = S.items.filter(q => q.done && !S.fly.some(f => f.it === q));
+  done.forEach((it, k) => { const ox = it.x, oy = it.y, oa = it.a; it.x = x - 30 + k * (60 / Math.max(1, S.items.length - 1 || 1)); it.y = y; drawItem(it, game.t, false); it.x = ox; it.y = oy; it.a = oa; });
+  txt('SPECIMENS ' + S.specimens + '/' + S.items.length, x, y + 30, 10, 'rgba(200,235,240,0.75)', 'center', 800);
+}
+
+// ---------- UI kit ----------
+let UI = [], UIprev = [];
+function txt(s, x, y, size, col, align, weight, font) {
+  cx.font = (weight || 800) + ' ' + size + 'px ' + (font || FONT); cx.textAlign = align || 'left'; cx.textBaseline = 'middle';
+  cx.fillStyle = col || '#fff'; cx.fillText(s, x, y);
+}
+function txtS(s, x, y, size, col, align, weight) { cx.save(); cx.shadowColor = 'rgba(0,0,0,0.85)'; cx.shadowBlur = 8; cx.shadowOffsetY = 2; txt(s, x, y, size, col, align, weight); cx.restore(); }
+function glass(x, y, w, h, accent, a, r) {
+  r = r || 12; cx.save();
+  cx.fillStyle = 'rgba(6,12,14,' + (a == null ? 0.8 : a) + ')'; rrect(cx, x, y, w, h, r); cx.fill();
+  cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, 'rgba(255,255,255,0.08)'], [0.15, 'rgba(255,255,255,0.02)'], [1, 'rgba(255,255,255,0)']]); rrect(cx, x, y, w, h, r); cx.fill();
+  cx.strokeStyle = rgba(accent || '#7fe0e8', 0.35); cx.lineWidth = 1.2; rrect(cx, x + 0.5, y + 0.5, w - 1, h - 1, r); cx.stroke();
+  cx.restore();
+}
+function hov(x, y, w, h) { return ptr.seen && ptr.type === 'mouse' && ptr.x > x && ptr.x < x + w && ptr.y > y && ptr.y < y + h; }
+function button(id, x, y, w, h, label, opt) {
+  opt = opt || {}; const hv = hov(x, y, w, h), col = opt.col || '#3cff7a', dis = opt.disabled;
+  cx.save();
+  if (!dis && (hv || opt.hot)) { cx.shadowColor = col; cx.shadowBlur = 18; }
+  cx.fillStyle = dis ? 'rgba(40,44,50,0.75)' : lin(cx, 0, y, 0, y + h, [[0, rgba(col, hv ? 0.5 : 0.32)], [1, rgba(shade(col, -0.65), hv ? 0.8 : 0.6)]]);
+  rrect(cx, x, y, w, h, Math.min(10, h / 2)); cx.fill(); cx.shadowBlur = 0;
+  cx.strokeStyle = dis ? 'rgba(255,255,255,0.15)' : rgba(col, 0.9); cx.lineWidth = 1.4; cx.stroke();
+  cx.fillStyle = 'rgba(255,255,255,0.1)'; rrect(cx, x + 3, y + 2, w - 6, h * 0.42, Math.min(8, h / 3)); cx.fill();
+  if (opt.sub) { txt(label, x + w / 2, y + h * 0.36, opt.size || 14, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900); txt(opt.sub, x + w / 2, y + h * 0.72, 10.5, dis ? 'rgba(255,255,255,0.35)' : rgba(shade(col, 0.5), 0.95), 'center', 700); }
+  else txt(label, x + w / 2, y + h / 2 + 1, opt.size || 15, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900);
+  if (opt.key) { cx.fillStyle = 'rgba(0,0,0,0.45)'; rrect(cx, x + w - 22, y + 5, 17, 15, 4); cx.fill(); txt(opt.key, x + w - 13.5, y + 13, 9.5, 'rgba(255,255,255,0.7)', 'center', 900); }
+  if (opt.fill != null) { cx.fillStyle = rgba(col, 0.35); rrect(cx, x, y + h - 4, w * clamp(opt.fill, 0, 1), 4, 2); cx.fill(); }
+  cx.restore();
+  UI.push({ id, x, y, w, h, fn: opt.fn, dis });
+}
+function processClicks() {
+  if (!pressed.click) return false;
+  for (let i = UIprev.length - 1; i >= 0; i--) { const b = UIprev[i];
+    if (ptr.x > b.x && ptr.x < b.x + b.w && ptr.y > b.y && ptr.y < b.y + b.h) { if (b.dis) sfx('deny'); else if (b.fn) { sfx('select'); b.fn(); } pressed.click = false; pressed.down = false; return true; } }
+  return false;
+}
+let toasts = [];
+function toast(s, col, dur) {
+  if (toasts.length && toasts[toasts.length - 1].s === s) { toasts[toasts.length - 1].t = dur || 1.8; return; }
+  toasts.push({ s, col: col || '#fff', t: dur || 1.8, max: dur || 1.8 }); if (toasts.length > 3) toasts.shift();
+}
+const liveEl = document.getElementById('live');
+function announce(s) { if (liveEl) liveEl.textContent = s; }
+function cloverLogo(x, y, r) {
+  const cols = ['#ff3b3b', '#3cff7a', '#ff9a1f', '#ffd23f'];
+  for (let i = 0; i < 4; i++) { const a = -2.356 + i * 1.5708, lx = x + Math.cos(a) * r * 0.5, ly = y + Math.sin(a) * r * 0.5;
+    cx.fillStyle = radg(cx, lx - r * 0.15, ly - r * 0.15, 0, lx, ly, r * 0.55, [[0, '#fffbe8'], [0.3, cols[i]], [1, shade(cols[i], -0.65)]]); cx.beginPath(); cx.arc(lx, ly, r * 0.48, 0, 6.29); cx.fill();
+    cx.strokeStyle = 'rgba(255,235,170,0.8)'; cx.lineWidth = 1; cx.stroke(); }
+}
+function star(x, y, r, on) {
+  cx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; cx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } cx.closePath();
+  cx.fillStyle = on ? lin(cx, x, y - r, x, y + r, [[0, '#fff3b0'], [0.5, '#ffd23f'], [1, '#c07a10']]) : 'rgba(255,255,255,0.12)'; cx.fill();
+  cx.strokeStyle = on ? '#fff0a0' : 'rgba(255,255,255,0.25)'; cx.lineWidth = 1; cx.stroke();
+}
+function fmtT(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+
+// ---------- monitor panel ----------
+function drawTrace(arr, head, x, y, w, h, col, sc, base) {
+  cx.save(); cx.beginPath(); cx.rect(x, y, w, h); cx.clip();
+  const gap = 10; // sweep-style erase bar like a real monitor
+  cx.strokeStyle = col; cx.lineWidth = 1.8; cx.lineJoin = 'round'; cx.shadowColor = col; cx.shadowBlur = 8;
+  cx.beginPath(); let pen = false;
+  for (let k = 0; k < TRACE_N; k++) {
+    const i = k, rel = (head - i + TRACE_N) % TRACE_N; if (rel < gap && rel >= 0 && i !== head) { pen = false; continue; }
+    const px = x + i / (TRACE_N - 1) * w, py = y + h * base - arr[i] * h * sc;
+    pen ? cx.lineTo(px, py) : cx.moveTo(px, py); pen = true;
+  }
+  cx.stroke();
+  const hx = x + head / (TRACE_N - 1) * w; glowAt(hx, y + h * base - arr[head] * h * sc, 10, col, 0.7);
+  cx.restore();
+}
+function drawPanel() {
+  const V = game.V, S = game.S, cs = game.cs, t = game.t, X = PANEL_X + 6, Wd = W - PANEL_X - 18;
+  // screen
+  cx.save(); cx.fillStyle = '#020607'; rrect(cx, X, 16, Wd, 246, 10); cx.fill();
+  cx.strokeStyle = 'rgba(120,220,230,0.18)'; cx.lineWidth = 1; for (let gy = 30; gy < 260; gy += 16) { cx.globalAlpha = 0.25; cx.beginPath(); cx.moveTo(X + 4, gy); cx.lineTo(X + Wd - 4, gy); cx.stroke(); } cx.globalAlpha = 1;
+  const vf = V.rhythm !== 'sinus', tw = Wd - 112;
+  // ECG
+  txt('II', X + 8, 26, 10, '#3cff7a', 'left', 800); txt(vf ? (V.rhythm === 'vf' ? 'V-FIB' : 'ASYSTOLE') : 'SINUS', X + 24, 26, 9, vf ? '#ff4050' : 'rgba(60,255,122,0.6)', 'left', 900);
+  drawTrace(V.ecg, V.head, X + 6, 32, tw, 62, '#3cff7a', 0.62, 0.72);
+  const hrc = V.hr > 140 || V.hr < 45 ? '#ff4050' : '#3cff7a';
+  txt('HR', X + Wd - 100, 30, 10, '#3cff7a', 'left', 800);
+  txtGlow(vf ? '---' : String(Math.round(V.hr)), X + Wd - 10, 66, 38, hrc);
+  if (V.beatFlash > 0) { cx.globalAlpha = V.beatFlash; heartIcon(X + Wd - 92, 52, 7, '#ff4050'); cx.globalAlpha = 1; }
+  // pleth
+  txt('SpO2', X + 8, 106, 10, '#3cd0ff', 'left', 800);
+  drawTrace(V.pleth, V.head, X + 6, 112, tw, 52, '#3cd0ff', 0.5, 0.88);
+  const oc = V.spo2 < 90 ? '#ff4050' : '#3cd0ff';
+  txt('SpO2 %', X + Wd - 100, 110, 10, '#3cd0ff', 'left', 800); txtGlow(String(Math.round(V.spo2)), X + Wd - 10, 142, 32, oc);
+  // NIBP
+  const bc = V.sys < 80 ? '#ff4050' : '#ff7a9a';
+  txt('ART mmHg', X + 8, 184, 10, '#ff7a9a', 'left', 800);
+  txtGlow(Math.round(V.sys) + '/' + Math.round(V.dia), X + 8, 210, 28, bc, 'left');
+  txt('(' + Math.round((V.sys + 2 * V.dia) / 3) + ')', X + 140, 214, 14, rgba(bc, 0.8), 'left', 800);
+  // blood volume
+  const br = game.bleedRate();
+  txt('BLOOD VOL', X + 8, 238, 10, '#ff5a5a', 'left', 800);
+  bar(X + 78, 232, Wd - 140, 12, V.blood / 100, V.blood < 45 ? '#ff2030' : '#d0303a');
+  txt(Math.round(V.blood) + '%', X + Wd - 10, 238, 13, '#ffb0b0', 'right', 900);
+  if (br > 0) txt('-' + br.toFixed(1) + '%/s', X + Wd - 10, 222, 9.5, Math.sin(t * 10) > 0 ? '#ff4050' : '#ff9090', 'right', 900);
+  cx.restore();
+  // screen glass sheen
+  cx.fillStyle = lin(cx, X, 16, X + Wd, 262, [[0, 'rgba(255,255,255,0.05)'], [0.4, 'rgba(255,255,255,0)'], [1, 'rgba(255,255,255,0.02)']]); rrect(cx, X, 16, Wd, 246, 10); cx.fill();
+  // sedation module
+  glass(X, 270, Wd, 84, '#ffd23f', 0.6);
+  const low = V.sed < 10, sc = low ? (Math.sin(t * 10) > 0 ? '#ff4050' : '#ffd23f') : '#ffd23f';
+  txt('SEDATION CLOCK', X + 10, 284, 10, 'rgba(255,210,63,0.8)', 'left', 900);
+  txtGlow(fmtT(V.sed), X + 10, 314, 30, sc, 'left');
+  // depth gauge
+  const gx = X + 112, gw = Wd - 124, gy = 300;
+  txt('DEPTH', gx, 284, 10, 'rgba(255,210,63,0.8)', 'left', 900);
+  const zones = [[0, 0.3, '#3c88ff'], [0.3, 0.72, '#3cff7a'], [0.72, 0.85, '#ffb020'], [0.85, 1, '#ff3040']];
+  for (const [a, b, c] of zones) { cx.fillStyle = rgba(c, 0.55); cx.fillRect(gx + gw * a, gy, gw * (b - a), 10); }
+  cx.strokeStyle = 'rgba(255,255,255,0.25)'; cx.strokeRect(gx + 0.5, gy + 0.5, gw - 1, 9);
+  const mk = gx + gw * clamp(V.depth / 100, 0, 1);
+  cx.fillStyle = '#fff'; cx.beginPath(); cx.moveTo(mk, gy - 2); cx.lineTo(mk - 5, gy - 9); cx.lineTo(mk + 5, gy - 9); cx.closePath(); cx.fill();
+  txt(V.depth < 30 ? 'LIGHT' : V.depth < 72 ? 'SURGICAL' : V.depth < 85 ? 'DEEP' : 'DANGER', gx, 322, 10, V.depth < 72 && V.depth >= 30 ? '#3cff7a' : V.depth < 30 ? '#7fb0ff' : '#ff6060', 'left', 900);
+  txt('doses ' + V.doses, gx + gw, 322, 10, 'rgba(255,255,255,0.5)', 'right', 800);
+  txt(V.stir > 0 ? 'PATIENT STIRRING!' : 'Push anesthesia to extend', X + 10, 340, 10, V.stir > 0 ? '#ff6060' : 'rgba(255,255,255,0.45)', 'left', 800);
+  // buttons
+  const bw = (Wd - 8) / 2, by = 362, bh = 52, risk = anesRisk(V);
+  const live = game.state === 'play' && !game.paused && V.rhythm !== 'flat';
+  button('anes', X, by, bw, bh, 'ANESTHESIA', { col: '#ffd23f', key: '1', sub: '+15s  risk ' + Math.round(risk * 100) + '%', disabled: !live, fn: pushAnes, hot: V.sed < 10 });
+  button('epi', X + bw + 8, by, bw, bh, 'EPINEPHRINE', { col: '#3cd0ff', key: '2', sub: V.epiCD > 0 ? 'ready in ' + Math.ceil(V.epiCD) + 's' : 'raise BP + HR', disabled: !live || V.epiCD > 0, fn: pushEpi, fill: V.epiCD > 0 ? 1 - V.epiCD / 12 : null });
+  button('blood', X, by + bh + 8, bw, bh, 'BLOOD UNIT', { col: '#ff5a5a', key: '3', sub: V.bags + ' left  +28%', disabled: !live || V.bags <= 0, fn: hangBlood });
+  const dvf = V.rhythm === 'vf';
+  button('defib', X + bw + 8, by + bh + 8, bw, bh, V.charge >= 0 ? 'CHARGING' : 'DEFIB', { col: '#ff3040', key: 'D', sub: dvf ? fmtT(V.arrestT) + ' to save them' : 'for V-fib only', disabled: !live || !dvf, fn: defib, hot: dvf && Math.sin(t * 12) > 0, fill: V.charge >= 0 ? V.charge : null });
+  // procedure checklist
+  const steps = [['Incise', S.step !== 'incise'], ['Remove ' + S.specimens + '/' + S.items.length, ['closing', 'suture', 'done'].includes(S.step)], ['Suture ' + S.sIdx + '/' + S.stitches.length, S.step === 'done']];
+  glass(X, 486, Wd, 44, '#7fe0e8', 0.55);
+  steps.forEach(([l, ok], i) => { const x = X + 10 + i * (Wd - 10) / 3; cx.fillStyle = ok ? '#3cff7a' : 'rgba(255,255,255,0.18)'; cx.beginPath(); cx.arc(x + 5, 508, 5, 0, 6.29); cx.fill(); txt(l, x + 14, 508, 11, ok ? '#c8ffd8' : 'rgba(255,255,255,0.75)', 'left', 800); });
+}
+function txtGlow(s, x, y, size, col, align) { cx.save(); cx.shadowColor = col; cx.shadowBlur = 12; txt(s, x, y, size, col, align || 'right', 700, MONO); cx.restore(); }
+function heartIcon(x, y, r, col) { cx.fillStyle = col; cx.beginPath(); cx.moveTo(x, y + r); cx.bezierCurveTo(x - r * 1.6, y - r * 0.2, x - r * 0.6, y - r * 1.4, x, y - r * 0.5); cx.bezierCurveTo(x + r * 0.6, y - r * 1.4, x + r * 1.6, y - r * 0.2, x, y + r); cx.fill(); }
+function bar(x, y, w, h, f, col) {
+  cx.fillStyle = 'rgba(255,255,255,0.08)'; rrect(cx, x, y, w, h, h / 2); cx.fill();
+  if (f > 0) { cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, shade(col, 0.4)], [0.5, col], [1, shade(col, -0.35)]]); rrect(cx, x, y, Math.max(h, w * clamp(f, 0, 1)), h, h / 2); cx.fill(); }
+}
+// banner + toasts over the field
+function drawBanner() {
+  const S = game.S, cs = game.cs;
+  glass(18, 10, 604, 40, '#7fe0e8', 0.72);
+  txt('CASE ' + (game.ci + 1) + '  ' + cs.title.toUpperCase(), 32, 23, 11, 'rgba(127,224,232,0.85)', 'left', 900);
+  const ins = { incise: 'Drag the scalpel along the purple line. Stay on it.', opening: 'Retractors in...', extract: S.items.every(q => q.done) ? 'Clamp every bleeder, then we close.' : 'Grab objects with forceps and drag them to LIFT. Don\'t touch anything!', closing: 'Closing...', suture: 'Click the glowing stitch points in order.', done: 'Done!' }[S.step];
+  txt(ins, 32, 39, 12.5, '#fff', 'left', 700);
+  button('pause', 582, 15, 32, 30, 'II', { col: '#7fe0e8', size: 12, fn: () => { game.paused = true; } });
+  let y = 70;
+  for (const m of toasts) {
+    const a = clamp(m.t / 0.3, 0, 1) * clamp((m.max - m.t) / 0.12 + 0.2, 0, 1);
+    cx.globalAlpha = a; cx.font = '800 14px ' + FONT; const w = cx.measureText(m.s).width + 30;
+    cx.fillStyle = 'rgba(4,8,10,0.78)'; rrect(cx, FX - w / 2, y - 14, w, 28, 14); cx.fill(); cx.strokeStyle = rgba(m.col, 0.7); cx.lineWidth = 1.2; cx.stroke();
+    txt(m.s, FX, y + 1, 14, m.col, 'center', 800); cx.globalAlpha = 1; y += 32;
+  }
+}
+
+// ---------- SCREENS + MAIN LOOP ----------
+const save = {
+  unlock: +LS.get('si_unlock', '1'),
+  stars: CASES.map((c, i) => +LS.get('si_stars_' + i, '0')),
+  best: CASES.map((c, i) => +LS.get('si_best_' + i, '0'))
+};
+function startCase(i, skipBrief) {
+  game.ci = i; game.cs = CASES[i]; ensureArt(game.cs);
+  game.V = newVitals(game.cs); game.S = newSurgery(game.cs, i);
+  game.stats = { mistakes: 0, arrests: 0, doses: 0, shocks: 0, clamps: 0, touches: 0, extracted: 0 };
+  game.timers = []; toasts = []; UIprev = []; game.paused = false; game.result = null; game.shake = 0; game.flashRed = 0; game.shockFlash = 0;
+  for (let i = 0; i < 200; i++) { game.V.phase = (i * 74 / 60 / 60) % 1; game.V.head = i; game.V.ecg[i] = ecgAt(game.V); game.V.pleth[i] = plethAt(game.V); }
+  game.state = skipBrief ? 'play' : 'brief';
+  if (skipBrief) announce('Case ' + (i + 1) + ' started.');
+}
+game.win = () => {
+  const V = game.V, st = game.stats;
+  const sedB = Math.round(Math.min(V.sed, 20) * 15), bloodB = Math.round(V.blood * 8), pen = st.mistakes * 75 + st.arrests * 300 + st.doses * 40;
+  const score = Math.max(100, 1000 + sedB + bloodB - pen);
+  const stars = st.mistakes === 0 && st.arrests === 0 && V.blood >= 70 ? 3 : st.mistakes <= 2 && st.arrests === 0 ? 2 : 1;
+  game.result = { ok: true, score, stars, sedB, bloodB, pen, t: 0 };
+  const i = game.ci; let rec = false;
+  if (score > save.best[i]) { save.best[i] = score; LS.set('si_best_' + i, score); rec = true; }
+  if (stars > save.stars[i]) { save.stars[i] = stars; LS.set('si_stars_' + i, stars); }
+  if (save.unlock < i + 2) { save.unlock = Math.min(CASES.length, i + 2); LS.set('si_unlock', save.unlock); }
+  game.result.rec = rec;
+  later(() => { game.state = 'result'; sfx('win'); announce('Surgery successful. Score ' + score + ', ' + stars + ' stars.'); }, 0.9);
+};
+game.fail = why => {
+  if (game.state !== 'play' || game.result) return;
+  game.result = { ok: false, why, t: 0 };
+  if (why === 'woke') { sfx('stir'); game.shake = 12; }
+  later(() => { game.state = 'result'; sfx('lose'); announce(why === 'woke' ? 'The patient woke up. Case failed.' : 'The patient died. Case failed.'); }, why === 'woke' ? 0.8 : 1.6);
+};
+
+function drawTitle() {
+  ensureArt(CASES[0]);
+  cx.drawImage(ROOM, 0, 0, W, H);
+  cx.fillStyle = 'rgba(2,6,8,0.72)'; cx.fillRect(0, 0, W, H);
+  const t = game.t;
+  // sweeping ECG behind the title
+  cx.save(); cx.strokeStyle = '#3cff7a'; cx.lineWidth = 2; cx.shadowColor = '#3cff7a'; cx.shadowBlur = 12; cx.globalAlpha = 0.5; cx.beginPath();
+  for (let x = 0; x <= W; x += 3) { const p = ((x / 160 - t * 1.1) % 1 + 1) % 1, g = (c, w, a) => a * Math.exp(-((p - c) * (p - c)) / (2 * w * w));
+    const y = 112 - (g(0.12, 0.02, 0.1) + g(0.24, 0.006, -0.15) + g(0.26, 0.008, 1) + g(0.28, 0.008, -0.3) + g(0.5, 0.04, 0.22)) * 46; x ? cx.lineTo(x, y) : cx.moveTo(x, y); }
+  cx.stroke(); cx.restore();
+  cloverLogo(W / 2 - 205, 80, 30);
+  cx.save(); cx.font = '900 64px ' + FONT; cx.textAlign = 'left'; cx.textBaseline = 'middle';
+  cx.shadowColor = 'rgba(60,255,122,0.5)'; cx.shadowBlur = 24;
+  cx.fillStyle = lin(cx, 0, 52, 0, 110, [[0, '#ffffff'], [0.45, '#c8f0f4'], [0.55, '#6aa8b0'], [1, '#e8fbff']]); cx.fillText('SCRUB IN', W / 2 - 160, 82); cx.restore();
+  txt('CLOVER GENERAL HOSPITAL  \u00b7  SURGERY UNDER PRESSURE', W / 2, 128, 13, 'rgba(127,224,232,0.85)', 'center', 900);
+  txt('Keep them under. Keep them alive. Get it out before they wake up.', W / 2, 150, 13, 'rgba(255,255,255,0.6)', 'center', 600);
+  // case cards
+  const cw = 212, ch = 132, gx = (W - cw * 4 - 30) / 2, gy = 178;
+  CASES.forEach((c, i) => {
+    const x = gx + (i % 4) * (cw + 10), y = gy + Math.floor(i / 4) * (ch + 12), lock = i >= save.unlock, h = hov(x, y, cw, ch);
+    cx.save(); if (h && !lock) { cx.shadowColor = '#3cff7a'; cx.shadowBlur = 18; }
+    glass(x, y, cw, ch, lock ? '#555' : h ? '#3cff7a' : '#7fe0e8', 0.85); cx.restore();
+    txt('CASE ' + (i + 1), x + 14, y + 18, 11, lock ? 'rgba(255,255,255,0.3)' : 'rgba(127,224,232,0.9)', 'left', 900);
+    txt(lock ? 'LOCKED' : c.title, x + 14, y + 42, 16, lock ? 'rgba(255,255,255,0.35)' : '#fff', 'left', 900);
+    txt(lock ? 'Finish case ' + i + ' to unlock' : c.proc, x + 14, y + 62, 11.5, 'rgba(255,255,255,0.55)', 'left', 700);
+    if (!lock) {
+      txt(c.items.length + ' object' + (c.items.length > 1 ? 's' : '') + '  \u00b7  ' + c.sed + 's sedation', x + 14, y + 82, 11, 'rgba(255,210,63,0.75)', 'left', 700);
+      for (let s = 0; s < 3; s++) star(x + 22 + s * 22, y + 108, 8, save.stars[i] > s);
+      if (save.best[i]) txt('best ' + save.best[i], x + cw - 14, y + 108, 11, 'rgba(255,255,255,0.6)', 'right', 800);
+    }
+    UI.push({ id: 'case' + i, x, y, w: cw, h: ch, dis: lock, fn: () => startCase(i) });
+  });
+  button('mute', W - 128, H - 44, 110, 30, muted ? 'Sound: off' : 'Sound: on', { col: '#7fe0e8', size: 12, fn: () => setMute(!muted) });
+  txt('Mouse or touch to operate  \u00b7  1 anesthesia  2 epinephrine  3 blood  D defib  Esc pause', 20, H - 38, 11, 'rgba(255,255,255,0.5)', 'left', 700);
+  txt('Original game by Viktor for MyClover.Tech  \u00b7  all art and sound generated in code', 20, H - 20, 10.5, 'rgba(255,255,255,0.35)', 'left', 700);
+}
+function drawBrief() {
+  drawPlay();
+  cx.fillStyle = 'rgba(0,4,6,0.6)'; cx.fillRect(0, 0, W, H);
+  const c = game.cs, x = 190, y = 70, w = 580, h = 400;
+  // clipboard chart
+  cx.save(); cx.shadowColor = 'rgba(0,0,0,0.7)'; cx.shadowBlur = 30; cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, '#f4f1e8'], [1, '#ddd8c8']]); rrect(cx, x, y, w, h, 12); cx.fill(); cx.restore();
+  cx.fillStyle = metal(cx, x + w / 2 - 70, y - 14, x + w / 2 + 70, y + 14, '#b8c1c9'); rrect(cx, x + w / 2 - 70, y - 12, 140, 26, 6); cx.fill();
+  cx.strokeStyle = 'rgba(60,120,200,0.18)'; cx.lineWidth = 1; for (let ly = y + 60; ly < y + h - 20; ly += 22) { cx.beginPath(); cx.moveTo(x + 24, ly); cx.lineTo(x + w - 24, ly); cx.stroke(); }
+  txt('CLOVER GENERAL  \u00b7  CASE ' + (game.ci + 1) + ' OF ' + CASES.length, x + 28, y + 36, 12, '#2a6a70', 'left', 900);
+  txt(c.title, x + 28, y + 70, 30, '#1a1a1a', 'left', 900);
+  txt('Patient: ' + c.patient, x + 28, y + 104, 15, '#333', 'left', 700);
+  txt('Procedure: ' + c.proc, x + 28, y + 126, 15, '#333', 'left', 700);
+  // wrap blurb
+  cx.font = '600 15px ' + FONT; const words = c.blurb.split(' '); let line = '', ly = y + 162;
+  for (const wd of words) { const tl = line + wd + ' '; if (cx.measureText(tl).width > w - 60) { txt(line, x + 28, ly, 15, '#444', 'left', 600); line = wd + ' '; ly += 22; } else line = tl; }
+  txt(line, x + 28, ly, 15, '#444', 'left', 600);
+  const info = [['Sedation', c.sed + ' s'], ['Blood units', c.bags], ['Objects', c.items.length], ['Stitches', c.stitches]];
+  info.forEach(([k, v], i) => { const ix = x + 28 + i * 132; txt(k.toUpperCase(), ix, y + 262, 10, '#2a6a70', 'left', 900); txt(String(v), ix, y + 284, 20, '#1a1a1a', 'left', 900); });
+  txt('Push anesthesia before the clock runs out - but every push deepens them. Too deep = V-fib.', x + 28, y + 318, 12.5, '#8a2020', 'left', 700);
+  button('go', x + w - 200, y + h - 62, 176, 44, 'SCRUB IN', { col: '#3cff7a', size: 17, fn: () => { game.state = 'play'; announce('Case started. Sedation ' + c.sed + ' seconds.'); } });
+  button('back', x + 24, y + h - 62, 110, 44, 'Back', { col: '#7fe0e8', fn: () => { game.state = 'title'; } });
+}
+function drawPlay() {
+  drawField(); drawPanel(); drawBanner();
+  // instrument cursor
+  if (game.state === 'play' && !game.paused && ptr.seen && ptr.x < PANEL_X - 8 && ptr.y > 54) {
+    const S = game.S, p = fieldPtr(); let kind = 'gauze';
+    const nb = S.bleeders.some(b => !b.clamped && Math.hypot(b.x - p.x, b.y - p.y) < 20);
+    if (nb) kind = 'clamp'; else if (S.step === 'incise') kind = 'scalpel'; else if (S.step === 'extract') kind = 'forceps'; else if (S.step === 'suture') kind = 'needle';
+    drawInstrument(kind, ptr.x, ptr.y, !S.held, game.t);
+  }
+}
+function drawResult() {
+  drawPlay();
+  const r = game.result; r.t += 1 / 60;
+  cx.fillStyle = 'rgba(0,4,6,' + Math.min(0.72, r.t * 2) + ')'; cx.fillRect(0, 0, W, H);
+  const x = 250, y = 90, w = 460, h = 360;
+  glass(x, y, w, h, r.ok ? '#3cff7a' : '#ff3040', 0.92, 16);
+  if (r.ok) {
+    txtS('SURGERY SUCCESSFUL', W / 2, y + 42, 28, '#3cff7a', 'center', 900);
+    for (let s = 0; s < 3; s++) { const on = r.stars > s && r.t > 0.3 + s * 0.3; if (on && !r['s' + s]) { r['s' + s] = 1; sfx('star'); } star(W / 2 - 50 + s * 50, y + 92, 20, on); }
+    const st = game.stats, rows = [['Base', 1000], ['Sedation left', '+' + r.sedB], ['Blood volume', '+' + r.bloodB], ['Mistakes ' + st.mistakes + ' / arrests ' + st.arrests + ' / doses ' + st.doses, '-' + r.pen]];
+    rows.forEach(([k, v], i) => { txt(k, x + 40, y + 140 + i * 24, 13, 'rgba(255,255,255,0.75)', 'left', 700); txt(String(v), x + w - 40, y + 140 + i * 24, 13, '#fff', 'right', 800); });
+    txt('SCORE', x + 40, y + 250, 14, '#ffd23f', 'left', 900); txtGlow(String(r.score), x + w - 40, y + 250, 28, '#ffd23f');
+    if (r.rec) txt('NEW BEST', W / 2, y + 278, 11, '#ffd23f', 'center', 900);
+    const nx = game.ci + 1 < CASES.length;
+    button('next', x + w - 170, y + h - 58, 140, 40, nx ? 'NEXT CASE' : 'ALL CASES', { col: '#3cff7a', fn: () => nx ? startCase(game.ci + 1) : (game.state = 'title') });
+    button('retry', x + 160, y + h - 58, 120, 40, 'Retry', { col: '#ffd23f', fn: () => startCase(game.ci, true) });
+    button('menu', x + 30, y + h - 58, 110, 40, 'Cases', { col: '#7fe0e8', fn: () => { game.state = 'title'; } });
+  } else {
+    const woke = r.why === 'woke';
+    txtS(woke ? 'THE PATIENT WOKE UP' : 'WE LOST THEM', W / 2, y + 50, 30, '#ff4050', 'center', 900);
+    txt(woke ? 'Mid-surgery. Screaming. The sedation clock hit zero.' : 'Cardiac arrest with no return of rhythm.', W / 2, y + 92, 14, 'rgba(255,255,255,0.8)', 'center', 700);
+    txt(woke ? 'Push anesthesia (1) before the clock runs out - but space the doses.' : 'Watch the DEPTH gauge, clamp bleeders fast, hang blood, and DEFIB (D) quickly.', W / 2, y + 120, 12.5, 'rgba(255,210,63,0.85)', 'center', 700);
+    const S = game.S;
+    txt('Objects removed ' + S.specimens + '/' + S.items.length + '   \u00b7   mistakes ' + game.stats.mistakes + '   \u00b7   arrests ' + game.stats.arrests, W / 2, y + 170, 13, 'rgba(255,255,255,0.65)', 'center', 700);
+    // flatline
+    cx.save(); cx.strokeStyle = woke ? '#ffd23f' : '#3cff7a'; cx.shadowColor = cx.strokeStyle; cx.shadowBlur = 10; cx.lineWidth = 2; cx.beginPath();
+    for (let i = 0; i <= 300; i++) { const px = x + 40 + i * (w - 80) / 300; const yy = y + 230 + (woke ? Math.sin(i * 0.4 + game.t * 10) * 10 * Math.sin(i * 0.05) : (Math.random() - 0.5)); i ? cx.lineTo(px, yy) : cx.moveTo(px, yy); }
+    cx.stroke(); cx.restore();
+    button('retry', x + w - 170, y + h - 58, 140, 40, 'TRY AGAIN', { col: '#ff6a40', fn: () => startCase(game.ci, true) });
+    button('menu', x + 30, y + h - 58, 110, 40, 'Cases', { col: '#7fe0e8', fn: () => { game.state = 'title'; } });
+  }
+}
+function drawPause() {
+  cx.fillStyle = 'rgba(0,4,6,0.7)'; cx.fillRect(0, 0, W, H);
+  glass(W / 2 - 160, 140, 320, 260, '#7fe0e8', 0.92, 16);
+  txtS('PAUSED', W / 2, 180, 26, '#fff', 'center', 900);
+  txt('The clock is frozen. Lucky you.', W / 2, 208, 12, 'rgba(255,255,255,0.6)', 'center', 700);
+  button('resume', W / 2 - 110, 232, 220, 40, 'Resume', { col: '#3cff7a', fn: () => { game.paused = false; } });
+  button('restart', W / 2 - 110, 280, 105, 36, 'Restart', { col: '#ffd23f', size: 13, fn: () => startCase(game.ci, true) });
+  button('quit', W / 2 + 5, 280, 105, 36, 'Quit', { col: '#ff6a40', size: 13, fn: () => { game.state = 'title'; game.paused = false; } });
+  button('snd', W / 2 - 110, 326, 220, 34, muted ? 'Sound: off' : 'Sound: on', { col: '#7fe0e8', size: 13, fn: () => setMute(!muted) });
+}
+
+function update(dt) {
+  game.t += dt;
+  for (const tm of game.timers) { tm.t -= dt; if (tm.t <= 0 && !tm.fired) { tm.fired = true; tm.fn(); } } game.timers = game.timers.filter(q => !q.fired);
+  for (const m of toasts) m.t -= dt; toasts = toasts.filter(m => m.t > 0);
+  if (pressed.mute) setMute(!muted);
+  if (game.state === 'title') { if (pressed.start) startCase(Math.min(save.unlock, CASES.length) - 1); }
+  else if (game.state === 'brief') { if (pressed.start) { game.state = 'play'; } if (pressed.pause) game.state = 'title'; }
+  else if (game.state === 'result') { if (pressed.start || pressed.retry) { if (game.result.ok && pressed.start && game.ci + 1 < CASES.length) startCase(game.ci + 1); else startCase(game.ci, true); } if (pressed.pause) game.state = 'title'; }
+  else if (game.state === 'play') {
+    if (pressed.pause) game.paused = !game.paused;
+    if (game.paused) return;
+    if (!game.result) {
+      if (pressed.anes) pushAnes(); if (pressed.epi) pushEpi(); if (pressed.blood) hangBlood(); if (pressed.defib) defib();
+      if (pressed.down && ptr.x < PANEL_X - 8 && ptr.y > 54) surgeryInput(); else { pressed.down = false; surgeryInput(); }
+      updateSurgery(dt);
+      updateVitals(dt);
+    } else if (game.V.rhythm !== 'flat') { game.V.phase += dt * game.V.hr / 60; if (game.V.phase >= 1) game.V.phase -= 1; game.V.acc += dt * 60; while (game.V.acc >= 1) { game.V.acc -= 1; const i = game.V.head = (game.V.head + 1) % TRACE_N; game.V.ecg[i] = ecgAt(game.V); game.V.pleth[i] = plethAt(game.V); } }
+    else { game.V.acc += dt * 60; while (game.V.acc >= 1) { game.V.acc -= 1; const i = game.V.head = (game.V.head + 1) % TRACE_N; game.V.ecg[i] = ecgAt(game.V); game.V.pleth[i] = 0; } }
+    game.shake = Math.max(0, game.shake - dt * 30); game.flashRed = Math.max(0, game.flashRed - dt * 3); game.shockFlash = Math.max(0, game.shockFlash - dt * 4);
+    const st = game.V.stir * 3;
+    game.fox = (Math.random() - 0.5) * game.shake + Math.sin(game.t * 17) * st; game.foy = (Math.random() - 0.5) * game.shake + Math.cos(game.t * 13) * st;
+    ambience(dt);
+  }
+}
+function render() {
+  UI = [];
+  cx.setTransform(SC, 0, 0, SC, 0, 0);
+  cx.clearRect(0, 0, W, H);
+  if (game.state === 'title') drawTitle();
+  else if (game.state === 'brief') drawBrief();
+  else if (game.state === 'play') { drawPlay(); if (game.paused) drawPause(); }
+  else if (game.state === 'result') drawResult();
+  UIprev = UI;
+  cv.style.cursor = game.state === 'play' && !game.paused && ptr.x < PANEL_X - 8 && ptr.y > 54 ? 'none' : 'default';
+}
+let lastT = performance.now();
+function frame(dt) {
+  if (game.state !== 'play' || game.paused) { processClicks(); }
+  else if (processClicks()) { /* consumed by a panel button */ }
+  update(dt);
+  for (const k in pressed) pressed[k] = false;
+}
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  frame(dt); render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+// test hooks
+window.__SI = { game, startCase, step: (n, dt) => { for (let i = 0; i < n; i++) frame(dt || 1 / 60); }, render, CASES, ptr, pressed, organHit };
+
+})();
+</script>
+</body>
+</html>
