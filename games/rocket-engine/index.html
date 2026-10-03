@@ -1,0 +1,2083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050407">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%230a0603%22/%3E%3Ccircle cx=%2222%22 cy=%2222%22 r=%2212%22 fill=%22%23ff3b3b%22/%3E%3Ccircle cx=%2242%22 cy=%2222%22 r=%2212%22 fill=%22%233cff7a%22/%3E%3Ccircle cx=%2222%22 cy=%2242%22 r=%2212%22 fill=%22%23ff9a1f%22/%3E%3Ccircle cx=%2242%22 cy=%2242%22 r=%2212%22 fill=%22%23ffd23f%22/%3E%3C/svg%3E">
+<title>CLOVER PROPULSION: Engine Lab | MyClover.Tech</title>
+<meta name="description" content="CLOVER PROPULSION: Engine Lab - a rocket engine builder game from MyClover.Tech. Pick propellants, cycles and materials, tune chamber pressure, mixture ratio and nozzle expansion, then hot-fire it on the test stand. Spectacular failures guaranteed. Free browser game.">
+<style>
+html,body{margin:0;height:100%;background:#050407;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+body{display:flex;align-items:center;justify-content:center}
+canvas{display:block;box-shadow:0 0 60px rgba(255,154,31,.08);outline:none}
+#rot{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#050407;color:#fff;font:800 18px system-ui,sans-serif;text-align:center;z-index:9;padding:24px}
+#rot .ph{width:46px;height:78px;border:3px solid #ffd23f;border-radius:9px;animation:rt 1.6s ease-in-out infinite}
+@keyframes rt{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (orientation:portrait) and (max-width:820px){#rot{display:flex}}
+html,body{cursor:default}
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="0" role="img" aria-label="CLOVER PROPULSION Engine Lab, a rocket engine builder game. Design an engine on the bench with parts and sliders, then hot-fire it on the test stand. Mouse, touch or keyboard: Tab and arrow keys adjust factors, Enter test fires, Space aborts, F changes sim speed, P pauses, M mutes."></canvas>
+<div id="live" class="sr" aria-live="polite"></div>
+<div id="rot"><div class="ph"></div><div>Rotate your phone to landscape</div><div style="font-weight:600;font-size:13px;opacity:.65">The engine lab needs the wide view</div></div>
+<script>
+(function(){
+'use strict';
+// ===== CLOVER PROPULSION: Engine Lab =====
+// Original code + procedurally drawn art by Viktor for MyClover.Tech. No external assets.
+const W = 960, H = 540;
+const cv = document.getElementById('c');
+const cx = cv.getContext('2d');
+const TOUCH = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1 || /Mobi|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent);
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
+let RMOTION = LS.get('re_rm', null) != null ? LS.get('re_rm') === '1' : !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+let SC = 1, CRect = null;
+function fit() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  const cw = Math.max(1, Math.floor(W * s)), ch = Math.max(1, Math.floor(H * s));
+  cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  SC = Math.max(1, Math.min(2, cw * (window.devicePixelRatio || 1) / W));
+  cv.width = Math.round(W * SC); cv.height = Math.round(H * SC);
+  CRect = null;
+}
+addEventListener('resize', fit); fit();
+
+// ---------- utils ----------
+const RND = (a, b) => a + Math.random() * (b - a);
+const RI = (a, b) => Math.floor(RND(a, b + 1));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const angTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+const wrapA = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
+const turnTo = (a, t, m) => { const d = wrapA(t - a); return a + clamp(d, -m, m); };
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const MONO = 'ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace';
+
+// ---------- GFX: noise, glow sprites, painted arenas ----------
+function layer(w, h, s) {
+  s = s || Math.min(2, SC);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w * s)); c.height = Math.max(1, Math.ceil(h * s));
+  const g = c.getContext('2d'); g.scale(s, s); return [c, g];
+}
+let seed = 1337;
+const srand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const sr = (a, b) => a + srand() * (b - a);
+function hash(x, y) { let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y, o) { o = o || 4; let s = 0, a = 0.5, f = 1, n = 0; for (let i = 0; i < o; i++) { s += a * vnoise(x * f, y * f); n += a; f *= 2; a *= 0.5; } return s / n; }
+const RGBC = {};
+function hexRgb(c) {
+  if (RGBC[c]) return RGBC[c];
+  let r = 255, g = 255, b = 255;
+  if (c[0] === '#') { let h = c.slice(1); if (h.length === 3) h = h.split('').map(q => q + q).join(''); const n = parseInt(h, 16); r = (n >> 16) & 255; g = (n >> 8) & 255; b = n & 255; }
+  else { const m = c.match(/\d+/g); if (m) { r = +m[0]; g = +m[1]; b = +m[2]; } }
+  return (RGBC[c] = [r, g, b]);
+}
+const SHC = {};
+function shade(c, k) { const key = c + k; if (SHC[key]) return SHC[key]; const f = v => Math.max(0, Math.min(255, Math.round(k > 0 ? v + (255 - v) * k : v * (1 + k)))); const [r, g, b] = hexRgb(c); return (SHC[key] = 'rgb(' + f(r) + ',' + f(g) + ',' + f(b) + ')'); }
+const rgba = (c, a) => { const [r, g, b] = hexRgb(c); return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'; };
+function glowSprite(rgb, size) {
+  size = size || 128; const [c, g] = layer(size, size, 1);
+  const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gr.addColorStop(0, 'rgba(' + rgb + ',1)'); gr.addColorStop(0.22, 'rgba(' + rgb + ',0.5)'); gr.addColorStop(0.55, 'rgba(' + rgb + ',0.13)'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+  g.fillStyle = gr; g.fillRect(0, 0, size, size); return c;
+}
+const GLOWC = {};
+function glowOf(c) { return GLOWC[c] || (GLOWC[c] = glowSprite(hexRgb(c).join(','), 64)); }
+function glowAt(x, y, r, c, a, g) {
+  g = g || cx; g.globalCompositeOperation = 'lighter'; g.globalAlpha = a == null ? 1 : a;
+  g.drawImage(glowOf(c), x - r, y - r, r * 2, r * 2); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+}
+const SMOKE = [0, 1, 2].map(i => { seed = 50 + i; const size = 96, [c, g] = layer(size, size, 1);
+  for (let k = 0; k < 14; k++) { const a = srand() * 6.28, d = srand() * 22, r = 14 + srand() * 20, x = 48 + Math.cos(a) * d, y = 48 + Math.sin(a) * d, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(70,66,74,0.36)'); gr.addColorStop(1, 'rgba(70,66,74,0)'); g.fillStyle = gr; g.fillRect(0, 0, size, size); }
+  return c; });
+const FIRE = (() => { const [c, g] = layer(64, 64, 1), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,250,225,1)'); gr.addColorStop(0.25, 'rgba(255,200,90,0.9)'); gr.addColorStop(0.55, 'rgba(230,90,20,0.45)'); gr.addColorStop(1, 'rgba(120,20,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
+function pnoise(x, y, p) { // periodic value noise (period p cells) so grain tiles seamlessly
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), m = q => ((q % p) + p) % p;
+  const a = hash(m(xi), m(yi)), b = hash(m(xi + 1), m(yi)), c = hash(m(xi), m(yi + 1)), d = hash(m(xi + 1), m(yi + 1));
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+const NOISE = (() => { const N = 256, [c, g] = layer(N, N, 1), id = g.createImageData(N, N), d = id.data;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let n = 0, a = 0.5, f = 8, s = 0; for (let o = 0; o < 4; o++) { n += a * pnoise(x / N * f, y / N * f, f); s += a; a *= 0.5; f *= 2; }
+    n = n / s * 0.6 + hash(x * 7 + 1, y * 13 + 5) * 0.4; const v = clamp(128 + (n - 0.5) * 220, 0, 255), i = (y * N + x) * 4; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  g.putImageData(id, 0, 0); return c; })();
+let VIG = null;
+function vignette() {
+  if (!VIG) { const [c, g] = layer(W, H, 1), vg = g.createRadialGradient(W / 2, H * 0.52, H * 0.35, W / 2, H / 2, W * 0.66);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(0.7, 'rgba(4,3,10,0.25)'); vg.addColorStop(1, 'rgba(2,1,6,0.7)'); g.fillStyle = vg; g.fillRect(0, 0, W, H); VIG = c; }
+  cx.drawImage(VIG, 0, 0, W, H);
+}
+const lin = (g, x0, y0, x1, y1, stops) => { const gr = g.createLinearGradient(x0, y0, x1, y1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+const radg = (g, x0, y0, r0, x1, y1, r1, stops) => { const gr = g.createRadialGradient(x0, y0, r0, x1, y1, r1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function grain(g, x, y, w, h, alpha, mode) {
+  g.save(); g.globalAlpha = alpha; g.globalCompositeOperation = mode || 'overlay';
+  for (let yy = y; yy < y + h; yy += 256) for (let xx = x; xx < x + w; xx += 256) g.drawImage(NOISE, xx, yy);
+  g.restore();
+}
+
+
+// ---------- UI kit ----------
+let UI = [], UIprev = [];
+function txt(s, x, y, size, col, align, weight, font) {
+  cx.font = (weight || 800) + ' ' + size + 'px ' + (font || FONT); cx.textAlign = align || 'left'; cx.textBaseline = 'middle';
+  cx.fillStyle = col || '#fff'; cx.fillText(s, x, y);
+}
+function txtS(s, x, y, size, col, align, weight) { cx.save(); cx.shadowColor = 'rgba(0,0,0,0.85)'; cx.shadowBlur = 8; cx.shadowOffsetY = 2; txt(s, x, y, size, col, align, weight); cx.restore(); }
+function glass(x, y, w, h, accent, a, r) {
+  r = r || 12; cx.save();
+  cx.fillStyle = 'rgba(6,12,14,' + (a == null ? 0.8 : a) + ')'; rrect(cx, x, y, w, h, r); cx.fill();
+  cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, 'rgba(255,255,255,0.08)'], [0.15, 'rgba(255,255,255,0.02)'], [1, 'rgba(255,255,255,0)']]); rrect(cx, x, y, w, h, r); cx.fill();
+  cx.strokeStyle = rgba(accent || '#7fe0e8', 0.35); cx.lineWidth = 1.2; rrect(cx, x + 0.5, y + 0.5, w - 1, h - 1, r); cx.stroke();
+  cx.restore();
+}
+function hov(x, y, w, h) { return ptr.seen && ptr.type === 'mouse' && ptr.x > x && ptr.x < x + w && ptr.y > y && ptr.y < y + h; }
+function button(id, x, y, w, h, label, opt) {
+  opt = opt || {}; const hv = hov(x, y, w, h), col = opt.col || '#3cff7a', dis = opt.disabled;
+  cx.save();
+  if (!dis && (hv || opt.hot)) { cx.shadowColor = col; cx.shadowBlur = 18; }
+  cx.fillStyle = dis ? 'rgba(40,44,50,0.75)' : lin(cx, 0, y, 0, y + h, [[0, rgba(col, hv ? 0.5 : 0.32)], [1, rgba(shade(col, -0.65), hv ? 0.8 : 0.6)]]);
+  rrect(cx, x, y, w, h, Math.min(10, h / 2)); cx.fill(); cx.shadowBlur = 0;
+  cx.strokeStyle = dis ? 'rgba(255,255,255,0.15)' : rgba(col, 0.9); cx.lineWidth = 1.4; cx.stroke();
+  cx.fillStyle = 'rgba(255,255,255,0.1)'; rrect(cx, x + 3, y + 2, w - 6, h * 0.42, Math.min(8, h / 3)); cx.fill();
+  if (opt.sub) { txt(label, x + w / 2, y + h * 0.36, opt.size || 14, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900); txt(opt.sub, x + w / 2, y + h * 0.72, 10.5, dis ? 'rgba(255,255,255,0.35)' : rgba(shade(col, 0.5), 0.95), 'center', 700); }
+  else txt(label, x + w / 2, y + h / 2 + 1, opt.size || 15, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900);
+  if (opt.key) { cx.fillStyle = 'rgba(0,0,0,0.45)'; rrect(cx, x + w - 22, y + 5, 17, 15, 4); cx.fill(); txt(opt.key, x + w - 13.5, y + 13, 9.5, 'rgba(255,255,255,0.7)', 'center', 900); }
+  if (opt.fill != null) { cx.fillStyle = rgba(col, 0.35); rrect(cx, x, y + h - 4, w * clamp(opt.fill, 0, 1), 4, 2); cx.fill(); }
+  cx.restore();
+  UI.push({ id, x, y, w, h, fn: opt.fn, dis });
+}
+function processClicks() {
+  if (!pressed.click) return false;
+  for (let i = UIprev.length - 1; i >= 0; i--) { const b = UIprev[i];
+    if (ptr.x > b.x && ptr.x < b.x + b.w && ptr.y > b.y && ptr.y < b.y + b.h) { if (b.dis) sfx('deny'); else if (b.fn) { sfx('select'); b.fn(); } pressed.click = false; pressed.down = false; return true; } }
+  return false;
+}
+let toasts = [];
+function toast(s, col, dur) {
+  if (toasts.length && toasts[toasts.length - 1].s === s) { toasts[toasts.length - 1].t = dur || 1.8; return; }
+  toasts.push({ s, col: col || '#fff', t: dur || 1.8, max: dur || 1.8 }); if (toasts.length > 3) toasts.shift();
+}
+const liveEl = document.getElementById('live');
+function announce(s) { if (liveEl) liveEl.textContent = s; }
+function cloverLogo(x, y, r) {
+  const cols = ['#ff3b3b', '#3cff7a', '#ff9a1f', '#ffd23f'];
+  for (let i = 0; i < 4; i++) { const a = -2.356 + i * 1.5708, lx = x + Math.cos(a) * r * 0.5, ly = y + Math.sin(a) * r * 0.5;
+    cx.fillStyle = radg(cx, lx - r * 0.15, ly - r * 0.15, 0, lx, ly, r * 0.55, [[0, '#fffbe8'], [0.3, cols[i]], [1, shade(cols[i], -0.65)]]); cx.beginPath(); cx.arc(lx, ly, r * 0.48, 0, 6.29); cx.fill();
+    cx.strokeStyle = 'rgba(255,235,170,0.8)'; cx.lineWidth = 1; cx.stroke(); }
+}
+function star(x, y, r, on) {
+  cx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; cx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } cx.closePath();
+  cx.fillStyle = on ? lin(cx, x, y - r, x, y + r, [[0, '#fff3b0'], [0.5, '#ffd23f'], [1, '#c07a10']]) : 'rgba(255,255,255,0.12)'; cx.fill();
+  cx.strokeStyle = on ? '#fff0a0' : 'rgba(255,255,255,0.25)'; cx.lineWidth = 1; cx.stroke();
+}
+function fmtT(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function txtGlow(s, x, y, size, col, align) { cx.save(); cx.shadowColor = col; cx.shadowBlur = 12; txt(s, x, y, size, col, align || 'right', 700, MONO); cx.restore(); }
+function bar(x, y, w, h, f, col) {
+  cx.fillStyle = 'rgba(255,255,255,0.08)'; rrect(cx, x, y, w, h, h / 2); cx.fill();
+  if (f > 0) { cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, shade(col, 0.4)], [0.5, col], [1, shade(col, -0.35)]]); rrect(cx, x, y, Math.max(h, w * clamp(f, 0, 1)), h, h / 2); cx.fill(); }
+}
+
+// ---------- global game state ----------
+const game = { state: 'title', t: 0, paused: false, timers: [], shake: 0, flash: 0, flashCol: '#fff', fox: 0, foy: 0 };
+function later(fn, d) { game.timers.push({ fn, t: d }); }
+
+// ---------- input: pointer + keyboard ----------
+const ptr = { x: W / 2, y: H / 2, down: false, type: 'mouse', seen: false, sx: 0, sy: 0, moved: 0 };
+const pressed = {}, held = {};
+function toLogical(e) {
+  if (!CRect) CRect = cv.getBoundingClientRect();
+  return { x: (e.clientX - CRect.left) / CRect.width * W, y: (e.clientY - CRect.top) / CRect.height * H };
+}
+addEventListener('scroll', () => CRect = null);
+cv.addEventListener('pointerdown', e => {
+  ensureAudio(); const p = toLogical(e); ptr.x = p.x; ptr.y = p.y; ptr.sx = p.x; ptr.sy = p.y; ptr.moved = 0;
+  ptr.down = true; ptr.type = e.pointerType; ptr.seen = true;
+  if (e.button === 2) pressed.rclick = true; else { pressed.click = true; pressed.down = true; }
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', e => { const p = toLogical(e); ptr.moved += Math.hypot(p.x - ptr.x, p.y - ptr.y); ptr.x = p.x; ptr.y = p.y; ptr.type = e.pointerType; ptr.seen = true; });
+const up = e => { if (ptr.down) pressed.up = true; ptr.down = false; };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); addEventListener('pointerup', up);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('wheel', e => { pressed.wheel = (pressed.wheel || 0) + Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });
+const KM = { Space: 'space', Escape: 'pause', KeyP: 'pause', Enter: 'start', KeyM: 'mute', KeyF: 'speed', ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Tab: 'tab', KeyA: 'abort', KeyI: 'ignite' };
+const HK = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyW: 'up', KeyS: 'down' };
+addEventListener('keydown', e => {
+  ensureAudio(); const a = KM[e.code], h = HK[e.code];
+  if (a && !e.repeat) pressed[a] = true;
+  if (a && e.repeat && (a === 'left' || a === 'right')) pressed[a] = true;
+  if (h) held[h] = true;
+  if (a || h) { e.preventDefault(); if (a === 'tab' && e.shiftKey) pressed.stab = true; }
+});
+addEventListener('keyup', e => { const h = HK[e.code]; if (h) held[h] = false; });
+function autoPause() { if ((game.state === 'test' || game.state === 'flight') && !game.paused) game.paused = true; }
+addEventListener('blur', () => { ptr.down = false; for (const k in held) held[k] = false; autoPause(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { autoPause(); if (AC && AC.state === 'running') AC.suspend(); }
+  else if (AC && AC.state === 'suspended') AC.resume();
+});
+
+// ---------- AUDIO ENGINE (100% synthesized, no samples) ----------
+let AC = null, master = null, comp = null, musicBus = null, sfxBus = null, distBus = null, delay = null, noiseBuf = null, brownBuf = null;
+let muted = LS.get('re_mute', '0') === '1', musicOn = LS.get('re_music', '1') === '1';
+const VOL = 0.55;
+function ensureAudio() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    comp = AC.createDynamicsCompressor(); comp.threshold.value = -12; comp.knee.value = 8; comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.2;
+    master = AC.createGain(); master.gain.value = muted ? 0 : VOL; master.connect(comp); comp.connect(AC.destination);
+    sfxBus = AC.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
+    musicBus = AC.createGain(); musicBus.gain.value = musicOn ? 0.5 : 0; musicBus.connect(master);
+    distBus = AC.createWaveShaper(); const n = 1024, cu = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; cu[i] = Math.tanh(x * 5); } distBus.curve = cu; distBus.oversample = '2x';
+    const dg = AC.createGain(); dg.gain.value = 0.7; distBus.connect(dg); dg.connect(sfxBus);
+    delay = AC.createDelay(1); delay.delayTime.value = 0.33; const fb = AC.createGain(); fb.gain.value = 0.38;
+    const dl = AC.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 2200;
+    delay.connect(dl); dl.connect(fb); fb.connect(delay); const dOut = AC.createGain(); dOut.gain.value = 0.5; dl.connect(dOut); dOut.connect(master);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    brownBuf = AC.createBuffer(1, AC.sampleRate * 3, AC.sampleRate);
+    const b = brownBuf.getChannelData(0); let l = 0; for (let i = 0; i < b.length; i++) { l = (l + 0.02 * (Math.random() * 2 - 1)) / 1.02; b[i] = l * 3.5; }
+  } catch (err) { AC = null; }
+}
+function out(bus) { return bus === 'd' ? distBus : bus === 'm' ? musicBus : bus === 'e' ? delay : sfxBus; }
+function tone(f, d, type, v, slide, when, bus, attack) {
+  if (!AC || muted) return null;
+  const t = when || AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square'; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, f + slide), t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v || 0.1, t + (attack || 0.004)); g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+  o.connect(g); g.connect(out(bus)); if (bus === 'e') g.connect(sfxBus);
+  o.start(t); o.stop(t + d + 0.03); return o;
+}
+function noise(d, v, freq, slide, type, when, q, bus, brown) {
+  if (!AC || muted) return;
+  const t = when || AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = brown ? brownBuf : noiseBuf; f.type = type || 'lowpass'; f.frequency.setValueAtTime(freq || 1200, t); if (q) f.Q.value = q;
+  if (slide) f.frequency.exponentialRampToValueAtTime(Math.max(40, (freq || 1200) + slide), t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v || 0.2, t + 0.008); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  s.connect(f); f.connect(g); g.connect(out(bus)); s.start(t, Math.random() * 1.2); s.stop(t + d + 0.02);
+}
+// ---------- continuous engine voice: roar + crackle + screech whistle + chug rumble ----------
+const ROAR = { ok: false };
+function roarInit() {
+  if (!AC || ROAR.ok) return;
+  const mk = (buf, type, f, q) => { const s = AC.createBufferSource(); s.buffer = buf; s.loop = true; const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; if (q) fl.Q.value = q; const g = AC.createGain(); g.gain.value = 0; s.connect(fl); fl.connect(g); s.start(); return { s, fl, g }; };
+  ROAR.lo = mk(brownBuf, 'lowpass', 300); ROAR.lo.g.connect(sfxBus);
+  ROAR.hi = mk(noiseBuf, 'bandpass', 900, 0.6); ROAR.hi.g.connect(sfxBus);
+  ROAR.rough = mk(noiseBuf, 'lowpass', 1600); ROAR.rough.g.connect(distBus);
+  const so = AC.createOscillator(), sg = AC.createGain(), lfo = AC.createOscillator(), lg = AC.createGain(); so.type = 'triangle'; so.frequency.value = 2400; lfo.frequency.value = 11; lg.gain.value = 70; lfo.connect(lg); lg.connect(so.frequency);
+  sg.gain.value = 0; so.connect(sg); sg.connect(sfxBus); sg.connect(delay); so.start(); lfo.start(); ROAR.scr = { o: so, g: sg };
+  const co = AC.createOscillator(), cf = AC.createBiquadFilter(), cg = AC.createGain(), am = AC.createGain(), al = AC.createOscillator(), alg = AC.createGain();
+  co.type = 'sawtooth'; co.frequency.value = 38; cf.type = 'lowpass'; cf.frequency.value = 180; al.frequency.value = 7; alg.gain.value = 0.5; am.gain.value = 0.5; al.connect(alg); alg.connect(am.gain);
+  cg.gain.value = 0; co.connect(cf); cf.connect(am); am.connect(cg); cg.connect(sfxBus); co.start(); al.start(); ROAR.chug = { o: co, g: cg, lfo: al };
+  ROAR.ok = true;
+}
+function roarSet(lvl, bright, scr, chug, rough) {
+  if (!AC) return; if (!ROAR.ok) { if (lvl <= 0) return; roarInit(); }
+  const t = AC.currentTime, k = muted ? 0 : 1, tc = 0.06;
+  ROAR.lo.g.gain.setTargetAtTime(k * lvl * 0.9, t, tc); ROAR.lo.fl.frequency.setTargetAtTime(180 + 420 * bright * lvl, t, tc);
+  ROAR.hi.g.gain.setTargetAtTime(k * lvl * 0.16 * (0.5 + bright), t, tc); ROAR.hi.fl.frequency.setTargetAtTime(500 + 1600 * bright, t, tc);
+  ROAR.rough.g.gain.setTargetAtTime(k * (rough || 0) * 0.25, t, tc);
+  ROAR.scr.g.gain.setTargetAtTime(k * Math.min(1, scr) * 0.08, t, 0.05); ROAR.scr.o.frequency.setTargetAtTime(1800 + 1400 * Math.min(1, scr), t, 0.1);
+  ROAR.chug.g.gain.setTargetAtTime(k * Math.min(1, chug) * 0.5, t, 0.05); ROAR.chug.lfo.frequency.setTargetAtTime(5 + 6 * Math.min(1, chug), t, 0.1);
+}
+// ---------- sfx table ----------
+const SFX = {
+  select: () => { tone(1300, 0.04, 'triangle', 0.05); tone(2600, 0.03, 'sine', 0.02); },
+  tick: () => tone(2200, 0.02, 'square', 0.015),
+  chip: () => { tone(900, 0.05, 'square', 0.04, 300); noise(0.04, 0.12, 4000, 0, 'bandpass', 0, 4); },
+  deny: () => { tone(150, 0.14, 'square', 0.07, -40); tone(155, 0.14, 'sawtooth', 0.04); },
+  ignite: () => { const t = AC.currentTime; noise(0.12, 0.6, 2500, -1500, 'bandpass', t, 1, 'd'); tone(70, 0.4, 'sine', 0.6, -30, t); noise(0.9, 0.35, 300, 1400, 'lowpass', t + 0.05); },
+  tea: () => { const t = AC.currentTime; tone(1800, 0.08, 'square', 0.04, -900, t); noise(0.15, 0.4, 3000, 0, 'highpass', t); SFX.ignite(); },
+  shutdown: () => { const t = AC.currentTime; noise(1.2, 0.35, 900, -800, 'lowpass', t); tone(90, 0.5, 'sine', 0.2, -50, t); noise(0.4, 0.1, 5000, -4000, 'highpass', t + 0.3); },
+  alarm: () => { const t = AC.currentTime; tone(1046, 0.1, 'square', 0.05, 0, t); tone(784, 0.12, 'square', 0.05, 0, t + 0.12); },
+  klaxon: () => { const t = AC.currentTime; tone(420, 0.5, 'sawtooth', 0.07, 260, t, 'd'); },
+  countdown: () => tone(880, 0.09, 'sine', 0.08),
+  go: () => tone(1320, 0.25, 'sine', 0.1),
+  boom: k => { k = k || 1; const t = AC.currentTime;
+    noise(2.2 * k, 1.0, 3500, -3400, 'lowpass', t, 0, 'd', true); noise(0.25, 0.9, 6000, -5000, 'lowpass', t, 0, 'd'); tone(46, 1.6 * k, 'sine', 0.95, -26, t); tone(110, 0.7, 'sawtooth', 0.35, -80, t, 'd');
+    noise(3 * k, 0.4, 600, -450, 'lowpass', t + 0.15, 0, null, true);
+    for (let i = 0; i < 8 * k; i++) { const w = t + 0.25 + Math.random() * 1.8; tone(2500 + Math.random() * 3500, 0.06, 'triangle', 0.025, 0, w); noise(0.03, 0.08, 5000, 0, 'highpass', w); } },
+  pop: () => { const t = AC.currentTime; noise(0.3, 0.9, 2000, -1800, 'lowpass', t, 0, 'd'); tone(70, 0.5, 'sine', 0.7, -40, t); noise(0.06, 0.6, 7000, 0, 'highpass', t); },
+  shrapnel: () => { const t = AC.currentTime; tone(5200, 0.5, 'sawtooth', 0.06, -4800, t, 'd'); for (let i = 0; i < 14; i++) { const w = t + Math.random() * 0.6; tone(1800 + Math.random() * 5000, 0.05, 'square', 0.03, -500, w); noise(0.04, 0.12, 6000, 0, 'bandpass', w, 6); } },
+  rip: () => { const t = AC.currentTime; tone(160, 0.6, 'sawtooth', 0.25, -110, t, 'd'); noise(0.6, 0.5, 1800, -1400, 'bandpass', t, 2, 'd'); tone(620, 1.4, 'triangle', 0.08, -200, t + 0.5, 'e'); tone(931, 1.2, 'sine', 0.05, -150, t + 0.5, 'e'); },
+  clang: () => { const t = AC.currentTime; [523, 787, 1180, 1660].forEach((f, i) => tone(f, 1.2 - i * 0.2, 'sine', 0.06, -f * 0.05, t, 'e')); noise(0.08, 0.4, 3000, 0, 'bandpass', t, 2); },
+  torch: () => { const t = AC.currentTime; noise(1.4, 0.55, 2600, 2000, 'bandpass', t, 1.5, 'd'); noise(1.4, 0.4, 7000, 0, 'highpass', t); tone(240, 1.3, 'sawtooth', 0.05, 300, t); },
+  fizz: () => { const t = AC.currentTime; noise(1.6, 0.4, 6000, -3000, 'highpass', t); noise(1.6, 0.25, 900, 0, 'bandpass', t, 1); tone(300, 0.2, 'square', 0.05, -150, t); tone(220, 0.25, 'square', 0.05, -120, t + 0.3); },
+  whoomp: () => { const t = AC.currentTime; noise(1.2, 0.8, 300, 1200, 'lowpass', t, 0, 'd', true); tone(55, 1.0, 'sine', 0.7, -20, t); },
+  sizzle: () => { const t = AC.currentTime; for (let i = 0; i < 10; i++) noise(0.05, 0.2, 3000 + Math.random() * 5000, 0, 'bandpass', t + Math.random() * 1.2, 5); },
+  zap: () => { const t = AC.currentTime; for (let i = 0; i < 8; i++) tone(200 + Math.random() * 1600, 0.04, 'square', 0.05, 0, t + i * 0.03); },
+  success: () => { const t = AC.currentTime; [0, 4, 7, 12, 16].forEach((s, i) => { tone(523 * Math.pow(2, s / 12), 0.5, 'triangle', 0.07, 0, t + i * 0.08, 'e'); }); tone(262, 1.2, 'sawtooth', 0.04, 0, t + 0.4, 'e'); },
+  fail: () => { const t = AC.currentTime; tone(392, 0.3, 'triangle', 0.08, 0, t); tone(311, 0.5, 'triangle', 0.08, 0, t + 0.25); },
+  star: i => tone(880 * Math.pow(2, (i || 0) * 4 / 12), 0.4, 'triangle', 0.08, 0, 0, 'e'),
+  cash: () => { const t = AC.currentTime; tone(2093, 0.06, 'square', 0.03, 0, t); tone(2637, 0.12, 'square', 0.03, 0, t + 0.05); },
+  stage: () => { const t = AC.currentTime; noise(0.2, 0.8, 3000, -2000, 'bandpass', t, 1, 'd'); tone(90, 0.3, 'sine', 0.5, -40, t); }
+};
+const sfxLast = {};
+function sfx(n, k) {
+  if (!AC || muted || !SFX[n]) return;
+  const t = performance.now(); if (sfxLast[n] && t - sfxLast[n] < 40) return;
+  sfxLast[n] = t; try { SFX[n](k); } catch (e) { }
+}
+function setMute(v) { muted = v; LS.set('re_mute', v ? '1' : '0'); if (master) master.gain.value = muted ? 0 : VOL; }
+function setMusic(v) { musicOn = v; LS.set('re_music', v ? '1' : '0'); if (musicBus) { musicBus.gain.cancelScheduledValues(0); musicBus.gain.value = v ? 0.5 : 0; } }
+// ---------- ambient pad for menus: slow detuned chords + soft shimmer ----------
+const MUS = { next: 0, i: 0, on: false };
+const PADS = [[45, 52, 57, 60, 64], [41, 48, 53, 57, 64], [43, 50, 55, 59, 62], [40, 47, 52, 55, 59]];
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function musicTick() {
+  if (!AC || muted || !musicOn || !MUS.on) { if (AC) MUS.next = Math.max(MUS.next, AC.currentTime + 0.1); return; }
+  if (MUS.next < AC.currentTime) MUS.next = AC.currentTime + 0.05;
+  if (MUS.next > AC.currentTime + 0.2) return;
+  const t = MUS.next, ch = PADS[MUS.i % 4], d = 7;
+  ch.forEach((m, j) => [0.995, 1.005].forEach(det => { const o = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
+    o.type = j === 0 ? 'triangle' : 'sawtooth'; o.frequency.value = mtof(m) * det; fl.type = 'lowpass'; fl.frequency.setValueAtTime(400, t); fl.frequency.linearRampToValueAtTime(1100, t + d * 0.5); fl.frequency.linearRampToValueAtTime(400, t + d);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(j === 0 ? 0.035 : 0.011, t + d * 0.35); g.gain.linearRampToValueAtTime(0.0001, t + d + 0.8);
+    o.connect(fl); fl.connect(g); g.connect(musicBus); o.start(t); o.stop(t + d + 1); }));
+  for (let k = 0; k < 4; k++) { const o = AC.createOscillator(), g = AC.createGain(), w = t + 0.8 + k * 1.6 + Math.random() * 0.4; o.type = 'sine'; o.frequency.value = mtof(ch[(k * 2 + MUS.i) % ch.length] + 24);
+    g.gain.setValueAtTime(0.0001, w); g.gain.linearRampToValueAtTime(0.012, w + 0.05); g.gain.exponentialRampToValueAtTime(0.0005, w + 1.5); o.connect(g); g.connect(musicBus); g.connect(delay); o.start(w); o.stop(w + 1.6); }
+  MUS.i++; MUS.next = t + d;
+}
+
+// ---------- DATA: parts, sliders, contracts ----------
+const G0 = 9.80665, PA_SL = 1.01325; // bar
+const PROPS = {
+  eth: { id: 'eth', name: 'Ethanol / LOX', short: 'ETH/LOX', of: [0.9, 2.3], ofOpt: 1.5, cstar: 1700, gam: 1.21, Tc: 3300, cool: 0.9, pump: 0.97, screech: 0.8, Lopt: 1.2, cost: 0.9, kgc: 0.25,
+    plume: ['#fff3dc', '#ffae66', '#6f8cff'], steam: 0.8, desc: 'Ethanol + liquid oxygen. Cheap, forgiving, V-2 vintage. Low performance, nice blue-orange flame.' },
+  rp1: { id: 'rp1', name: 'RP-1 / LOX', short: 'RP-1', of: [1.8, 3.6], ofOpt: 2.6, cstar: 1800, gam: 1.22, Tc: 3670, cool: 0.85, pump: 1, screech: 1.3, Lopt: 1.1, cost: 1, coke: true, kgc: 0.3,
+    plume: ['#fffbe6', '#ffb040', '#ff5a10'], steam: 0.2, desc: 'Rocket-grade kerosene. Dense and punchy, but sooty, screech-prone, and it COKES (chars) in hot cooling channels above ~700 K.' },
+  ch4: { id: 'ch4', name: 'Methane / LOX', short: 'CH4', of: [2.4, 4.4], ofOpt: 3.4, cstar: 1860, gam: 1.2, Tc: 3550, cool: 1.0, pump: 1.04, screech: 1.0, Lopt: 1.0, cost: 1.05, kgc: 0.35,
+    plume: ['#eef0ff', '#8d7dff', '#3e4dff'], steam: 0.7, desc: 'Methalox. Clean burning, no coking, good coolant, great for reuse and big staged-combustion engines.' },
+  lh2: { id: 'lh2', name: 'Hydrogen / LOX', short: 'LH2', of: [3.5, 8], ofOpt: 5.6, cstar: 2350, gam: 1.21, Tc: 3450, cool: 1.45, pump: 1.12, screech: 0.7, Lopt: 0.8, cost: 1.3, kgc: 0.9,
+    plume: ['#d8ecff', '#7fb8ff', '#ff8ad8'], steam: 1, desc: 'The Isp king. Superb coolant, nearly invisible flame, but fluffy: low density means big pumps (higher pump load).' },
+  hyp: { id: 'hyp', name: 'NTO / UDMH', short: 'HYPER', of: [1.2, 2.8], ofOpt: 2.0, cstar: 1720, gam: 1.23, Tc: 3350, cool: 0.8, pump: 1, screech: 0.9, Lopt: 0.9, cost: 1.25, hyper: true, kgc: 2.2,
+    plume: ['#ffe8dc', '#ff8c6a', '#ff5a9a'], steam: 0.3, desc: 'Hypergolic: ignites on contact. No igniter needed, unlimited restarts, storable for years. Also horribly toxic (pricey handling).' }
+};
+const CYCLES = {
+  press: { id: 'press', name: 'Pressure-fed', short: 'PRESS', feed: 30, tw: 30, cost: 40, tankPen: 0.24, desc: 'No pumps: helium squeezes the tanks. Dead simple, but chamber pressure tops out ~25 bar and the tanks must be thick and heavy.' },
+  elec: { id: 'elec', name: 'Electric pump', short: 'E-PUMP', feed: 90, tw: 45, cost: 90, batt: true, desc: 'Battery-driven pumps (Rutherford-style). Up to ~70 bar. Battery mass grows with pump power x burn time.' },
+  gg: { id: 'gg', name: 'Gas generator', short: 'GAS GEN', feed: 165, tw: 120, cost: 300, ggLoss: true, desc: 'A small burner drives the turbopump and dumps its exhaust overboard. Up to ~130 bar; costs 1.5-3% Isp.' },
+  exp: { id: 'exp', name: 'Expander', short: 'EXPANDER', feed: 0, tw: 70, cost: 550, expander: true, desc: 'Coolant boiled in the regen jacket spins the turbine. No combustion losses, super reliable, but needs LH2 or CH4, regen >= 80%, and only works for SMALL throats.' },
+  orsc: { id: 'orsc', name: 'Ox-rich staged', short: 'ORSC', feed: 340, tw: 95, cost: 900, oxRich: true, desc: 'All oxygen goes through a preburner, then into the chamber. ~270 bar, no dump losses. Hot oxygen-rich gas is metal-eating: overspeed means fire.' },
+  ffsc: { id: 'ffsc', name: 'Full-flow staged', short: 'FFSC', feed: 440, tw: 170, cost: 1400, oxRich: true, desc: 'Both propellants fully gasified through two preburners. Up to ~350 bar. The holy grail. Eye-watering price.' }
+};
+const MATS = {
+  cu: { id: 'cu', name: 'Copper GRCop', short: 'GRCop', limit: 850, k: 1.0, cost: 1.25, m: 1.0, col: '#d9824a', desc: 'Copper alloy liner. Conducts heat brilliantly into the regen coolant, but softens above ~850 K. Copper also BURNS in hot oxygen-rich gas.' },
+  inc: { id: 'inc', name: 'Inconel', short: 'INCONEL', limit: 1100, k: 0.55, cost: 1.0, m: 1.08, col: '#b8c0c8', desc: 'Nickel superalloy. Survives ~1100 K but conducts heat poorly, so regen cooling is much less effective. Cheaper.' },
+  abl: { id: 'abl', name: 'Ablative', short: 'ABLATIVE', limit: 3000, k: 0, cost: 0.6, m: 1.18, col: '#2a2522', abl: true, desc: 'Phenolic liner that chars and erodes away. No regen needed. Throat grows during the burn (thrust droops); burn through the liner and it is over. Low Pc only.' }
+};
+const INJS = {
+  dbl: { id: 'dbl', name: 'Impinging doublet', short: 'DOUBLET', screech: 1.35, chug: 10, cost: 0.9, eff: 0.004, desc: 'Jets of fuel and oxidizer smash into each other. Cheap and efficient mixing, but notoriously screech-prone (ask the F-1 team).' },
+  swl: { id: 'swl', name: 'Coaxial swirl', short: 'SWIRL', screech: 0.8, chug: 10, cost: 1.0, eff: 0, desc: 'Swirling coaxial elements. Very stable against acoustic screech. The modern default.' },
+  pin: { id: 'pin', name: 'Pintle', short: 'PINTLE', screech: 0.9, chug: 6, cost: 1.05, eff: -0.008, desc: 'A single central pintle (Apollo LM, Merlin). Throttles deep without chugging. Slightly lower combustion efficiency.' }
+};
+const IGNS = {
+  pyro: { id: 'pyro', name: 'Pyrotechnic', short: 'PYRO', starts: 1, cost: 2, desc: 'A solid squib. Lights the engine exactly ONCE. Restarts will not light.' },
+  tea: { id: 'tea', name: 'TEA-TEB', short: 'TEA-TEB', starts: 3, cost: 10, desc: 'Pyrophoric slug (green flash!). One cartridge per start, 3 cartridges loaded.' },
+  spark: { id: 'spark', name: 'Spark torch', short: 'SPARK', starts: 99, cost: 6, desc: 'Augmented spark igniter. Unlimited restarts as long as there is power.' },
+  hyp: { id: 'hyp', name: 'Hypergolic', short: 'NONE', starts: 99, cost: 0, desc: 'Hypergolic propellants ignite on contact. No igniter needed.' }
+};
+const SLIDERS = [
+  { id: 'pc', name: 'Chamber pressure', sym: 'Pc', min: 10, max: 350, step: 1, unit: 'bar', fmt: v => v.toFixed(0),
+    help: 'Chamber pressure Pc: higher = more thrust per throat area, better Isp, smaller engine. Also more heat flux at the throat, more screech, and more pump load. Your cycle caps how high you can go.' },
+  { id: 'of', name: 'Mixture ratio', sym: 'O/F', min: 0, max: 1, step: 0.05, unit: '', fmt: v => v.toFixed(2),
+    help: 'Oxidizer-to-fuel mass ratio. Peak c* (efficiency) sits at the propellant optimum; flame temperature peaks a bit leaner. Run fuel-rich to cool the walls, ox-rich and copper may literally burn.' },
+  { id: 'dt', name: 'Throat diameter', sym: 'Dt', min: 2, max: 60, step: 0.5, unit: 'cm', fmt: v => v.toFixed(1),
+    help: 'Throat diameter sets the engine SIZE: thrust = Cf x Pc x throat area. Bigger throats are a little gentler on heat flux but screech more easily (lower acoustic modes).' },
+  { id: 'eps', name: 'Expansion ratio', sym: '\u03b5', min: 3, max: 200, step: 1, unit: ':1', fmt: v => v.toFixed(0),
+    help: 'Nozzle exit area / throat area. Bigger = more Isp in vacuum, heavier nozzle. At sea level, if exit pressure falls below ~35% of ambient the flow SEPARATES: violent side loads can rip the nozzle off.' },
+  { id: 'regen', name: 'Regen cooling', sym: 'Regen', min: 0, max: 100, step: 1, unit: '%', fmt: v => v.toFixed(0),
+    help: 'Fraction of the chamber/throat wall wrapped in coolant channels (fuel flowing past the hot wall). Cools hard but adds pressure drop (pump load). Unavailable on ablative chambers.' },
+  { id: 'film', name: 'Film cooling', sym: 'Film', min: 0, max: 15, step: 0.5, unit: '%', fmt: v => v.toFixed(1),
+    help: 'Percent of fuel sprayed along the wall as a protective cool layer. Big cut in heat flux, but that fuel burns poorly: costs ~0.33% Isp per percent.' },
+  { id: 'dp', name: 'Injector \u0394P', sym: '\u0394P', min: 5, max: 40, step: 1, unit: '% Pc', fmt: v => v.toFixed(0),
+    help: 'Injector pressure drop as % of Pc. Stiff injectors decouple feed lines from the chamber and prevent CHUGGING. Drop scales with throttle, so deep throttling needs a stiffer injector. Costs pump load.' },
+  { id: 'ls', name: 'Characteristic length', sym: 'L*', min: 0.5, max: 2.5, step: 0.05, unit: 'm', fmt: v => v.toFixed(2),
+    help: 'Chamber volume / throat area: how long the gas has to burn. Too short = unburnt propellant leaves (low efficiency) and more screech. Too long = heavy, and big chambers can pool propellant at ignition (hard start).' }
+];
+// test program profile: list of burn segments [t0,t1, thr0, thr1] in fractions of duration
+const CONTRACTS = [
+  { id: 'c1', n: 1, name: 'First Light', client: 'Clover Garage Rocketry', env: 'sl', dur: 30, ign: 1, prof: [[0, 1, 1, 1]],
+    brief: 'Get a real engine to light and run 30 seconds on the test stand without coming apart. Stand is rated for 15 kN.',
+    req: { fsl: 5, fslMax: 15 }, stretch: { ispSl: 222, label: 'Isp(SL) >= 222 s' }, budget: 300, fee: 10,
+    unlock: { prop: ['eth'], cyc: ['press'], mat: ['inc', 'abl'], inj: ['dbl', 'swl'], ign: ['pyro'] },
+    def: { prop: 'eth', cyc: 'press', mat: 'inc', inj: 'dbl', ign: 'pyro', baf: 0, pc: 30, of: 1.5, dt: 6, eps: 10, regen: 0, film: 0, dp: 15, ls: 1.0 } },
+  { id: 'c2', n: 2, name: 'Sounding Rocket', client: 'Upper Atmosphere Institute', env: 'sl', dur: 'burn', ign: 1, prof: [[0, 1, 1, 1]],
+    brief: 'Loft a 120 kg science payload past the 100 km Karman line. 450 kg of propellant, 0.5 m airframe. Your engine flies it.',
+    req: { apogee: 100 }, stretch: { apogee: 140, label: 'Apogee >= 140 km' }, budget: 500, fee: 15,
+    flight: { kind: 'sound', prop: 450, struct: 40, payload: 120, dia: 0.5, n: 1 },
+    unlock: { cyc: ['elec'], ign: ['tea'], mat: ['cu'] },
+    def: { prop: 'eth', cyc: 'press', mat: 'inc', inj: 'swl', ign: 'pyro', baf: 0, pc: 20, of: 1.4, dt: 8, eps: 5, regen: 0, film: 0, dp: 15, ls: 1.0 } },
+  { id: 'c3', n: 3, name: 'Hopper', client: 'Leap Labs', env: 'sl', dur: 60, ign: 2, prof: [[0, 0.2, 1, 1], [0.2, 0.3, 1, 0.4], [0.3, 0.45, 0.4, 0.4], [0.55, 0.7, 0.6, 1], [0.7, 1, 1, 1]],
+    brief: 'A vertical-landing test vehicle (stand rated 60 kN). Hover profile: 100% -> 40% -> shutdown -> relight -> 100%. No chugging allowed.',
+    req: { fsl: 20, fslMax: 60, tw: 20 }, stretch: { tw: 30, label: 'T/W >= 30' }, budget: 600, fee: 20,
+    unlock: { inj: ['pin'], ign: ['spark'] },
+    def: { prop: 'eth', cyc: 'elec', mat: 'cu', inj: 'swl', ign: 'pyro', baf: 0, pc: 40, of: 1.4, dt: 8, eps: 8, regen: 60, film: 0, dp: 15, ls: 1.0 } },
+  { id: 'c4', n: 4, name: 'Kerosene Workhorse', client: 'Clover Launch Co.', env: 'sl', dur: 150, ign: 1, prof: [[0, 0.4, 1, 1], [0.4, 0.5, 1, 0.75], [0.5, 0.7, 0.75, 0.75], [0.7, 0.8, 0.75, 1], [0.8, 1, 1, 1]],
+    brief: 'Our first booster needs a cheap, rugged kerosene workhorse. 150 s duration test with a max-Q throttle bucket.',
+    req: { fsl: 800, fslMax: 1200, ispSl: 280, tw: 70, cost: 1800 }, stretch: { ispSl: 288, label: 'Isp(SL) >= 288 s' }, budget: 9000, fee: 80,
+    unlock: { prop: ['rp1'], cyc: ['gg'], baf: true },
+    def: { prop: 'rp1', cyc: 'gg', mat: 'cu', inj: 'dbl', ign: 'tea', baf: 0, pc: 110, of: 2.7, dt: 22, eps: 18, regen: 100, film: 0, dp: 15, ls: 1.1 } },
+  { id: 'c5', n: 5, name: 'Upper Stage', client: 'Clover Launch Co.', env: 'vac', dur: 400, ign: 2, prof: [[0, 0.45, 1, 1], [0.5, 1, 1, 1]],
+    brief: 'Hydrogen upper stage engine, tested in the altitude chamber. Long burn, one restart, every second of Isp counts.',
+    req: { fvac: 100, ispVac: 440, mass: 420 }, stretch: { ispVac: 455, label: 'Isp(vac) >= 455 s' }, budget: 9000, fee: 120,
+    unlock: { prop: ['lh2'], cyc: ['exp'] },
+    def: { prop: 'lh2', cyc: 'exp', mat: 'cu', inj: 'swl', ign: 'spark', baf: 0, pc: 70, of: 6, dt: 16, eps: 60, regen: 100, film: 0, dp: 15, ls: 0.9 } },
+  { id: 'c6', n: 6, name: 'Hypergolic Lander', client: 'Selene Freight', env: 'vac', dur: 240, ign: 4, prof: [[0, 0.18, 1, 1], [0.25, 0.45, 1, 0.3], [0.52, 0.7, 0.3, 0.6], [0.78, 1, 1, 0.3]],
+    props: ['hyp'], brief: 'Lunar descent engine, storable propellants only (3-day coast, no boil-off): 4 burns (3 restarts) and deep throttling down to 30% for the final hover. In vacuum.',
+    req: { fvac: 45, ispVac: 305, mass: 250 }, stretch: { ispVac: 318, label: 'Isp(vac) >= 318 s' }, budget: 4000, fee: 60,
+    unlock: { prop: ['hyp'] },
+    def: { prop: 'hyp', cyc: 'press', mat: 'abl', inj: 'swl', ign: 'hyp', baf: 0, pc: 20, of: 2.0, dt: 16, eps: 40, regen: 0, film: 0, dp: 15, ls: 0.9 } },
+  { id: 'c7', n: 7, name: 'Orbital Booster', client: 'Clover Launch Co.', env: 'sl', dur: 'burn', ign: 1, prof: [[0, 0.35, 1, 1], [0.35, 0.45, 1, 0.7], [0.45, 0.6, 0.7, 0.7], [0.6, 0.7, 0.7, 1], [0.7, 1, 1, 1]],
+    brief: 'Nine of your engines on one first stage. 400 t of propellant, 70 t upper stage on top. Need lift-off T/W 1.25-2.0 (no crushing the payload) and >= 3.1 km/s of stage delta-v.',
+    req: { lifttw: 1.25, lifttwMax: 2.0, dv: 3.1 }, stretch: { dv: 3.35, label: 'Stage \u0394v >= 3.35 km/s' }, budget: 16000, fee: 150,
+    flight: { kind: 'orbit', prop: 400000, struct: 24000, payload: 70000, dia: 3.7, n: 9 },
+    unlock: { prop: ['ch4'], cyc: ['orsc'] },
+    def: { prop: 'ch4', cyc: 'orsc', mat: 'cu', inj: 'swl', ign: 'spark', baf: 1, pc: 200, of: 3.4, dt: 25, eps: 20, regen: 100, film: 0, dp: 15, ls: 1.0 } },
+  { id: 'c8', n: 8, name: 'Methalox Monster', client: 'Clover Heavy Industries', env: 'sl', dur: 180, ign: 1, prof: [[0, 1, 1, 1]],
+    props: ['ch4'], brief: 'The big one. A full-flow staged methalox engine with >= 2.2 MN sea-level thrust and a thrust-to-weight that makes engineers cry.',
+    req: { fsl: 2200, tw: 110, ispSl: 320 }, stretch: { tw: 135, label: 'T/W >= 135' }, budget: 30000, fee: 250,
+    unlock: { cyc: ['ffsc'] },
+    def: { prop: 'ch4', cyc: 'ffsc', mat: 'cu', inj: 'swl', ign: 'spark', baf: 1, pc: 330, of: 3.6, dt: 26, eps: 30, regen: 100, film: 0, dp: 15, ls: 1.0 } }
+];
+const SANDBOX = { id: 'sb', n: 0, name: 'Sandbox', client: 'You', env: 'sl', dur: 9999, ign: 99, prof: [[0, 1, 1, 1]], brief: 'Every part unlocked. Live throttle. No budget. Break things.', req: {}, budget: 0, fee: 0, sandbox: true,
+  def: { prop: 'rp1', cyc: 'gg', mat: 'cu', inj: 'swl', ign: 'spark', baf: 1, pc: 100, of: 2.4, dt: 20, eps: 16, regen: 100, film: 2, dp: 18, ls: 1.1 } };
+const REQ_LABEL = {
+  fsl: ['Thrust (SL)', 'kN', '>='], fslMax: ['Stand limit', 'kN', '<='], fvac: ['Thrust (vac)', 'kN', '>='], ispSl: ['Isp (SL)', 's', '>='], ispVac: ['Isp (vac)', 's', '>='],
+  mass: ['Engine mass', 'kg', '<='], cost: ['Unit cost', '$k', '<='], tw: ['Thrust/weight', '', '>='], apogee: ['Apogee', 'km', '>='], lifttw: ['Lift-off T/W', '', '>='], lifttwMax: ['Max lift-off T/W', '', '<='], dv: ['Stage \u0394v', 'km/s', '>=']
+};
+function unlockedParts(ci) {
+  const u = { prop: [], cyc: [], mat: [], inj: [], ign: ['hyp'], baf: false };
+  if (ci < 0) { u.prop = Object.keys(PROPS); u.cyc = Object.keys(CYCLES); u.mat = Object.keys(MATS); u.inj = Object.keys(INJS); u.ign = Object.keys(IGNS); u.baf = true; return u; }
+  for (let i = 0; i <= ci; i++) { const L = CONTRACTS[i].unlock; for (const k in L) { if (k === 'baf') u.baf = true; else L[k].forEach(p => { if (u[k].indexOf(p) < 0) u[k].push(p); }); } }
+  return u;
+}
+// ---------- persistence ----------
+const SAVE = (() => { let s = null; try { s = JSON.parse(LS.get('re_prog', 'null')); } catch (e) { } s = s || {}; s.stars = s.stars || {}; s.designs = s.designs || {}; s.tests = s.tests || {}; s.best = s.best || {}; if (!s.salt) s.salt = Math.floor(Math.random() * 1e9); return s; })();
+function saveProg() { LS.set('re_prog', JSON.stringify(SAVE)); }
+function contractOpen(i) { return i === 0 || (SAVE.stars['c' + i] || 0) > 0; }
+
+// ---------- PHYSICS: simplified-but-real rocket engine model ----------
+const DENS = { eth: 0.95, rp1: 1.03, ch4: 0.83, lh2: 0.36, hyp: 1.18 };
+const ZV = { hf: 0, eff: 0, stab: 0, load: 0, ign: 0 };
+function cstarOf(P, of, pc) {
+  const x = of / P.ofOpt - 1, k = x < 0 ? 0.55 : 0.95;
+  return P.cstar * Math.max(0.6, 1 - k * x * x) * (1 + 0.012 * Math.log10(Math.max(1, pc) / 30));
+}
+function TcOf(P, of) { const x = of / (P.ofOpt * 1.15) - 1; return P.Tc * Math.max(0.55, 1 - 0.75 * x * x); }
+const NOZC = {};
+function nozzle(eps, g) {
+  const key = Math.round(eps * 20) + '_' + g; if (NOZC[key]) return NOZC[key];
+  const e1 = (g + 1) / (2 * (g - 1)), ar = M => (1 / M) * Math.pow((2 / (g + 1)) * (1 + (g - 1) / 2 * M * M), e1);
+  let lo = 1.0001, hi = 25;
+  for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (ar(m) < eps) lo = m; else hi = m; }
+  const M = (lo + hi) / 2, pr = Math.pow(1 + (g - 1) / 2 * M * M, -g / (g - 1));
+  const cfv = Math.sqrt(2 * g * g / (g - 1) * Math.pow(2 / (g + 1), (g + 1) / (g - 1)) * (1 - Math.pow(pr, (g - 1) / g))) + eps * pr;
+  return (NOZC[key] = { M, pr, cfv });
+}
+function regenOf(d) { return MATS[d.mat].abl ? 0 : d.regen; }
+function expFeed(d) {
+  const P = PROPS[d.prop], base = d.prop === 'lh2' ? 1 : d.prop === 'ch4' ? 0.72 : 0;
+  return Math.min(175, 140 * base * Math.pow(12 / d.dt, 0.5) * Math.pow(d.ls / P.Lopt, 0.3) * clamp((regenOf(d) - 60) / 40, 0, 1));
+}
+function feedOf(d) { const Cy = CYCLES[d.cyc]; return Cy.expander ? expFeed(d) : Cy.feed; }
+// steady-state engine performance at a throttle setting and ambient pressure (bar)
+function perf(d, v, thr, pa, st) {
+  v = v || ZV; thr = thr == null ? 1 : thr; st = st || {};
+  const P = PROPS[d.prop], Cy = CYCLES[d.cyc], M = MATS[d.mat], I = INJS[d.inj], regen = regenOf(d);
+  const At0 = Math.PI * Math.pow(d.dt / 200, 2);
+  const ag = M.abl ? 1 + 0.22 * clamp(st.abl || 0, 0, 1.3) : 1;
+  const At = At0 * ag, eps = d.eps / ag, pc = Math.max(0.3, d.pc * thr / ag);
+  const cs = cstarOf(P, d.of, pc);
+  const lsr = d.ls / P.Lopt, etaL = 1 - Math.exp(-4 * lsr);
+  const eta = etaL * (1 + I.eff) * (1 + 0.01 * v.eff), csE = cs * eta;
+  const N = nozzle(eps, P.gam), pe = N.pr * pc;
+  const cf = N.cfv - eps * pa / pc;
+  const loss = d.film * 0.0033 + (Cy.ggLoss ? 0.015 + 0.015 * clamp(d.pc / 130, 0, 1.5) : 0);
+  const etaN = 0.985;
+  const F = Math.max(0, cf) * pc * 1e5 * At * etaN, Fv = N.cfv * pc * 1e5 * At * etaN;
+  const mdot = pc * 1e5 * At / csE * (1 + loss);
+  const isp = F / (mdot * G0), ispV = Fv / (mdot * G0);
+  const Tc = TcOf(P, d.of);
+  const q = 42 * Math.pow(pc / 100, 0.8) * Math.pow(d.dt / 20, -0.2) * Math.pow(Tc / 3500, 2.5) * (1 - 0.042 * d.film) * (1 + 0.15 * v.hf);
+  const H = 0.02 + M.k * regen / 100 * P.cool * 0.125 / (1 + (st.coke || 0));
+  const Tw = 300 + q / H;
+  const ablRate = M.abl ? Math.pow(q / 10, 1.3) / 150 : 0;
+  const Lf = lsr < 0.7 ? 1 + (0.7 - lsr) * 1.2 : 1;
+  const S = 0.85 * Math.pow(pc / 120, 0.45) * P.screech * I.screech * Math.pow(d.dt / 20, 0.35) * (d.baf ? 0.55 : 1) * Lf + 0.1 * v.stab;
+  const rel = pc * ag / d.pc, dpe = d.dp * rel, C = I.chug / Math.max(0.1, dpe) + 0.08 * v.stab;
+  const feed = feedOf(d), load = feed > 0 ? d.pc * thr * (1 + d.dp / 100 + 0.18 * regen / 100) * P.pump / feed * (1 + 0.03 * v.load) : 9;
+  const sep = pa > 0 && pe < 0.35 * pa ? 1 - pe / (0.35 * pa) : 0;
+  const oxr = d.of / P.ofOpt;
+  return { pc, F, Fv, mdot, isp, ispV, cf, cfv: N.cfv, pe, Me: N.M, Tc, q, Tw, H, S, C, load, feed, sep, ablRate, eta, loss, At, eps, oxr, limit: M.limit, cs: csE };
+}
+function engineMass(d, burn) {
+  const P = PROPS[d.prop], Cy = CYCLES[d.cyc], M = MATS[d.mat], I = INJS[d.inj], pr = perf(d, ZV, 1, 0), regen = regenOf(d);
+  const Ae = d.eps * Math.PI * Math.pow(d.dt / 200, 2);
+  const core = pr.Fv / (G0 * Cy.tw) * (0.85 + 0.15 * d.ls / P.Lopt) * M.m * (d.baf ? 1.04 : 1) * (d.inj === 'pin' ? 1.02 : 1) * (1 + 0.08 * regen / 100);
+  const noz = 140 * Ae;
+  let batt = 0;
+  if (Cy.batt) { const pw = pr.mdot * d.pc * 1e5 * (1 + d.dp / 100 + 0.18 * regen / 100) / (1000 * DENS[d.prop]) / 0.6; batt = pw / 5000 + pw * (burn || 60) / 600e3; }
+  return { total: 1.5 + core + noz + batt, core, noz, batt };
+}
+function unitCost(d) {
+  const P = PROPS[d.prop], Cy = CYCLES[d.cyc], M = MATS[d.mat], I = INJS[d.inj], pr = perf(d, ZV, 1, 0);
+  const Ae = d.eps * Math.PI * Math.pow(d.dt / 200, 2);
+  return Cy.cost * Math.pow(pr.Fv / 100e3, 0.6) * M.cost * I.cost * P.cost * (d.baf ? 1.06 : 1) + IGNS[d.ign].cost + Ae * 15 + 2;
+}
+// ---------- hidden per-hardware manufacturing variance ----------
+function comboKey(d) { return d.prop + '|' + d.cyc + '|' + d.mat + '|' + d.inj; }
+function hwTrue(d) {
+  const k = comboKey(d); let h = SAVE.salt | 0; for (let i = 0; i < k.length; i++) h = Math.imul(h ^ k.charCodeAt(i), 2654435761) | 0;
+  const f = n => hash(h, n * 977) * 2 - 1;
+  return { hf: f(1), eff: f(2), stab: f(3), load: f(4), ign: f(5) };
+}
+function hwKnow(d) { const n = SAVE.tests[comboKey(d)] || 0, u = 1 / (1 + 0.75 * n), tv = hwTrue(d), c = {}; for (const k in tv) c[k] = tv[k] * (1 - u); return { n, u, c }; }
+function hwCase(d, mode) { // 'worst' | 'best' | 'nom' | 'true'
+  if (mode === 'true') return hwTrue(d);
+  const K = hwKnow(d), s = mode === 'worst' ? 1 : mode === 'best' ? -1 : 0, o = {};
+  for (const k in K.c) o[k] = clamp(K.c[k] + s * K.u * (k === 'eff' ? -1 : 1), -1, 1);
+  return o;
+}
+// ---------- test-program simulation (shared by stand, predictor and balance tests) ----------
+function profCmd(prof, f) { for (const s of prof) if (f >= s[0] && f < s[1]) return lerp(s[2], s[3], (f - s[0]) / Math.max(1e-6, s[1] - s[0])); return 0; }
+function profMin(prof) { let m = 1; for (const s of prof) m = Math.min(m, s[2], s[3]); return m; }
+function burnDuration(d, C, v) {
+  if (C.dur !== 'burn') return C.dur;
+  const pr = perf(d, v || ZV, 1, 0);
+  return clamp(C.flight.prop / (C.flight.n * pr.mdot), 5, 600);
+}
+function simNew(d, C, v, opt) {
+  opt = opt || {};
+  const pa = C.env === 'vac' ? 0 : PA_SL;
+  return { d, C, v: v || ZV, pa, dur: opt.dur || burnDuration(d, C, v), t: 0, on: false, thr: 0, cmd: 0, ign: 0, Tw: 300, Tt: 300, aS: 0, aC: 0, sepD: 0, wallD: 0, over: 0, coke: 0, abl: 0, lox: 0,
+    fail: null, done: false, pr: null, max: { Tw: 300, Tt: 300, aS: 0, aC: 0, sep: 0, vib: 0, load: 0, S: 0, C: 0 }, meas: null, lever: opt.lever, sandbox: !!C.sandbox, vib: 0, ignFlash: 0, hardRisk: 0 };
+}
+function hardStartRisk(d, v) { const P = PROPS[d.prop], lsr = d.ls / P.Lopt; return Math.max(0, lsr - 1.5) * (P.hyper ? 0.6 : 1.2) + (d.dp < 8 ? (8 - d.dp) * 0.1 : 0) + 0.15 * v.ign; }
+function simFail(S, type, info) { if (S.fail) return; S.fail = Object.assign({ type, t: S.t, thr: S.thr }, info || {}); S.on = false; }
+function simStep(S, dt) {
+  if (S.fail || S.done) return;
+  const d = S.d, P = PROPS[d.prop], M = MATS[d.mat], Cy = CYCLES[d.cyc];
+  S.t += dt;
+  const f = S.t / S.dur;
+  let cmd = S.sandbox ? (S.lever != null ? S.lever : 1) : profCmd(S.C.prof, f);
+  if (S.sandbox && S.cutoff) cmd = 0;
+  if (cmd > 0.01 && !S.on) { // ignition event
+    S.ign++; S.on = true; S.ignFlash = 1;
+    const starts = P.hyper ? 99 : IGNS[d.ign].starts;
+    if (S.ign > starts) { simFail(S, 'nolight', { ign: S.ign, starts }); return; }
+    const hr = hardStartRisk(d, S.v); S.hardRisk = hr;
+    if (hr > 0.5) { simFail(S, 'hardstart', { risk: hr }); return; }
+  }
+  if (cmd <= 0.01 && S.on) { S.on = false; }
+  S.cmd = cmd;
+  if (S.on) S.thr += (cmd - S.thr) * Math.min(1, dt * 3.5); else S.thr = Math.max(0, S.thr - dt * 5);
+  S.ignFlash = Math.max(0, S.ignFlash - dt * 3);
+  const thr = Math.max(0.001, S.thr);
+  const pr = perf(d, S.v, thr, S.pa, S); S.pr = pr;
+  const lit = S.on && S.thr > 0.05;
+  // wall temperature
+  const twT = lit ? pr.Tw : 300;
+  S.Tw += (twT - S.Tw) * Math.min(1, dt / 0.9);
+  if (lit && M.abl) { S.abl += pr.ablRate * dt; if (S.abl >= 1) { simFail(S, 'ablative', { Tw: S.Tw, q: pr.q }); return; } }
+  if (lit && !M.abl && P.coke && regenOf(d) > 0 && S.Tw > 700) S.coke += (S.Tw - 700) / 300 * 0.05 * dt;
+  if (S.Tw > M.limit) { S.wallD += (S.Tw / M.limit - 1) * 3 * dt + 0.02 * dt; if (S.wallD >= 1) { simFail(S, S.coke > 0.12 ? 'coking' : 'burnthrough', { Tw: S.Tw, limit: M.limit, coke: S.coke }); return; } }
+  if (lit && d.mat === 'cu' && pr.oxr > 1.18 && S.Tw > 0.8 * M.limit) { S.lox += dt * (0.3 + (pr.oxr - 1.18) * 4); if (S.lox >= 1) { simFail(S, 'loxfire', { oxr: pr.oxr, Tw: S.Tw, src: 'chamber' }); return; } }
+  // combustion instability
+  if (lit) {
+    if (pr.S > 1) { S.aS = Math.max(S.aS, 0.02); S.aS += S.aS * 1.6 * (pr.S - 1) * dt; } else S.aS = Math.max(0, S.aS - (0.2 + 0.8 * (1 - pr.S)) * dt);
+    if (pr.C > 1) { S.aC = Math.max(S.aC, 0.03); S.aC += S.aC * 1.4 * (pr.C - 1) * dt; } else S.aC = Math.max(0, S.aC - (0.25 + 0.8 * (1 - pr.C)) * dt);
+    S.max.S = Math.max(S.max.S, pr.S); S.max.C = Math.max(S.max.C, pr.C);
+  } else { S.aS = Math.max(0, S.aS - dt); S.aC = Math.max(0, S.aC - dt); }
+  if (S.aS >= 1) { simFail(S, 'screech', { S: S.max.S }); return; }
+  if (S.aC >= 1) { simFail(S, 'chug', { C: S.max.C, thr: S.thr }); return; }
+  // flow separation (only meaningful once flow is established)
+  const sep = lit && S.thr > 0.3 ? pr.sep : 0;
+  if (sep > 0) { S.sepD += (0.08 + 0.6 * sep) * dt; if (S.sepD >= 1) { simFail(S, 'separation', { pe: pr.pe, pa: S.pa }); return; } }
+  S.max.sep = Math.max(S.max.sep, sep);
+  // feed system
+  const load = lit || S.thr > 0.02 ? pr.load : 0;
+  const ttT = S.thr > 0.02 ? 450 + 550 * Math.pow(Math.min(load, 1.6), 2.5) : 300;
+  S.Tt += (ttT - S.Tt) * Math.min(1, dt / 1.2);
+  if (S.Tt > 1020) { S.over += (S.Tt - 1020) / 40 * dt; if (S.over >= 1) { simFail(S, Cy.id === 'press' ? 'tank' : Cy.id === 'elec' ? 'battery' : Cy.oxRich ? 'loxfire' : 'turbopump', { load: S.max.load, src: 'turbine' }); return; } }
+  S.max.load = Math.max(S.max.load, load);
+  S.vib = S.aS * 9 + S.aC * 7 + sep * 5 + S.sepD * 2 + (lit ? 0.4 * S.thr : 0) + Math.max(0, S.over) * 3;
+  S.max.Tw = Math.max(S.max.Tw, S.Tw); S.max.Tt = Math.max(S.max.Tt, S.Tt); S.max.aS = Math.max(S.max.aS, S.aS); S.max.aC = Math.max(S.max.aC, S.aC); S.max.vib = Math.max(S.max.vib, S.vib);
+  if (lit && S.cmd > 0.97 && Math.abs(S.thr - S.cmd) < 0.01) { const m = S.meas || (S.meas = { F: 0, isp: 0, n: 0, pc: 0 }); m.F = pr.F; m.isp = pr.isp; m.Fv = pr.Fv; m.ispV = pr.ispV; m.pc = pr.pc; m.n++; }
+  if (!S.sandbox && S.t >= S.dur) { S.done = true; S.on = false; }
+}
+function simRun(d, C, v, dt) { const S = simNew(d, C, v); dt = dt || 0.1; let n = 0; while (!S.fail && !S.done && n++ < 20000) simStep(S, dt); return S; }
+// ---------- flight simulation (sounding rocket 1D w/ drag, booster with gravity turn) ----------
+function patm(h) { return PA_SL * Math.exp(-h / 7200); }
+function vehicle(d, C) {
+  const Fl = C.flight, n = Fl.n, burn = burnDuration(d, C), em = engineMass(d, burn).total;
+  const tank = Fl.prop * (CYCLES[d.cyc].tankPen || 0.08);
+  const m0 = Fl.prop + Fl.struct + Fl.payload + tank + em * n;
+  return { n, em, tank, m0, mf: m0 - Fl.prop, burn };
+}
+function flightSim(d, C, v, rec) {
+  const Fl = C.flight, V = vehicle(d, C), pr = perf(d, v || ZV, 1, 0);
+  const Ae = d.eps * Math.PI * Math.pow(d.dt / 200, 2), A = Math.PI * Fl.dia * Fl.dia / 4;
+  const mdot = pr.mdot * V.n;
+  let m = V.m0, h = 0, vel = 0, t = 0, gam = Math.PI / 2, x = 0, dvI = 0, gl = 0, burnLeft = Fl.prop, maxQ = 0, apogee = 0, tb = 0;
+  const F0 = (pr.Fv - Ae * PA_SL * 1e5) * V.n, tw0 = F0 / (V.m0 * G0);
+  const trk = [];
+  const dt = 0.1; const orbit = Fl.kind === 'orbit';
+  if (tw0 < 1) return { V, tw0, apogee: 0, dv: 0, tb: 0, trk, noLift: true };
+  for (let i = 0; i < 40000; i++) {
+    const burning = burnLeft > 0;
+    const F = burning ? Math.max(0, pr.Fv - Ae * patm(h) * 1e5) * V.n : 0;
+    const rho = 1.225 * Math.exp(-h / 8500), q = 0.5 * rho * vel * vel, D = q * 0.35 * A;
+    maxQ = Math.max(maxQ, q);
+    const g = G0 * Math.pow(6371e3 / (6371e3 + h), 2);
+    if (orbit && h > 1200 && burning) { const tf = clamp((t - 12) / Math.max(30, V.burn * 1.15), 0, 1); gam = Math.PI / 2 - 1.15 * Math.pow(tf, 0.75); }
+    const acc = (F - D) / m - g * Math.sin(gam);
+    if (burning) { dvI += F / m * dt; gl += g * Math.sin(gam) * dt; }
+    vel += acc * dt; if (!orbit && !burning && vel < 0 && h > 1000) { apogee = h; break; }
+    h += vel * Math.sin(gam) * dt; x += vel * Math.cos(gam) * dt; t += dt;
+    if (burning) { const dm = Math.min(burnLeft, mdot * dt); burnLeft -= dm; m -= dm; tb = t; }
+    if (rec && i % 5 === 0) trk.push([t, h, vel, burning ? 1 : 0, gam, x, m]);
+    if (orbit && !burning) break;
+    if (h < -1) break;
+  }
+  const dv = (dvI - gl) / 1000;
+  return { V, tw0, apogee: apogee / 1000, dv, dvI: dvI / 1000, gl: gl / 1000, tb, trk, maxQ, vb: vel };
+}
+// ---------- bench predictions ----------
+function evalDesign(d, C) {
+  const K = hwKnow(d), vW = hwCase(d, 'worst'), vB = hwCase(d, 'best'), vN = hwCase(d, 'nom');
+  const pa = C.env === 'vac' ? 0 : PA_SL;
+  const pN = perf(d, vN, 1, pa), pW = perf(d, vW, 1, pa), pB = perf(d, vB, 1, pa), p0 = perf(d, vN, 1, 0), p0B = perf(d, vB, 1, 0), p0W = perf(d, vW, 1, 0), pS = perf(d, vN, 1, PA_SL), pSB = perf(d, vB, 1, PA_SL), pSW = perf(d, vW, 1, PA_SL);
+  const dur = burnDuration(d, C, vN);
+  const mass = engineMass(d, dur), cost = unitCost(d);
+  const Fref = C.env === 'vac' ? p0.Fv : pS.F;
+  const tw = Fref / (mass.total * G0);
+  const minThr = C.sandbox ? 0.4 : profMin(C.prof);
+  const pMinW = perf(d, vW, minThr, pa);
+  const simW = C.sandbox ? simRun(d, Object.assign({}, C, { dur: 60, sandbox: false }), vW, 0.1) : simRun(d, C, vW, 0.1);
+  const simB = C.sandbox ? simRun(d, Object.assign({}, C, { dur: 60, sandbox: false }), vB, 0.1) : simRun(d, C, vB, 0.1);
+  const out = { K, pN, pW, pB, p0, p0B, p0W, pS, pSB, pSW, mass, cost, tw, dur, pMinW, simW, simB, minThr, reqs: [] };
+  let fl = null, flB = null, flW = null;
+  if (C.flight) { fl = flightSim(d, C, vN); flB = flightSim(d, C, vB); flW = flightSim(d, C, vW); out.fl = fl; }
+  const R = C.req;
+  const add = (k, lo, hi, val) => { const L = REQ_LABEL[k], need = R[k], ge = L[2] === '>=';
+    const st = ge ? (lo >= need ? 'ok' : hi >= need ? 'maybe' : 'no') : (hi <= need ? 'ok' : lo <= need ? 'maybe' : 'no');
+    out.reqs.push({ k, label: L[0], unit: L[1], op: L[2], need, lo, hi, st }); };
+  for (const k in R) {
+    if (k === 'fsl') add(k, pSW.F / 1e3, pSB.F / 1e3);
+    else if (k === 'fslMax') add(k, pSW.F / 1e3, pSB.F / 1e3);
+    else if (k === 'fvac') add(k, p0W.Fv / 1e3, p0B.Fv / 1e3);
+    else if (k === 'ispSl') add(k, pSW.isp, pSB.isp);
+    else if (k === 'ispVac') add(k, p0W.ispV, p0B.ispV);
+    else if (k === 'mass') add(k, mass.total, mass.total);
+    else if (k === 'cost') add(k, cost, cost);
+    else if (k === 'tw') { const fw = C.env === 'vac' ? p0W.Fv : pSW.F, fb = C.env === 'vac' ? p0B.Fv : pSB.F; add(k, fw / (mass.total * G0), fb / (mass.total * G0)); }
+    else if (k === 'apogee') add(k, flW.apogee, flB.apogee);
+    else if (k === 'lifttw' || k === 'lifttwMax') add(k, flW.tw0, flB.tw0);
+    else if (k === 'dv') add(k, flW.dv, flB.dv);
+  }
+  // survival of full program
+  const surv = simW.fail ? (simB.fail ? 'no' : 'maybe') : 'ok';
+  out.reqs.push({ k: 'burn', label: 'Survive ' + (C.sandbox ? '60 s' : Math.round(dur) + ' s program'), unit: '', op: '', need: 0, st: surv, fail: simW.fail || simB.fail });
+  return out;
+}
+// failure type metadata (title, hint builder)
+const FAILS = {
+  hardstart: { name: 'HARD START', sub: 'Ignition overpressure', col: '#ffb040' },
+  nolight: { name: 'NO-LIGHT', sub: 'Engine failed to relight', col: '#9fd8ff' },
+  chug: { name: 'CHUG \u2192 RUD', sub: 'Low-frequency feed coupling', col: '#ff9a1f' },
+  screech: { name: 'SCREECH \u2192 RUD', sub: 'Acoustic combustion instability', col: '#ff3b3b' },
+  burnthrough: { name: 'WALL BURN-THROUGH', sub: 'Throat wall melted', col: '#ff5a2a' },
+  coking: { name: 'COKING RUNAWAY', sub: 'Carbon choked the cooling channels', col: '#c87a3a' },
+  ablative: { name: 'LINER BURN-THROUGH', sub: 'Ablative liner consumed', col: '#ff7a3a' },
+  separation: { name: 'NOZZLE TORN OFF', sub: 'Flow separation side loads', col: '#9fe8ff' },
+  turbopump: { name: 'TURBOPUMP DISINTEGRATED', sub: 'Turbine overspeed', col: '#ffd23f' },
+  loxfire: { name: 'LOX-RICH FIRE', sub: 'The engine ate itself', col: '#3cff7a' },
+  tank: { name: 'TANK RUPTURE', sub: 'Pressurization overpressure', col: '#ffd23f' },
+  battery: { name: 'BATTERY THERMAL RUNAWAY', sub: 'Pump motors overloaded', col: '#ffe066' }
+};
+function failHint(S) {
+  const F = S.fail, d = S.d, M = MATS[d.mat], P = PROPS[d.prop], Cy = CYCLES[d.cyc], pr = S.pr || perf(d, S.v, 1, S.pa), f0 = n => Math.round(n);
+  switch (F.type) {
+    case 'hardstart': return 'Propellant pooled in the chamber before it lit, then went off all at once. ' + (d.ls / P.Lopt > 1.5 ? 'L* ' + d.ls.toFixed(2) + ' m is huge for ' + P.short + ' (sweet spot ~' + P.Lopt.toFixed(1) + ' m) -> shrink L*.' : '') + (d.dp < 8 ? ' Injector \u0394P ' + d.dp + '% is too soft for clean atomization -> raise \u0394P above 8%.' : '');
+    case 'nolight': return 'Ignition #' + F.ign + ' needed, but the ' + IGNS[d.ign].name + ' igniter only has ' + F.starts + ' start' + (F.starts > 1 ? 's' : '') + '. Unburnt propellant dumped and flashed. -> Use a spark torch' + (P.hyper ? '' : ', TEA-TEB (3 starts)') + ' or hypergolic propellants.';
+    case 'chug': return 'Effective injector \u0394P fell to ' + (d.dp * F.thr).toFixed(1) + '% of Pc at ' + f0(F.thr * 100) + '% throttle; ' + INJS[d.inj].name + ' needs >= ' + INJS[d.inj].chug + '% to stay decoupled. -> Raise injector \u0394P, use a pintle, or avoid deep throttling.';
+    case 'screech': return 'Screech index hit ' + F.S.toFixed(2) + ' (>1.0 grows). Acoustic waves scrubbed the injector face away. Culprits: ' + [d.inj === 'dbl' ? 'doublet injector' : '', P.screech > 1 ? P.short + ' propellant' : '', d.pc > 150 ? 'high Pc' : '', d.dt > 25 ? 'big chamber' : '', d.ls / P.Lopt < 0.7 ? 'short L*' : ''].filter(Boolean).join(', ') + '. -> Add acoustic baffles, switch to swirl injector, or lower Pc.';
+    case 'burnthrough': return 'Throat wall hit ' + f0(F.Tw) + ' K, ' + M.name + ' limit ' + M.limit + ' K. -> Raise regen %, add film cooling, run more fuel-rich, or lower Pc.' + (d.mat === 'inc' ? ' Copper conducts heat into the coolant far better.' : '');
+    case 'coking': return 'RP-1 in the cooling channels cooked above 700 K and laid down carbon (coke ' + (F.coke * 100).toFixed(0) + '%), insulating the wall until it melted. -> Keep the wall under 700 K: film cooling, fuel-rich O/F, copper liner, or lower Pc.';
+    case 'ablative': return 'The ablative liner charred away after ' + f0(F.t) + ' s (heat flux ' + F.q.toFixed(0) + ' MW/m\u00b2). -> Lower Pc, add film cooling, run fuel-rich, or switch to a regen-cooled metal chamber for long burns.';
+    case 'separation': return 'Exit pressure ' + F.pe.toFixed(2) + ' bar < 35% of ambient (' + (0.35 * S.pa).toFixed(2) + ' bar): the flow peeled off the nozzle wall and slammed it sideways. -> Lower expansion ratio \u03b5' + (S.C.prof.some(s => Math.min(s[2], s[3]) < 0.8) ? ' (remember Pc drops when throttled)' : '') + ' or raise Pc.';
+    case 'turbopump': return 'Pump load ' + (F.load * 100).toFixed(0) + '% of what the ' + Cy.name + ' cycle can deliver' + (Cy.expander ? ' (expander power falls with bigger throats; needs LH2/CH4 + regen >= 80%)' : '') + '. Turbine oversped and came apart. -> Lower Pc, injector \u0394P or regen %, or pick a stronger cycle.';
+    case 'loxfire': return F.src === 'turbine' ? 'Ox-rich preburner ran ' + f0(S.max.Tt) + ' K (redline 1020 K) at ' + (F.load * 100).toFixed(0) + '% pump load. Hot oxygen ignited the turbine metal. -> Lower Pc, \u0394P or regen %.' : 'O/F ' + d.of.toFixed(2) + ' is ' + f0((F.oxr - 1) * 100) + '% oxygen-rich and the copper wall was at ' + f0(F.Tw) + ' K. Copper burns green in hot oxygen. -> Bring O/F down near ' + P.ofOpt + ' or cool the wall.';
+    case 'tank': return 'Pressure-fed tanks max out around ' + Cy.feed + ' bar of feed pressure. Pc ' + d.pc + ' bar plus injector and cooling drops needed ' + (F.load * 100).toFixed(0) + '%. -> Lower Pc (~20 bar), or unlock pumps.';
+    case 'battery': return 'Pump motors demanded ' + (F.load * 100).toFixed(0) + '% of rated power; the battery pack went into thermal runaway. -> Lower Pc, injector \u0394P or regen %.';
+  }
+  return '';
+}
+
+// ---------- judge a finished test against the contract ----------
+function judge(d, C, S) {
+  const out = [], R = C.req, m = S.meas, dur = S.dur, mass = engineMass(d, dur).total, cost = unitCost(d);
+  const pS = perf(d, S.v, 1, PA_SL), p0 = perf(d, S.v, 1, 0);
+  const tw = (C.env === 'vac' ? p0.Fv : pS.F) / (mass * G0);
+  let fl = null; if (C.flight) fl = flightSim(d, C, S.v);
+  const val = { fsl: pS.F / 1e3, fslMax: pS.F / 1e3, fvac: p0.Fv / 1e3, ispSl: pS.isp, ispVac: p0.ispV, mass, cost, tw, apogee: fl ? fl.apogee : 0, lifttw: fl ? fl.tw0 : 0, lifttwMax: fl ? fl.tw0 : 0, dv: fl ? fl.dv : 0 };
+  for (const k in R) { const L = REQ_LABEL[k], ok = L[2] === '>=' ? val[k] >= R[k] : val[k] <= R[k]; out.push({ k, label: L[0], unit: L[1], op: L[2], need: R[k], val: val[k], ok }); }
+  const surv = !S.fail && S.done && !S.aborted;
+  out.unshift({ k: 'burn', label: 'Full test program', unit: '', op: '', need: 0, val: surv ? 1 : 0, ok: surv });
+  const pass = out.every(r => r.ok);
+  const sk = C.stretch ? Object.keys(C.stretch).find(k => k !== 'label') : null;
+  const stretch = pass && sk ? (REQ_LABEL[sk][2] === '>=' ? val[sk] >= C.stretch[sk] : val[sk] <= C.stretch[sk]) : false;
+  return { rows: out, pass, stretch, val, fl };
+}
+
+// ---------- ART: text, engine renderer, plumes, scenes, particles ----------
+function metalTxt(s, x, y, size, align, glowCol) {
+  cx.save(); cx.font = '900 ' + size + 'px ' + FONT; cx.textAlign = align || 'left'; cx.textBaseline = 'middle';
+  if (glowCol) { cx.shadowColor = glowCol; cx.shadowBlur = size * 0.5; }
+  cx.fillStyle = lin(cx, 0, y - size / 2, 0, y + size / 2, [[0, '#ffffff'], [0.45, '#dfe4ea'], [0.52, '#7d8790'], [1, '#f4f7fa']]); cx.fillText(s, x, y);
+  cx.shadowBlur = 0; cx.lineWidth = Math.max(1, size / 28); cx.strokeStyle = 'rgba(0,0,0,0.35)'; cx.strokeText(s, x, y); cx.restore();
+}
+function goldTxt(s, x, y, size, align) {
+  cx.save(); cx.font = '900 ' + size + 'px ' + FONT; cx.textAlign = align || 'left'; cx.textBaseline = 'middle';
+  cx.shadowColor = 'rgba(255,154,31,0.6)'; cx.shadowBlur = size * 0.45;
+  cx.fillStyle = lin(cx, 0, y - size / 2, 0, y + size / 2, [[0, '#fff6c8'], [0.42, '#ffd23f'], [0.55, '#b86a12'], [1, '#ffe48a']]); cx.fillText(s, x, y);
+  cx.shadowBlur = 0; cx.lineWidth = Math.max(1, size / 30); cx.strokeStyle = 'rgba(60,20,0,0.5)'; cx.strokeText(s, x, y); cx.restore();
+}
+function wrap(s, x, y, w, size, col, lh, weight) {
+  cx.font = (weight || 700) + ' ' + size + 'px ' + FONT; const words = s.split(' '); let line = '', yy = y, n = 0;
+  for (const wd of words) { const t = line + wd + ' '; if (cx.measureText(t).width > w && line) { txt(line, x, yy, size, col, 'left', weight || 700); line = wd + ' '; yy += lh; n++; } else line = t; }
+  txt(line, x, yy, size, col, 'left', weight || 700); return n + 1;
+}
+const fmtK = v => v >= 1000 ? '$' + (v / 1000).toFixed(v >= 10000 ? 1 : 2) + 'M' : '$' + Math.round(v) + 'k';
+const fmtF = kn => kn >= 1000 ? (kn / 1000).toFixed(2) + ' MN' : kn >= 100 ? kn.toFixed(0) + ' kN' : kn.toFixed(1) + ' kN';
+// ---------- engine geometry (meters) ----------
+function engineGeom(d) {
+  const Rt = d.dt / 200, CR = clamp(1.6 + 7 / Math.sqrt(d.dt), 2.2, 6), Rc = Rt * Math.sqrt(CR);
+  const Lc = Math.max(Rc * 0.9, d.ls / CR), Lcv = (Rc - Rt) * 1.5, Re = Rt * Math.sqrt(d.eps), Ln = 0.8 * (Re - Rt) * 3.73, Hi = Rc * 0.55;
+  return { Rt, Rc, Lc, Lcv, Re, Ln, Hi, L: Hi + Lc + Lcv + Ln, CR };
+}
+function heatCol(h) { // 0..1+ -> glow colour
+  return h < 0.5 ? '#ff2a10' : h < 0.75 ? '#ff6a1a' : h < 0.95 ? '#ffb040' : '#fff2c0';
+}
+// draws the engine pointing DOWN. returns key anchor points (screen coords)
+function drawEngine(g, cxp, top, d, o) {
+  o = o || {};
+  const G = engineGeom(d), M = MATS[d.mat], Cy = CYCLES[d.cyc];
+  const maxH = o.maxH || 200, maxW = o.maxW || 160;
+  const side = Cy.id === 'ffsc' ? 2.6 : 2.4;
+  const s = o.scale || Math.min(maxH / G.L, maxW / (2 * Math.max(G.Re, G.Rc * side)));
+  const rt = G.Rt * s, rc = G.Rc * s, re = G.Re * s, hi = G.Hi * s, lc = G.Lc * s, lcv = G.Lcv * s, ln = G.Ln * s;
+  const yI = top + hi, yC = yI + lc, yT = yC + lcv, yE = yT + ln;
+  const A = { x: cxp, top, yI, yC, yT, yE, rt, rc, re, s, G, pump: { x: cxp + rc * 1.7, y: yI + lc * 0.3 }, pump2: { x: cxp - rc * 1.7, y: yI + lc * 0.3 } };
+  if (o.gone) return A;
+  g.save();
+  if (o.shakeX) g.translate(o.shakeX, 0);
+  const base = M.col, metalH = (x0, x1, col, dark) => lin(g, x0, 0, x1, 0, [[0, shade(col, -0.7)], [0.18, shade(col, -0.25)], [0.36, shade(col, 0.45)], [0.5, col], [0.78, shade(col, -0.45)], [1, shade(col, dark || -0.75)]]);
+  // --- thrust structure / gimbal
+  if (!o.noMount) {
+    g.fillStyle = metalH(cxp - rc * 0.6, cxp + rc * 0.6, '#59626b'); g.fillRect(cxp - rc * 0.35, top - hi * 0.9 - 6, rc * 0.7, hi * 0.9 + 6);
+    g.strokeStyle = 'rgba(255,255,255,0.12)'; g.lineWidth = 1; g.strokeRect(cxp - rc * 0.35, top - hi * 0.9 - 6, rc * 0.7, hi * 0.9 + 6);
+  }
+  // --- turbomachinery behind / beside
+  const pipeW = Math.max(1.5, rc * 0.22);
+  const pipe = (pts, col, w) => { g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = '#0c0e10'; g.lineWidth = w + 2; g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.stroke();
+    g.strokeStyle = col; g.lineWidth = w; g.stroke(); g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = Math.max(0.6, w * 0.3); g.stroke(); };
+  const can = (x, y, w, h, col, cap) => { g.fillStyle = metalH(x - w / 2, x + w / 2, col); rrect(g, x - w / 2, y, w, h, Math.min(w, h) * 0.3); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 1; g.stroke();
+    if (cap) { g.fillStyle = shade(col, 0.2); g.fillRect(x - w / 2 - 1, y + h * 0.18, w + 2, Math.max(1, h * 0.06)); g.fillRect(x - w / 2 - 1, y + h * 0.78, w + 2, Math.max(1, h * 0.06)); } };
+  const turbo = (x, y, r, col) => { g.fillStyle = radg(g, x - r * 0.3, y - r * 0.3, 0, x, y, r, [[0, shade(col, 0.5)], [0.6, col], [1, shade(col, -0.6)]]); g.beginPath(); g.arc(x, y, r, 0, 6.29); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = 1; g.stroke(); g.fillStyle = shade(col, -0.5); g.beginPath(); g.arc(x, y, r * 0.35, 0, 6.29); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,0.25)'; g.beginPath(); g.arc(x, y, r * 0.75, -2.4, -0.6); g.stroke(); };
+  const P1 = A.pump;
+  if (!o.pumpGone) {
+    if (Cy.id === 'press') {
+      pipe([[cxp + rc * 0.6, top - hi * 0.3], [cxp + rc * 1.5, top - hi * 0.3], [cxp + rc * 1.5, top - hi * 1.2]], '#8b949c', pipeW);
+      pipe([[cxp - rc * 0.6, top - hi * 0.3], [cxp - rc * 1.5, top - hi * 0.3], [cxp - rc * 1.5, top - hi * 1.2]], '#8b949c', pipeW);
+      can(cxp + rc * 1.5, top - hi * 0.15, rc * 0.5, rc * 0.4, '#c23a3a'); can(cxp - rc * 1.5, top - hi * 0.15, rc * 0.5, rc * 0.4, '#3a7ac2');
+    } else if (Cy.id === 'elec') {
+      pipe([[P1.x, P1.y], [cxp + rc * 0.7, yI - hi * 0.3]], '#8b949c', pipeW);
+      can(P1.x + rc * 0.3, top - hi * 1.0, rc * 1.3, rc * 1.2, '#2b3a2e', true);
+      g.fillStyle = '#3cff7a'; g.globalAlpha = 0.8; g.fillRect(P1.x + rc * 0.3 - rc * 0.4, top - hi * 1.0 + rc * 0.45, rc * 0.8, Math.max(1, rc * 0.12)); g.globalAlpha = 1;
+      turbo(P1.x, P1.y + rc * 0.4, rc * 0.45, '#7d8a96');
+    } else {
+      const sc2 = Cy.id === 'ffsc' ? [1, -1] : [1];
+      sc2.forEach(sg => { const px = cxp + sg * rc * 1.7, py = P1.y;
+        if (Cy.oxRich) { can(px, top - hi * 1.3, rc * 0.7, (yC - top) + hi * 0.9, sg > 0 ? '#9aa4ae' : '#b08868', true); pipe([[px, top - hi * 1.2], [px - sg * rc * 0.4, top - hi * 1.6], [cxp, top - hi * 1.4], [cxp, top - hi * 0.4]], '#aab3bb', pipeW * 1.6); }
+        else if (Cy.ggLoss) { can(px + sg * rc * 0.2, top - hi * 0.4, rc * 0.42, rc * 0.9, '#8f979f', true); pipe([[px + sg * rc * 0.2, top + rc * 0.5], [px + sg * rc * 0.55, top + rc * 0.9], [px + sg * rc * 0.55, yT + ln * 0.35]], '#5d646b', pipeW * 1.4); A.ggX = px + sg * rc * 0.55; A.ggY = yT + ln * 0.35; }
+        pipe([[px, py], [cxp + sg * rc * 0.8, yI + lc * 0.1]], '#9aa4ae', pipeW);
+        pipe([[px, py + rc * 0.3], [px, yC], [cxp + sg * rt * 1.6, yT + 2]], '#7f8a94', pipeW * 0.8);
+        turbo(px, py, rc * 0.55, Cy.expander ? '#c9d2da' : '#8a949e');
+      });
+    }
+  }
+  // --- injector dome
+  g.fillStyle = metalH(cxp - rc, cxp + rc, '#9aa3ab'); g.beginPath(); g.ellipse(cxp, yI, rc * 0.98, hi, 0, Math.PI, 0); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 1; g.stroke();
+  // --- chamber + nozzle silhouette
+  const N = 18, bell = u => rt + (re - rt) * (1 - Math.pow(1 - u, 2.1));
+  const outline = (expand) => {
+    g.beginPath(); g.moveTo(cxp - rc - expand, yI); g.lineTo(cxp - rc - expand, yC);
+    g.quadraticCurveTo(cxp - rc - expand, yC + lcv * 0.5, cxp - rt - expand, yT);
+    if (!o.noNozzle) { for (let i = 1; i <= N; i++) { const u = i / N; g.lineTo(cxp - bell(u) - expand, yT + ln * u); } for (let i = N; i >= 1; i--) { const u = i / N; g.lineTo(cxp + bell(u) + expand, yT + ln * u); } }
+    else { g.lineTo(cxp - rt * 1.2, yT + rt * 0.8); g.lineTo(cxp - rt * 0.6, yT + rt * 0.3); g.lineTo(cxp + rt * 0.3, yT + rt * 0.9); g.lineTo(cxp + rt * 1.2, yT + rt * 0.5); }
+    g.lineTo(cxp + rt + expand, yT); g.quadraticCurveTo(cxp + rc + expand, yC + lcv * 0.5, cxp + rc + expand, yC); g.lineTo(cxp + rc + expand, yI); g.closePath();
+  };
+  // nozzle extension split: regen part to ~eps 30 then radiative extension
+  const colN = o.char ? '#2a221e' : base;
+  outline(0); g.fillStyle = metalH(cxp - Math.max(re, rc), cxp + Math.max(re, rc), colN, -0.8); g.fill();
+  if (!o.noNozzle && d.eps > 40 && !o.char) { // radiatively-cooled extension in darker niobium tone
+    const u0 = clamp(Math.sqrt(30 / d.eps) * 1.1, 0.25, 0.8), yx = yT + ln * u0;
+    g.save(); outline(0); g.clip(); g.fillStyle = metalH(cxp - re, cxp + re, '#5e6a80', -0.85); g.fillRect(cxp - re - 2, yx, re * 2 + 4, yE - yx + 2); g.restore();
+    g.strokeStyle = 'rgba(255,255,255,0.18)'; g.lineWidth = 1; g.beginPath(); g.moveTo(cxp - bell(u0), yx); g.lineTo(cxp + bell(u0), yx); g.stroke();
+  }
+  if (M.abl && !o.char) { // ablative: dark phenolic with steel bands
+    g.fillStyle = 'rgba(160,170,180,0.55)'; [0.2, 0.75].forEach(f => g.fillRect(cxp - rc, yI + lc * f, rc * 2, Math.max(1.5, lc * 0.07)));
+    g.save(); outline(0); g.clip(); grain(g, cxp - re - 10, yI - 10, re * 2 + 20, yE - yI + 20, 0.25); g.restore();
+  }
+  // regen tubes
+  const regen = regenOf(d);
+  if (regen > 0 && !o.char) {
+    g.save(); outline(0); g.clip(); g.globalAlpha = 0.18 + 0.32 * regen / 100; g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = 0.6;
+    const nt = 16; for (let k = 1; k < nt; k++) { const f = k / nt * 2 - 1; g.beginPath(); g.moveTo(cxp + f * rc, yI); g.lineTo(cxp + f * rc, yC); g.quadraticCurveTo(cxp + f * rc, yC + lcv * 0.5, cxp + f * rt, yT);
+      const uMax = d.eps > 40 ? clamp(Math.sqrt(30 / d.eps) * 1.1, 0.25, 0.8) : 1; for (let i = 1; i <= 8; i++) { const u = i / 8 * uMax; g.lineTo(cxp + f * bell(u), yT + ln * u); } g.stroke(); }
+    g.restore();
+  }
+  // manifold rings
+  if (!o.char) { g.fillStyle = metalH(cxp - rc * 1.08, cxp + rc * 1.08, '#8f99a3'); g.fillRect(cxp - rc * 1.08, yC - Math.max(2, lc * 0.08), rc * 2.16, Math.max(2, lc * 0.08));
+    if (!o.noNozzle) { const ym = yT + ln * 0.14, rm = bell(0.14); g.fillRect(cxp - rm - 2, ym, rm * 2 + 4, Math.max(1.5, ln * 0.025)); } }
+  outline(0); g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 1.1; g.stroke();
+  // exit lip
+  if (!o.noNozzle) { g.fillStyle = shade(colN, -0.4); g.beginPath(); g.ellipse(cxp, yE, re, Math.max(1.5, re * 0.12), 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.75)'; g.beginPath(); g.ellipse(cxp, yE, re * 0.92, Math.max(1, re * 0.09), 0, 0, Math.PI * 2); g.fill(); }
+  // heat glow
+  const h = o.heat || 0;
+  if (h > 0.3) {
+    g.save(); outline(0); g.clip(); g.globalCompositeOperation = 'lighter';
+    const a = clamp((h - 0.3) / 0.8, 0, 1), col = heatCol(h);
+    g.fillStyle = radg(g, cxp, yT, 0, cxp, yT, Math.max(rc * 2.2, ln * 0.6 + rt * 4), [[0, rgba(col, a)], [0.5, rgba('#ff3010', a * 0.5)], [1, 'rgba(255,40,0,0)']]);
+    g.fillRect(cxp - re - rc, yI, (re + rc) * 2, yE - yI + 2);
+    if (o.nozGlow && !o.noNozzle) { g.fillStyle = lin(g, 0, yT, 0, yE, [[0, 'rgba(255,90,20,0)'], [1, rgba('#ff5a20', 0.45 * o.nozGlow)]]); g.fillRect(cxp - re - 2, yT, re * 2 + 4, ln + 2); }
+    g.restore();
+  }
+  if (o.injGlow) { g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = radg(g, cxp, yI, 0, cxp, yI, rc * 2, [[0, rgba('#fff4d0', o.injGlow)], [0.4, rgba('#ff9a30', o.injGlow * 0.6)], [1, 'rgba(255,80,0,0)']]); g.fillRect(cxp - rc * 2, yI - rc * 2, rc * 4, rc * 4); g.restore(); }
+  if (o.green) { g.save(); g.globalCompositeOperation = 'lighter'; outline(2); g.fillStyle = rgba('#5aff8a', 0.25 * o.green); g.fill(); g.restore(); }
+  // rim highlight
+  g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = 'rgba(255,220,180,0.10)'; g.lineWidth = 1; g.beginPath(); g.moveTo(cxp - rc * 0.55, yI); g.lineTo(cxp - rc * 0.55, yC); g.stroke(); g.restore();
+  g.restore();
+  return A;
+}
+// ---------- plume ----------
+function plumeShape(st, rE, L) {
+  const k = st.vac ? 50 : st.ratio;
+  return u => {
+    if (k >= 1.25) return rE * (1 + Math.min(4.2, (k - 1) * 0.2 + (st.vac ? 1.5 : 0)) * Math.sqrt(u) * (st.vac ? 1 : 0.7)) * (1 - 0.3 * u * u);
+    if (k > 0.55) return rE * (1 + 0.18 * u) * (1 - 0.55 * u * u * u);
+    const pinch = Math.min(0.55, (1 - k) * 0.6), u0 = 0.28;
+    return (u < u0 ? rE * (1 - pinch * Math.sin(u / u0 * Math.PI / 2)) : rE * (1 - pinch + (u - u0) * 1.9)) * (1 - 0.4 * u * u * u);
+  };
+}
+function drawPlume(g, x, y, rE, len, prop, st) {
+  const thr = st.thr; if (thr < 0.02 || rE <= 0) return;
+  const P = PROPS[prop], cols = P.plume, t = st.t || game.t;
+  const pulse = st.aC > 0.02 ? 0.5 + 0.5 * Math.sin(t * Math.PI * 2 * 7) : 1;
+  const chugK = 1 - Math.min(0.85, st.aC) * (1 - pulse);
+  const faint = prop === 'lh2' ? 0.38 : prop === 'hyp' ? 0.7 : 1;
+  const I = Math.min(1.1, thr * 1.05) * chugK * faint * (st.dim || 1);
+  const L = len * (0.42 + 0.58 * Math.min(1, thr)) * (0.8 + 0.2 * chugK);
+  const rf = plumeShape(st, rE, L), sep = st.sep || 0, wob = st.wob || 0;
+  const NS = 26, jit = RMOTION ? 0.015 : 0.045;
+  g.save(); g.globalCompositeOperation = 'lighter';
+  const layer = (wk, lk, col, a, wobK) => {
+    g.beginPath();
+    const ptsL = [], ptsR = [];
+    for (let i = 0; i <= NS; i++) { const u = i / NS, yy = y + L * lk * u, r = rf(u) * wk * (1 + (Math.random() - 0.5) * jit * (1 + u * 2)) * (st.stub ? 1.6 + u : 1);
+      const off = (Math.sin(t * 31 + u * 4) * sep * 0.5 + Math.sin(t * 13 + u * 2) * wob) * rE * u * 1.4 * wobK;
+      ptsL.push([x - r + off, yy]); ptsR.push([x + r + off, yy]); }
+    g.moveTo(ptsL[0][0], ptsL[0][1]); for (let i = 1; i <= NS; i++) g.lineTo(ptsL[i][0], ptsL[i][1]);
+    g.quadraticCurveTo(x + (ptsL[NS][0] + ptsR[NS][0] - 2 * x) / 2, y + L * lk * 1.08, ptsR[NS][0], ptsR[NS][1]);
+    for (let i = NS - 1; i >= 0; i--) g.lineTo(ptsR[i][0], ptsR[i][1]); g.closePath();
+    g.fillStyle = lin(g, 0, y, 0, y + L * lk, [[0, rgba(col, a)], [0.35, rgba(col, a * 0.75)], [1, rgba(col, 0)]]); g.fill();
+  };
+  layer(1.25, 1, cols[2], (st.vac ? 0.2 : 0.32) * I, 1.2);
+  layer(0.9, 0.85, cols[1], 0.5 * I, 1);
+  layer(0.45, 0.5, cols[0], 0.85 * I, 0.6);
+  // Mach diamonds: visible when near-ideally expanded, or always faintly for hydrogen
+  const k = st.vac ? 50 : st.ratio;
+  if (!st.stub && (k > 0.45 && k < 1.6 || prop === 'lh2') && !st.vac) {
+    const sp = rE * 2.2 * (1 + Math.max(0, k - 1)), n = Math.min(7, Math.floor(L * 0.85 / sp));
+    for (let i = 0; i < n; i++) { const yy = y + sp * (i + 0.55), a = (0.85 - i * 0.11) * I * (prop === 'lh2' ? 2 : 1), w = rE * (0.55 - i * 0.04), hgt = sp * 0.45;
+      g.fillStyle = radg(g, x, yy, 0, x, yy, w * 1.3, [[0, rgba('#ffffff', a)], [0.5, rgba(prop === 'lh2' ? '#ff9ad8' : cols[0], a * 0.6)], [1, rgba(cols[1], 0)]]);
+      g.beginPath(); g.moveTo(x, yy - hgt); g.lineTo(x + w, yy); g.lineTo(x, yy + hgt); g.lineTo(x - w, yy); g.closePath(); g.fill(); }
+  }
+  // turbulent hot pockets
+  const nb = RMOTION ? 3 : 7;
+  for (let i = 0; i < nb; i++) { const u = Math.random() * 0.8, r = rf(u) * (0.5 + Math.random() * 0.6); g.globalAlpha = 0.18 * I; g.drawImage(FIRE, x - r + (Math.random() - 0.5) * r * 0.6, y + L * u - r, r * 2, r * 2); }
+  g.globalAlpha = 1;
+  glowAt(x, y + rE * 0.4, rE * 3.2, cols[0], 0.55 * I, g);
+  glowAt(x, y + L * 0.4, Math.max(rE * 4, L * 0.5), cols[1], 0.22 * I, g);
+  g.restore();
+  return L;
+}
+// ---------- particles (FX) ----------
+let FX = [];
+const STEAM = [0, 1].map(i => { seed = 90 + i; const size = 96, [c, g] = layer(size, size, 1);
+  for (let k = 0; k < 14; k++) { const a = srand() * 6.28, d = srand() * 22, r = 14 + srand() * 20, x = 48 + Math.cos(a) * d, y = 48 + Math.sin(a) * d, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(225,228,236,0.32)'); gr.addColorStop(1, 'rgba(225,228,236,0)'); g.fillStyle = gr; g.fillRect(0, 0, size, size); }
+  return c; });
+const FIREG = (() => { const [c, g] = layer(64, 64, 1), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(235,255,235,1)'); gr.addColorStop(0.3, 'rgba(90,255,140,0.85)'); gr.addColorStop(0.6, 'rgba(20,170,70,0.4)'); gr.addColorStop(1, 'rgba(0,60,20,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
+function fx(p) { if (FX.length > (RMOTION ? 350 : 700)) FX.shift(); p.life = p.max = p.life || 1; FX.push(p); return p; }
+function smokeAt(x, y, vx, vy, size, life, steam, a) { return fx({ k: 'smoke', x, y, vx, vy, s: size, grow: size * 0.9, life, a: a == null ? 0.9 : a, steam, spr: Math.floor(Math.random() * 2), rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.6 }); }
+function fireAt(x, y, vx, vy, size, life, green) { return fx({ k: 'fire', x, y, vx, vy, s: size, grow: size * 1.2, life, green }); }
+function sparkAt(x, y, vx, vy, life, col) { return fx({ k: 'spark', x, y, vx, vy, life, col: col || '#ffd27a', g: 260 }); }
+function debrisAt(x, y, vx, vy, size, col, hot, shape) {
+  const n = 5 + Math.floor(Math.random() * 3), pts = []; for (let i = 0; i < n; i++) { const a = i / n * 6.283 + Math.random() * 0.5, r = size * (0.5 + Math.random() * 0.6); pts.push([Math.cos(a) * r, Math.sin(a) * r * (0.5 + Math.random() * 0.5)]); }
+  return fx({ k: 'debris', x, y, vx, vy, s: size, pts, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 14, life: 6 + Math.random() * 3, col: col || '#8a929a', hot: hot == null ? 1 : hot, shape, trail: 0 });
+}
+function ringAt(x, y, r, col, life) { return fx({ k: 'ring', x, y, r0: r, life: life || 0.6, col: col || '#ffe8c0' }); }
+let GROUND_Y = 470;
+function updateFX(dt) {
+  for (const p of FX) {
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.k === 'smoke') { p.vx *= 1 - dt * 0.6; p.vy = p.vy * (1 - dt * 0.7) - 12 * dt; p.s += p.grow * dt; p.rot += p.vr * dt; }
+    else if (p.k === 'fire') { p.vx *= 1 - dt * 2; p.vy = p.vy * (1 - dt * 2) - 30 * dt; p.s += p.grow * dt;
+      if (Math.random() < dt * 5) smokeAt(p.x, p.y, p.vx * 0.3, p.vy * 0.3 - 10, p.s * 0.6, 2.5, false, 0.5); }
+    else if (p.k === 'spark') { p.vy += p.g * dt; p.vx *= 1 - dt * 0.8; if (p.y > GROUND_Y) { p.y = GROUND_Y; p.vy *= -0.35; p.vx *= 0.6; } }
+    else if (p.k === 'debris' || p.k === 'nozzle') { p.vy += 420 * dt; p.rot += p.vr * dt; p.hot = Math.max(0, p.hot - dt * 0.35);
+      if (p.y > GROUND_Y - p.s * 0.3) { p.y = GROUND_Y - p.s * 0.3; if (Math.abs(p.vy) > 60) { p.vy *= -0.35; if (p.k === 'nozzle') sfx('clang'); } else p.vy = 0; p.vx *= 0.6; p.vr *= 0.6; }
+      p.trail -= dt; if (p.trail <= 0 && p.life > p.max - 3 && (Math.abs(p.vx) + Math.abs(p.vy)) > 40) { p.trail = 0.03; smokeAt(p.x, p.y, 0, -5, p.s * 0.9, 1.6, false, 0.55); if (p.hot > 0.3) fireAt(p.x, p.y, 0, 0, p.s * 0.8, 0.25); } }
+    else if (p.k === 'drip') { p.vy += 300 * dt; if (p.y > GROUND_Y) { p.life = 0; sparkAt(p.x, GROUND_Y, (Math.random() - 0.5) * 80, -60, 0.4, '#9affb0'); } }
+  }
+  FX = FX.filter(p => p.life > 0);
+}
+function drawFX(g, pass) {
+  // pass 'back' = smoke, 'front' = fire/sparks/debris
+  for (const p of FX) {
+    const f = clamp(p.life / p.max, 0, 1);
+    if (pass === 'smoke' && p.k === 'smoke') { g.save(); g.globalAlpha = p.a * Math.min(1, f * 1.4) * Math.min(1, (p.max - p.life) * 4 + 0.2); g.translate(p.x, p.y); g.rotate(p.rot); const spr = p.steam ? STEAM[p.spr] : SMOKE[p.spr]; g.drawImage(spr, -p.s, -p.s, p.s * 2, p.s * 2); g.restore(); }
+    else if (pass === 'front') {
+      if (p.k === 'fire') { g.globalCompositeOperation = 'lighter'; g.globalAlpha = Math.min(1, f * 1.6); g.drawImage(p.green ? FIREG : FIRE, p.x - p.s, p.y - p.s, p.s * 2, p.s * 2); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; }
+      else if (p.k === 'spark') { g.globalCompositeOperation = 'lighter'; g.strokeStyle = rgba(p.col, Math.min(1, f * 2)); g.lineWidth = 1.4; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - p.vx * 0.03, p.y - p.vy * 0.03); g.stroke(); g.globalCompositeOperation = 'source-over'; }
+      else if (p.k === 'drip') { glowAt(p.x, p.y, 6, '#7aff9a', f, g); }
+      else if (p.k === 'ring') { const r = p.r0 + (1 - f) * p.r0 * 5; g.globalCompositeOperation = 'lighter'; g.strokeStyle = rgba(p.col, f * 0.7); g.lineWidth = 3 + 10 * f; g.beginPath(); g.ellipse(p.x, p.y, r, r * 0.8, 0, 0, 6.29); g.stroke(); g.globalCompositeOperation = 'source-over'; }
+      else if (p.k === 'debris') { g.save(); g.globalAlpha = Math.min(1, p.life / 1.2); g.translate(p.x, p.y); g.rotate(p.rot); g.beginPath(); p.pts.forEach((q, i) => i ? g.lineTo(q[0], q[1]) : g.moveTo(q[0], q[1])); g.closePath();
+        g.fillStyle = lin(g, -p.s, -p.s, p.s, p.s, [[0, shade(p.col, 0.4)], [0.5, p.col], [1, shade(p.col, -0.6)]]); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 0.8; g.stroke();
+        if (p.hot > 0.05) { g.globalCompositeOperation = 'lighter'; g.fillStyle = rgba(heatCol(p.hot), p.hot * 0.8); g.fill(); } g.restore(); if (p.hot > 0.2) glowAt(p.x, p.y, p.s * 2.5, '#ff7a20', p.hot * 0.5, g); }
+      else if (p.k === 'nozzle') { g.save(); g.globalAlpha = Math.min(1, p.life / 1.2); g.translate(p.x, p.y); g.rotate(p.rot); const re = p.re, rt = p.rt, ln = p.ln;
+        g.beginPath(); g.moveTo(-rt, -ln / 2); for (let i = 1; i <= 12; i++) { const u = i / 12; g.lineTo(-(rt + (re - rt) * (1 - Math.pow(1 - u, 2.1))), -ln / 2 + ln * u); } for (let i = 12; i >= 0; i--) { const u = i / 12; g.lineTo(rt + (re - rt) * (1 - Math.pow(1 - u, 2.1)), -ln / 2 + ln * u); } g.closePath();
+        g.fillStyle = lin(g, -re, 0, re, 0, [[0, shade(p.col, -0.7)], [0.35, shade(p.col, 0.4)], [0.6, p.col], [1, shade(p.col, -0.7)]]); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 1; g.stroke();
+        if (p.hot > 0.05) { g.globalCompositeOperation = 'lighter'; g.fillStyle = rgba('#ff6a20', p.hot * 0.6); g.fill(); } g.restore(); }
+    }
+  }
+  g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+}
+// big generic explosion
+let SCORCH = [];
+function explode(x, y, k, opt) {
+  opt = opt || {}; k = k || 1; const rm = RMOTION ? 0.5 : 1, green = opt.green;
+  game.shake = Math.max(game.shake, 26 * k * rm); game.flash = Math.min(1, 0.9 * rm + 0.1); game.flashCol = green ? '#b8ffcc' : '#ffe6b0';
+  ringAt(x, y, 18 * k, green ? '#c0ffd0' : '#fff0d0', 0.7);
+  for (let i = 0; i < 26 * k * rm; i++) { const a = Math.random() * 6.283, sp = 40 + Math.random() * 260 * k; fireAt(x + Math.cos(a) * 8, y + Math.sin(a) * 8, Math.cos(a) * sp, Math.sin(a) * sp * 0.8 - 30, 16 + Math.random() * 26 * k, 0.6 + Math.random() * 0.9, green && Math.random() < 0.7); }
+  for (let i = 0; i < 18 * k * rm; i++) { const a = Math.random() * 6.283, sp = 20 + Math.random() * 120 * k; smokeAt(x, y, Math.cos(a) * sp, Math.sin(a) * sp * 0.6 - 40, 26 + Math.random() * 30 * k, 3 + Math.random() * 4, false, 0.95); }
+  for (let i = 0; i < 40 * k * rm; i++) { const a = Math.random() * 6.283, sp = 150 + Math.random() * 520; sparkAt(x, y, Math.cos(a) * sp, Math.sin(a) * sp - 120, 0.6 + Math.random() * 1.2, green ? '#a8ffc0' : null); }
+  const nd = Math.round((opt.debris || 10) * k);
+  for (let i = 0; i < nd; i++) { const a = -Math.PI / 2 + (Math.random() - 0.5) * 3.2, sp = 160 + Math.random() * 420 * k; debrisAt(x, y, Math.cos(a) * sp, Math.sin(a) * sp, 3 + Math.random() * 8 * k, pick(opt.cols || ['#8a929a', '#d9824a', '#5a6168', '#3a3f45'])); }
+  SCORCH.push({ x: x + (Math.random() - 0.5) * 40, y: GROUND_Y - 4, r: 50 * k + Math.random() * 30 }); if (SCORCH.length > 8) SCORCH.shift();
+  sfx('boom', k);
+}
+
+// ---------- SCENES: test stand (dusk desert), altitude chamber, studio ----------
+const ST = { ex: 300, top: 128, maxH: 165, maxW: 150, defY: 448, groundY: 472, sw: 612 };
+let BG_STAND = null, BG_VAC = null, BG_STUDIO = null;
+function ridge(g, y0, amp, freq, col, rim, sd) {
+  g.beginPath(); g.moveTo(0, H); const pts = [];
+  for (let x = 0; x <= W; x += 4) { const y = y0 - amp * fbm(x * freq + sd, sd * 0.37, 5); pts.push([x, y]); g.lineTo(x, y); }
+  g.lineTo(W, H); g.closePath(); g.fillStyle = col; g.fill();
+  if (rim) { g.strokeStyle = rim; g.lineWidth = 1.2; g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.stroke(); }
+}
+function concrete(g, x, y, w, h, base) {
+  g.fillStyle = lin(g, x, 0, x + w, 0, [[0, shade(base, -0.5)], [0.25, shade(base, 0.1)], [0.6, base], [1, shade(base, -0.6)]]); g.fillRect(x, y, w, h);
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); grain(g, x, y, w, h, 0.35); g.globalAlpha = 0.25; g.fillStyle = '#000';
+  for (let k = 0; k < 6; k++) g.fillRect(x, y + h * k / 6, w, 1); g.restore();
+  g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(x + w - 3, y, 3, h);
+}
+function lattice(g, x0, y0, x1, y1, n, col) {
+  g.strokeStyle = col; g.lineWidth = 1.4; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+  const step = (x1 - x0) / n; g.lineWidth = 0.9; g.beginPath();
+  for (let i = 0; i < n; i++) { const a = x0 + i * step, b = a + step; g.moveTo(a, y0); g.lineTo(b, y1); g.moveTo(a, y1); g.lineTo(b, y0); g.moveTo(b, y0); g.lineTo(b, y1); }
+  g.stroke();
+}
+function buildStand() {
+  const [c, g] = layer(W, H);
+  seed = 7;
+  // dusk sky
+  g.fillStyle = lin(g, 0, 0, 0, 410, [[0, '#04060f'], [0.35, '#0d0f26'], [0.62, '#2a1a3a'], [0.82, '#7a3440'], [0.95, '#d8743a'], [1, '#ffb060']]); g.fillRect(0, 0, W, 410);
+  for (let i = 0; i < 160; i++) { const x = sr(0, W), y = sr(0, 250), a = sr(0.15, 0.9) * (1 - y / 280); g.fillStyle = 'rgba(255,255,255,' + a + ')'; g.fillRect(x, y, sr(0.6, 1.6), sr(0.6, 1.6)); }
+  g.globalCompositeOperation = 'lighter'; g.fillStyle = radg(g, 140, 400, 0, 140, 400, 360, [[0, 'rgba(255,150,70,0.35)'], [1, 'rgba(255,90,40,0)']]); g.fillRect(0, 150, W, 300); g.globalCompositeOperation = 'source-over';
+  ridge(g, 380, 120, 0.004, '#2a1c2e', 'rgba(255,140,90,0.35)', 11);
+  ridge(g, 398, 70, 0.007, '#1a1220', 'rgba(255,120,80,0.25)', 37);
+  ridge(g, 412, 30, 0.012, '#110c14', null, 71);
+  // desert floor
+  g.fillStyle = lin(g, 0, 405, 0, H, [[0, '#2a1d1a'], [0.4, '#1a1210'], [1, '#0b0807']]); g.fillRect(0, 405, W, H - 405);
+  grain(g, 0, 405, W, H - 405, 0.3);
+  // distant service buildings + blinking-light masts (static part)
+  g.fillStyle = '#0e0b10'; [[640, 386, 60, 22], [700, 378, 26, 30], [520, 392, 40, 14], [40, 390, 50, 16]].forEach(b => g.fillRect(b[0], b[1], b[2], b[3]));
+  g.strokeStyle = '#0e0b10'; g.lineWidth = 2; [[760, 300], [90, 320]].forEach(m => { g.beginPath(); g.moveTo(m[0], 404); g.lineTo(m[0], m[1]); g.stroke(); lattice(g, m[0] - 4, m[1], m[0] + 4, 404, 10, 'rgba(20,16,22,1)'); });
+  // stand pad
+  g.fillStyle = lin(g, 0, ST.groundY - 8, 0, H, [[0, '#4a4646'], [0.08, '#2c2a2b'], [1, '#141213']]); g.fillRect(110, ST.groundY - 8, 420, H - ST.groundY + 8);
+  grain(g, 110, ST.groundY - 8, 420, H - ST.groundY + 8, 0.4);
+  // flame trench opening (left)
+  g.fillStyle = lin(g, 0, ST.groundY, 0, H, [[0, '#050404'], [1, '#120a08']]); g.beginPath(); g.moveTo(20, ST.groundY + 2); g.lineTo(250, ST.groundY + 2); g.lineTo(250, H); g.lineTo(0, H); g.lineTo(0, ST.groundY + 30); g.closePath(); g.fill();
+  // tower legs
+  concrete(g, 172, 92, 54, ST.groundY - 92, '#6a6563'); concrete(g, 374, 92, 54, ST.groundY - 92, '#6a6563');
+  // deflector: curved steel chute
+  g.beginPath(); g.moveTo(226, ST.defY - 6); g.quadraticCurveTo(330, ST.defY - 6, 374, ST.defY - 46); g.lineTo(374, ST.groundY); g.lineTo(226, ST.groundY); g.closePath();
+  g.fillStyle = lin(g, 0, ST.defY - 40, 0, ST.groundY, [[0, '#8a8580'], [0.3, '#4a4644'], [1, '#232120']]); g.fill();
+  g.strokeStyle = 'rgba(255,220,180,0.3)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(226, ST.defY - 6); g.quadraticCurveTo(330, ST.defY - 6, 374, ST.defY - 46); g.stroke();
+  // deluge water pipes
+  g.strokeStyle = '#3a5568'; g.lineWidth = 4; g.beginPath(); g.moveTo(374, ST.defY - 60); g.lineTo(440, ST.defY - 60); g.lineTo(440, ST.groundY); g.stroke();
+  // upper deck: thrust frame lattice
+  g.fillStyle = lin(g, 0, 70, 0, 118, [[0, '#3c4248'], [1, '#1c2024']]); g.fillRect(150, 92, 300, 22);
+  lattice(g, 150, 70, 450, 92, 12, '#59626b');
+  lattice(g, 226, 114, 374, 128, 8, '#454c53');
+  // run tank on top (LOX, frosty)
+  g.fillStyle = lin(g, 240, 0, 360, 0, [[0, '#6a7682'], [0.3, '#dce6ee'], [0.55, '#a8b6c2'], [1, '#4a5662']]); rrect(g, 240, 8, 120, 62, 26); g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.12)'; for (let i = 0; i < 40; i++) g.fillRect(sr(246, 354), sr(12, 66), sr(1, 3), 1);
+  g.fillStyle = '#ff3b3b'; g.font = '900 9px ' + FONT; g.textAlign = 'center'; g.fillText('LOX', 300, 42);
+  // railings + stairs on right leg
+  g.strokeStyle = 'rgba(200,190,170,0.35)'; g.lineWidth = 1; for (let y = 150; y < ST.groundY - 10; y += 40) { g.beginPath(); g.moveTo(428, y); g.lineTo(456, y + 40); g.stroke(); }
+  // clover decal on leg
+  g.save(); g.globalAlpha = 0.6; const cl = ['#ff3b3b', '#3cff7a', '#ff9a1f', '#ffd23f']; for (let i = 0; i < 4; i++) { const a = -2.356 + i * 1.5708; g.fillStyle = cl[i]; g.beginPath(); g.arc(199 + Math.cos(a) * 6, 200 + Math.sin(a) * 6, 6, 0, 6.29); g.fill(); } g.restore();
+  g.fillStyle = 'rgba(255,255,255,0.5)'; g.font = '800 7px ' + FONT; g.fillText('STAND B-2', 199, 222);
+  // floodlight masts
+  [[70, 250], [520, 240]].forEach(m => { g.fillStyle = '#121014'; g.fillRect(m[0] - 2, m[1], 4, 410 - m[1] + 60); g.fillStyle = '#2a2a2e'; g.fillRect(m[0] - 12, m[1] - 8, 24, 10); });
+  return c;
+}
+function buildVac() {
+  const [c, g] = layer(W, H); seed = 21;
+  g.fillStyle = lin(g, 0, 0, 0, H, [[0, '#070a0e'], [0.5, '#0d1218'], [1, '#05070a']]); g.fillRect(0, 0, W, H);
+  // cylindrical wall ribs with cylindrical shading
+  g.fillStyle = lin(g, 20, 0, 580, 0, [[0, '#06080b'], [0.2, '#1b232c'], [0.45, '#2c3742'], [0.7, '#18202a'], [1, '#05070a']]); g.fillRect(20, 0, 560, H);
+  for (let i = 0; i < 13; i++) { const x = 40 + i * 43; g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(x, 0, 6, H); g.fillStyle = 'rgba(160,200,230,0.06)'; g.fillRect(x + 6, 0, 2, H); }
+  for (let y = 40; y < H; y += 90) { g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(20, y, 560, 5); g.fillStyle = 'rgba(160,200,230,0.07)'; g.fillRect(20, y + 5, 560, 1);
+    for (let x = 30; x < 580; x += 22) { g.fillStyle = 'rgba(200,220,240,0.12)'; g.beginPath(); g.arc(x, y + 2.5, 1.2, 0, 6.29); g.fill(); } }
+  grain(g, 20, 0, 560, H, 0.3);
+  // portholes with cold light
+  [[90, 150], [510, 150]].forEach(p => { g.fillStyle = '#0a0e12'; g.beginPath(); g.arc(p[0], p[1], 26, 0, 6.29); g.fill(); g.strokeStyle = '#4a5866'; g.lineWidth = 5; g.stroke();
+    g.fillStyle = radg(g, p[0] - 6, p[1] - 6, 0, p[0], p[1], 22, [[0, 'rgba(140,200,255,0.55)'], [1, 'rgba(20,40,70,0.3)']]); g.beginPath(); g.arc(p[0], p[1], 21, 0, 6.29); g.fill(); });
+  // mount ring
+  g.fillStyle = lin(g, 0, 70, 0, 120, [[0, '#4a5560'], [1, '#1c2228']]); g.fillRect(150, 92, 300, 24); lattice(g, 150, 70, 450, 92, 12, '#5d6a76');
+  // diffuser funnel
+  g.beginPath(); g.moveTo(150, 540); g.lineTo(190, 420); g.lineTo(410, 420); g.lineTo(450, 540); g.closePath();
+  g.fillStyle = lin(g, 150, 0, 450, 0, [[0, '#0b0e12'], [0.2, '#38434e'], [0.5, '#1c232b'], [0.8, '#323c46'], [1, '#0b0e12']]); g.fill();
+  g.fillStyle = '#020304'; g.beginPath(); g.moveTo(200, 540); g.lineTo(226, 432); g.lineTo(374, 432); g.lineTo(400, 540); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(160,210,255,0.25)'; g.lineWidth = 1; g.beginPath(); g.moveTo(190, 420); g.lineTo(410, 420); g.stroke();
+  g.fillStyle = '#9fd8ff'; g.font = '900 9px ' + FONT; g.textAlign = 'center'; g.fillText('ALTITUDE CHAMBER A-3  \u00b7  0.0003 bar', 300, 412);
+  return c;
+}
+function buildStudio() {
+  const [c, g] = layer(W, H); seed = 3;
+  g.fillStyle = radg(g, W * 0.2, H * 0.4, 0, W * 0.35, H * 0.5, W * 0.8, [[0, '#18161c'], [0.5, '#0c0b10'], [1, '#040406']]); g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(255,210,63,0.035)'; g.lineWidth = 1; for (let x = 0; x < W; x += 24) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); } for (let y = 0; y < H; y += 24) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+  grain(g, 0, 0, W, H, 0.22);
+  return c;
+}
+function standLights(alpha) {
+  cx.save(); cx.globalCompositeOperation = 'lighter';
+  [[70, 248, 1], [520, 238, -1]].forEach(m => { const x = m[0], y = m[1];
+    cx.fillStyle = lin(cx, x, y, x + m[2] * 200, y + 240, [[0, 'rgba(255,236,190,' + 0.16 * alpha + ')'], [1, 'rgba(255,236,190,0)']]);
+    cx.beginPath(); cx.moveTo(x - 8, y); cx.lineTo(x + 8, y); cx.lineTo(x + m[2] * 300, y + 240); cx.lineTo(x + m[2] * 120, y + 260); cx.closePath(); cx.fill();
+    glowAt(x, y - 3, 26, '#fff2d0', 0.9 * alpha); });
+  // blinking red obstruction lights
+  if (Math.sin(game.t * 3) > 0) { glowAt(760, 300, 8, '#ff3b3b', 0.9); glowAt(90, 320, 8, '#ff3b3b', 0.9); glowAt(300, 6, 7, '#ff3b3b', 0.9); }
+  cx.restore();
+}
+function drawScorch() {
+  for (const s of SCORCH) { cx.fillStyle = radg(cx, s.x, s.y, 0, s.x, s.y, s.r, [[0, 'rgba(0,0,0,0.7)'], [0.6, 'rgba(10,6,4,0.35)'], [1, 'rgba(0,0,0,0)']]); cx.beginPath(); cx.ellipse(s.x, s.y, s.r, s.r * 0.25, 0, 0, 6.29); cx.fill(); }
+}
+function sceneBG(env) {
+  if (env === 'vac') { if (!BG_VAC) BG_VAC = buildVac(); cx.drawImage(BG_VAC, 0, 0, W, H); }
+  else { if (!BG_STAND) BG_STAND = buildStand(); cx.drawImage(BG_STAND, 0, 0, W, H); drawScorch(); }
+}
+function studio() { if (!BG_STUDIO) BG_STUDIO = buildStudio(); cx.drawImage(BG_STUDIO, 0, 0, W, H); }
+
+// ---------- TEST STAND: hot-fire controller, failure choreography, telemetry ----------
+let T = null;
+const CHN = [
+  { id: 'F', name: 'THRUST', col: '#ffd23f' },
+  { id: 'Pc', name: 'CHAMBER PRESSURE', col: '#ff9a1f' },
+  { id: 'Tw', name: 'THROAT WALL TEMP', col: '#ff3b3b' },
+  { id: 'Tt', name: 'TURBINE TEMP', col: '#9fd8ff' },
+  { id: 'vib', name: 'VIBRATION', col: '#3cff7a' }
+];
+function startTest(d, C, opt) {
+  opt = opt || {};
+  const v = opt.v || hwTrue(d);
+  const S = simNew(d, C, v, { lever: C.sandbox ? 0.7 : undefined, dur: C.sandbox ? 1e9 : undefined });
+  T = { S, d: Object.assign({}, d), C, phase: 'count', cd: opt.skipCount ? 0.01 : 3, speed: 1, hist: { F: [], Pc: [], Tw: [], Tt: [], vib: [], thr: [] }, sampT: 0, sampDt: C.sandbox ? 0.25 : Math.max(0.05, S.dur / 280),
+    failT: 0, endT: 0, gone: false, noz: true, pumpGone: false, green: 0, injGlow: 0, vthr: 0, ignShown: 0, wasOn: false, alarmT: 0, alarms: [], report: null, lastBeep: 4, tankGone: false, fires: 0, events: [] };
+  const pr = perf(d, ZV, 1, C.env === 'vac' ? 0 : PA_SL);
+  T.Fmax = Math.max(pr.F, pr.Fv) / 1e3 * 1.3; T.PcMax = d.pc * 1.3;
+  FX = []; GROUND_Y = C.env === 'vac' ? 560 : ST.groundY;
+  game.state = 'test'; game.paused = false;
+  announce('Test stand. ' + (C.sandbox ? 'Sandbox hot-fire.' : C.name + ' program, ' + Math.round(S.dur) + ' seconds.') + ' Countdown started. Press Space to abort.');
+  return T;
+}
+function chanVal(id, S) {
+  const pr = S.pr;
+  if (id === 'F') return pr ? (S.on || S.thr > 0.02 ? (S.pa > 0 ? pr.F : pr.Fv) / 1e3 : 0) : 0;
+  if (id === 'Pc') return pr && S.thr > 0.02 ? pr.pc : 0;
+  if (id === 'Tw') return MATS[S.d.mat].abl ? S.abl * 100 : S.Tw;
+  if (id === 'Tt') return CYCLES[S.d.cyc].id === 'press' ? (pr && S.thr > 0.02 ? pr.load * 100 : 0) : S.Tt;
+  if (id === 'vib') return S.vib;
+}
+function chanCfg(id) {
+  const d = T.d, M = MATS[d.mat], Cy = CYCLES[d.cyc];
+  if (id === 'F') return { max: T.Fmax, lim: null, unit: 'kN', fmt: v => v >= 1000 ? (v / 1000).toFixed(2) + ' MN' : v.toFixed(v < 100 ? 1 : 0) + ' kN', name: T.C.env === 'vac' ? 'THRUST (VAC)' : 'THRUST (SL)' };
+  if (id === 'Pc') return { max: T.PcMax, lim: null, fmt: v => v.toFixed(0) + ' bar' };
+  if (id === 'Tw') return M.abl ? { max: 110, lim: 100, fmt: v => v.toFixed(0) + '%', name: 'ABLATIVE LINER USED' } : { max: Math.max(M.limit * 1.25, 1200), lim: M.limit, fmt: v => v.toFixed(0) + ' K' };
+  if (id === 'Tt') return Cy.id === 'press' ? { max: 140, lim: 100, fmt: v => v.toFixed(0) + '%', name: 'TANK PRESSURE (% RATED)' } : { max: 1300, lim: 1020, fmt: v => v.toFixed(0) + ' K', name: Cy.id === 'elec' ? 'PUMP MOTOR TEMP' : Cy.oxRich ? 'PREBURNER TEMP' : 'TURBINE TEMP' };
+  if (id === 'vib') return { max: 12, lim: 8, fmt: v => v.toFixed(1) + ' g' };
+}
+function testUpdate(dt) {
+  const S = T.S, C = T.C;
+  updateFX(dt);
+  if (pressed.speed) cycleSpeed();
+  if (T.phase === 'count') {
+    T.cd -= dt; const n = Math.ceil(T.cd);
+    if (n < T.lastBeep && n > 0) { T.lastBeep = n; sfx('countdown'); }
+    if (T.cd <= 0) { T.phase = 'run'; sfx('go'); }
+    if (pressed.space || pressed.abort) { T.phase = 'abort'; S.aborted = true; T.endT = 0; }
+  } else if (T.phase === 'run') {
+    if (C.sandbox) {
+      if (held.up) S.lever = clamp(S.lever + dt * 0.5, 0, 1); if (held.down) S.lever = clamp(S.lever - dt * 0.5, 0, 1);
+      if (ptr.down && T.leverDrag) S.lever = clamp(1 - (ptr.y - T.leverDrag.y) / T.leverDrag.h, 0, 1);
+      if (!ptr.down) T.leverDrag = null;
+      if (pressed.ignite) sandboxIgn();
+    }
+    if (pressed.space || pressed.abort) { if (C.sandbox) sandboxIgn(); else doAbort(); }
+    let simDt = dt * T.speed; const sub = Math.ceil(simDt / (1 / 40));
+    for (let i = 0; i < sub && T.phase === 'run'; i++) {
+      simStep(S, simDt / sub);
+      T.sampT += simDt / sub;
+      if (T.sampT >= T.sampDt) { T.sampT = 0; for (const c of CHN) { const h = T.hist[c.id]; h.push(chanVal(c.id, S)); if (C.sandbox && h.length > 240) h.shift(); } T.hist.thr.push(S.thr); if (C.sandbox && T.hist.thr.length > 240) T.hist.thr.shift(); }
+      if (S.fail) beginFail();
+      else if (S.done) { T.phase = 'shutdown'; T.endT = 0; sfx('shutdown'); announce('Mainstage complete. Shutdown.'); }
+    }
+    if (S.ign > T.ignShown && !S.fail) { T.ignShown = S.ign; igniteFX(); }
+    if (T.wasOn && !S.on && T.phase === 'run') { sfx('shutdown'); ventFX(); }
+    T.wasOn = S.on;
+    T.vthr = S.thr;
+    alarms(dt);
+  } else if (T.phase === 'fail') { T.failT += dt; failSeq(dt); }
+  else if (T.phase === 'shutdown' || T.phase === 'abort') {
+    T.endT += dt; T.vthr = Math.max(0, T.vthr - dt * 1.6); S.thr = T.vthr; S.Tw += (300 - S.Tw) * dt * 0.3; S.vib *= 0.9;
+    if (T.endT > 2.4) finishTest();
+  } else if (T.phase === 'report') { T.repT += dt; if (pressed.start && T.reportDefault) T.reportDefault(); }
+  // engine voice
+  const lit = (T.phase === 'run' || T.phase === 'shutdown' || T.phase === 'abort' || (T.phase === 'fail' && T.failT < (T.seqLen || 1))) && !T.gone ? T.vthr : 0;
+  const P = PROPS[T.d.prop], bright = { rp1: 0.9, eth: 0.7, ch4: 0.6, lh2: 0.35, hyp: 0.55 }[P.id];
+  roarSet(game.paused || T.phase === 'report' ? 0 : lit, bright, T.phase === 'run' || T.phase === 'fail' ? S.aS * 1.3 + T.injGlow : 0, T.phase === 'run' || T.phase === 'fail' ? S.aC * 1.2 : 0, (S.pr ? S.pr.sep : 0) * lit + S.aS * 0.5);
+  if (lit > 0.05 && (P.id === 'rp1' || P.id === 'ch4') && Math.random() < dt * 22 * lit) noise(0.03, 0.05 + Math.random() * 0.08, 2000 + Math.random() * 3000, 0, 'bandpass', 0, 3);
+  if (lit > 0.1 && T.phase !== 'report') game.shake = Math.max(game.shake, lit * 1.4 + S.vib * 0.7);
+  emitters(dt, lit);
+}
+function cycleSpeed() { T.speed = T.speed === 1 ? 4 : T.speed === 4 ? 16 : 1; toast('Sim speed ' + T.speed + 'x', '#9fd8ff', 1); }
+function sandboxIgn() { const S = T.S; if (S.on) { S.cutoff = true; } else { S.cutoff = false; if (S.lever < 0.05) S.lever = 0.6; } }
+function doAbort() { const S = T.S; if (T.phase !== 'run') return; S.aborted = true; S.on = false; T.phase = 'abort'; T.endT = 0; sfx('klaxon'); sfx('shutdown'); toast('ABORT \u2014 hardware safed', '#ff6a40', 2); announce('Test aborted. Hardware saved.'); }
+function alarms(dt) {
+  const S = T.S, M = MATS[T.d.mat], list = [];
+  if (!M.abl && S.Tw > M.limit * 0.9) list.push('WALL TEMP');
+  if (M.abl && S.abl > 0.8) list.push('LINER THIN');
+  if (S.Tt > 960) list.push(CYCLES[T.d.cyc].id === 'press' ? 'TANK PRESS' : 'TURBINE');
+  if (S.aS > 0.3) list.push('SCREECH');
+  if (S.aC > 0.3) list.push('CHUG');
+  if (S.sepD > 0.25 && S.pr && S.pr.sep > 0) list.push('FLOW SEP');
+  if (S.coke > 0.08) list.push('COKING');
+  if (S.lox > 0.3) list.push('OX-RICH');
+  T.alarms = list;
+  if (list.length) { T.alarmT -= dt; if (T.alarmT <= 0) { T.alarmT = 0.7; sfx('alarm'); } } else T.alarmT = 0;
+}
+function anchors() { return drawEngine({ save() { }, restore() { } , __dry: 1 }, ST.ex, ST.top, T.d, { maxH: ST.maxH, maxW: ST.maxW, gone: true }); }
+function igniteFX() {
+  const A = anchors(), tea = T.d.ign === 'tea' && !PROPS[T.d.prop].hyper;
+  game.flash = Math.max(game.flash, RMOTION ? 0.15 : 0.4); game.flashCol = tea ? '#9affb0' : '#ffe0b0';
+  for (let i = 0; i < 18; i++) sparkAt(ST.ex + (Math.random() - 0.5) * A.re, A.yE, (Math.random() - 0.5) * 300, Math.random() * 200, 0.6, tea ? '#9affb0' : null);
+  if (tea) for (let i = 0; i < 6; i++) fireAt(ST.ex, A.yE + 10, (Math.random() - 0.5) * 60, 40, 14, 0.4, true);
+  sfx(tea ? 'tea' : 'ignite');
+}
+function ventFX() { const A = anchors(); for (let i = 0; i < 8; i++) smokeAt(ST.ex + (Math.random() - 0.5) * A.re, A.yE + 10, (Math.random() - 0.5) * 30, 30, 10 + Math.random() * 10, 2.2, true, 0.6); }
+function emitters(dt, lit) {
+  if (T.gone && T.fires > 0) { T.fires -= dt; const A = anchors(); if (Math.random() < dt * 14) fireAt(ST.ex + (Math.random() - 0.5) * 70, A.yC + Math.random() * 40, 0, -20, 10 + Math.random() * 14, 0.8, T.ftype === 'loxfire'); if (Math.random() < dt * 8) smokeAt(ST.ex + (Math.random() - 0.5) * 60, A.yI, (Math.random() - 0.5) * 20, -30, 18, 4, false, 0.8); }
+  if (lit < 0.05 || T.gone) return;
+  const A = anchors(), P = PROPS[T.d.prop], vac = T.C.env === 'vac';
+  const yE = T.noz ? A.yE : A.yT;
+  if (!vac) {
+    const rate = (RMOTION ? 10 : 22) * lit;
+    for (let i = 0; i < rate * dt * 2; i++) { if (Math.random() > 0.5) continue; const steam = Math.random() < P.steam;
+      smokeAt(ST.ex - 60 - Math.random() * 90, ST.defY + 4, -120 - Math.random() * 160 * lit, -20 - Math.random() * 40, 16 + Math.random() * 18, 3.5 + Math.random() * 3, steam, steam ? 0.75 : 0.85); }
+    if (Math.random() < dt * 6 * lit) smokeAt(ST.ex + 80, ST.defY - 30, 40 + Math.random() * 40, -40, 14, 2.5, true, 0.4);
+  } else if (Math.random() < dt * 6 * lit) smokeAt(ST.ex + (Math.random() - 0.5) * 140, 480, (Math.random() - 0.5) * 30, 40, 22, 2.5, true, 0.25);
+  if (A.ggX && T.d.cyc === 'gg' && !T.pumpGone) { if (Math.random() < dt * 30 * lit) smokeAt(A.ggX, A.ggY + 6, (Math.random() - 0.5) * 10, 70, 5 + Math.random() * 5, 1.6, P.id !== 'rp1', P.id === 'rp1' ? 0.9 : 0.4); if (Math.random() < dt * 20 * lit) fireAt(A.ggX, A.ggY + 4, 0, 60, 4, 0.18); }
+  if (T.S.aS > 0.4 && Math.random() < dt * 40 * T.S.aS) sparkAt(ST.ex + (Math.random() - 0.5) * A.re, yE + 20, (Math.random() - 0.5) * 120, 200 + Math.random() * 200, 0.6, '#fff4c0');
+  if (P.id === 'rp1' && Math.random() < dt * 10 * lit) sparkAt(ST.ex + (Math.random() - 0.5) * A.re * 0.6, yE + 30, (Math.random() - 0.5) * 60, 300, 0.4, '#ffb050');
+}
+// ---------- failure choreography ----------
+const SEQ = { hardstart: 3.6, nolight: 4.4, chug: 4.4, screech: 4.6, burnthrough: 4.8, coking: 5, ablative: 4.6, separation: 4.4, turbopump: 4.6, loxfire: 5.2, tank: 4.6, battery: 4.8 };
+function beginFail() {
+  const S = T.S, F = S.fail; T.phase = 'fail'; T.failT = 0; T.ftype = F.type; T.seqLen = SEQ[F.type] || 4; T.vthr = Math.max(0.3, S.thr); T.stage = 0;
+  const name = FAILS[F.type].name; announce('Failure: ' + name + '. ' + FAILS[F.type].sub + '.');
+  T.events.push(F.type);
+}
+function boomEngine(k, opt) {
+  const A = anchors(); T.gone = true; T.fires = 4; T.vthr = 0;
+  explode(ST.ex, (A.yI + A.yT) / 2, k, Object.assign({ cols: [MATS[T.d.mat].col, '#8a929a', '#5a6168', '#3a3f45'] }, opt || {}));
+  for (let i = 0; i < 6; i++) smokeAt(ST.ex + (Math.random() - 0.5) * 80, ST.defY - 20, (Math.random() - 0.5) * 80, -30, 40, 6, false, 0.9);
+}
+function failSeq(dt) {
+  const t = T.failT, A = anchors(), S = T.S, ty = T.ftype, st = T.stage, once = (n, at) => { if (st < n && t >= at) { T.stage = n; return true; } return false; };
+  const yMid = (A.yI + A.yT) / 2;
+  switch (ty) {
+    case 'hardstart':
+      if (once(1, 0)) { T.vthr = 0; sfx('pop'); boomEngine(0.8, { debris: 12 }); for (let i = 0; i < 14; i++) smokeAt(ST.ex, A.yE, (Math.random() - 0.5) * 200, Math.random() * 120, 20, 3, true, 0.7); }
+      break;
+    case 'nolight':
+      T.vthr = 0;
+      if (once(1, 0)) sfx('fizz');
+      if (t < 1.7 && Math.random() < dt * 40) smokeAt(ST.ex + (Math.random() - 0.5) * A.re, A.yE + 4, (Math.random() - 0.5) * 60, 160 + Math.random() * 80, 8 + Math.random() * 8, 2.4, true, 0.8);
+      if (once(2, 1.8)) { sfx('whoomp'); game.flash = RMOTION ? 0.2 : 0.6; game.flashCol = '#ffc080'; game.shake = 14;
+        for (let i = 0; i < 30; i++) fireAt(ST.ex + (Math.random() - 0.5) * 160, ST.defY - 30 + (Math.random() - 0.5) * 60, (Math.random() - 0.5) * 220, -60 - Math.random() * 100, 20 + Math.random() * 20, 0.9 + Math.random() * 0.6);
+        for (let i = 0; i < 10; i++) smokeAt(ST.ex + (Math.random() - 0.5) * 160, ST.defY - 40, (Math.random() - 0.5) * 60, -50, 30, 5, false, 0.8); }
+      break;
+    case 'chug':
+      if (t < 1.4) { S.aC = Math.min(1.6, S.aC + dt); T.vthr = 0.6 + 0.4 * Math.sin(t * 50); game.shake = Math.max(game.shake, 14); }
+      if (once(1, 1.4)) { sfx('rip'); boomEngine(1, { debris: 12 }); }
+      break;
+    case 'screech':
+      if (t < 1.1) { T.injGlow = Math.min(1, t / 0.9); S.aS = Math.min(1.6, S.aS + dt); for (let i = 0; i < 4; i++) sparkAt(ST.ex + (Math.random() - 0.5) * A.re, A.yE, (Math.random() - 0.5) * 300, 150 + Math.random() * 300, 0.8, '#fff6d0'); game.shake = Math.max(game.shake, 10); }
+      if (once(1, 1.1)) { T.injGlow = 0; boomEngine(1.2, { debris: 14 }); }
+      break;
+    case 'burnthrough': case 'coking': {
+      const side = T.sideDir || (T.sideDir = Math.random() < 0.5 ? -1 : 1), jx = ST.ex + side * A.rt * 1.4, jy = A.yT - 2;
+      if (once(1, 0)) sfx('torch');
+      if (t < 1.5) { T.vthr = 0.9; for (let i = 0; i < 3; i++) fireAt(jx, jy, side * (300 + Math.random() * 240), (Math.random() - 0.5) * 60, 6 + Math.random() * 6, 0.35);
+        sparkAt(jx, jy, side * (200 + Math.random() * 300), (Math.random() - 0.5) * 200, 0.7, '#ffe0a0');
+        if (ty === 'coking' && Math.random() < dt * 20) smokeAt(ST.ex + side * A.rc, (A.yC + A.yT) / 2, side * 40, -20, 10, 2.5, false, 0.95); }
+      if (once(2, 1.5)) boomEngine(1, { debris: 12 });
+      break; }
+    case 'ablative':
+      if (once(1, 0)) sfx('torch');
+      if (t < 1.3) { T.vthr = 0.85; for (const sd of [-1, 1]) { if (Math.random() < 0.7) fireAt(ST.ex + sd * A.rc, A.yI + (A.yC - A.yI) * Math.random(), sd * (180 + Math.random() * 200), (Math.random() - 0.5) * 80, 6 + Math.random() * 5, 0.35); }
+        if (Math.random() < dt * 25) smokeAt(ST.ex + (Math.random() - 0.5) * A.rc * 2, A.yC, (Math.random() - 0.5) * 60, -40, 12, 3, false, 1); }
+      if (once(2, 1.3)) boomEngine(0.9, { debris: 10, cols: ['#2a2522', '#3a3330', '#8a929a'] });
+      break;
+    case 'separation':
+      if (once(1, 0)) { sfx('rip'); T.noz = false; const dir = Math.random() < 0.5 ? -1 : 1;
+        fx({ k: 'nozzle', x: ST.ex, y: (A.yT + A.yE) / 2, vx: dir * (180 + Math.random() * 120), vy: -260 - Math.random() * 100, vr: dir * (4 + Math.random() * 3), rot: 0, re: A.re, rt: A.rt, ln: A.yE - A.yT, s: Math.max(10, A.re), col: MATS[T.d.mat].col, hot: 0.8, life: 9, trail: 0 });
+        for (let i = 0; i < 30; i++) sparkAt(ST.ex, A.yT + 4, (Math.random() - 0.5) * 500, (Math.random() - 0.3) * 400, 0.8); game.shake = 22; game.flash = RMOTION ? 0.15 : 0.35; game.flashCol = '#ffffff'; }
+      if (t > 0 && t < 1.2) { T.vthr = 0.9 * (1 - t / 1.2); }
+      if (once(2, 1.2)) { T.vthr = 0; sfx('shutdown'); ventFX(); }
+      break;
+    case 'turbopump': {
+      const P1 = A.pump;
+      if (once(1, 0)) { sfx('shrapnel'); T.pumpGone = true; game.shake = 18;
+        for (let i = 0; i < 26; i++) { const a = Math.random() * 6.283, sp = 400 + Math.random() * 500; debrisAt(P1.x, P1.y, Math.cos(a) * sp, Math.sin(a) * sp, 1.5 + Math.random() * 2.5, '#c9d2da', 1); }
+        for (let i = 0; i < 40; i++) { const a = Math.random() * 6.283, sp = 300 + Math.random() * 600; sparkAt(P1.x, P1.y, Math.cos(a) * sp, Math.sin(a) * sp, 0.6); } ringAt(P1.x, P1.y, 10, '#fff4d0', 0.4); }
+      if (t < 0.7) { T.vthr = 0.7; if (Math.random() < 0.6) fireAt(P1.x, P1.y, 80 + Math.random() * 120, (Math.random() - 0.5) * 100, 10, 0.4); }
+      if (once(2, 0.7)) boomEngine(1.3, { debris: 16 });
+      break; }
+    case 'loxfire': {
+      if (once(1, 0)) { sfx('sizzle'); sfx('torch'); }
+      if (t < 2.3) { T.green = Math.min(1, t / 1.6); T.vthr = Math.max(0.2, 0.9 - t * 0.3);
+        if (Math.random() < 0.9) fireAt(ST.ex + (Math.random() - 0.5) * A.rc * 2.4, A.yI + Math.random() * (A.yT - A.yI), (Math.random() - 0.5) * 60, -40, 8 + Math.random() * 10 * T.green, 0.5, true);
+        if (Math.random() < dt * 14) fx({ k: 'drip', x: ST.ex + (Math.random() - 0.5) * A.rc * 2, y: A.yT, vx: (Math.random() - 0.5) * 30, vy: 20, life: 2 });
+        if (Math.random() < 0.3) sparkAt(ST.ex, A.yT, (Math.random() - 0.5) * 300, Math.random() * 200, 0.6, '#b0ffc8'); }
+      if (once(2, 2.3)) { T.green = 0; boomEngine(1.1, { green: true, debris: 12 }); }
+      break; }
+    case 'tank':
+      if (once(1, 0)) { sfx('fizz'); T.vthr = 0.7; }
+      if (t < 0.5 && Math.random() < 0.8) smokeAt(300 + (Math.random() - 0.5) * 100, 40, (Math.random() - 0.5) * 200, -60, 10, 1.5, true, 0.8);
+      if (once(2, 0.5)) { T.tankGone = true; explode(300, 40, 1.6, { debris: 18, cols: ['#dce6ee', '#a8b6c2', '#6a7682'] }); later(() => { if (T && T.phase === 'fail') boomEngine(0.8, { debris: 6 }); }, 0.35); }
+      break;
+    case 'battery': {
+      const bx = A.pump.x + A.rc * 0.3, by = A.top - 10;
+      if (once(1, 0)) sfx('zap');
+      if (t < 1.6) { T.vthr = Math.max(0.3, 0.9 - t * 0.4); if (Math.random() < 0.8) smokeAt(bx, by, (Math.random() - 0.5) * 120, -60 - Math.random() * 60, 8, 2, true, 0.9); if (Math.random() < 0.5) sparkAt(bx, by, (Math.random() - 0.5) * 400, -Math.random() * 300, 0.5, '#e8f4ff'); if (Math.random() < dt * 6) sfx('zap'); }
+      if (once(2, 1.6)) { T.pumpGone = true; explode(bx, by, 0.7, { debris: 8, cols: ['#2b3a2e', '#3cff7a', '#555'] }); later(() => { if (T && T.phase === 'fail') boomEngine(0.9, { debris: 8 }); }, 0.4); }
+      break; }
+  }
+  if (t >= T.seqLen) finishTest();
+}
+// ---------- end-of-test accounting ----------
+function finishTest() {
+  if (T.phase === 'report') return;
+  const S = T.S, C = T.C, d = T.d, F = S.fail;
+  T.phase = 'report'; roarSet(0, 0, 0, 0, 0);
+  const uc = unitCost(d), P = PROPS[d.prop];
+  const burnt = (S.pr ? S.pr.mdot : 0) * Math.min(S.t, S.dur) * 0.85;
+  const cost = { fee: C.fee, prop: burnt * P.kgc / 1000, hw: 0, repair: 0 };
+  const destroyed = F && ['nolight', 'separation'].indexOf(F.type) < 0;
+  if (destroyed) { cost.hw = uc; cost.repair = C.fee * (F.type === 'tank' ? 1.5 : 0.8); }
+  else if (F && F.type === 'separation') { cost.hw = uc * 0.55; cost.repair = C.fee * 0.3; }
+  else if (F && F.type === 'nolight') { cost.hw = uc * 0.3; cost.repair = C.fee * 0.4; }
+  else if (S.aborted) cost.hw = uc * 0.35;
+  else cost.hw = uc * 0.25;
+  cost.total = C.sandbox ? 0 : cost.fee + cost.prop + cost.hw + cost.repair;
+  const J = judge(d, C, S);
+  const k = comboKey(d); SAVE.tests[k] = (SAVE.tests[k] || 0) + 1; saveProg();
+  const R = { S, C, d, F, J, cost, hint: F ? failHint(S) : '', pass: J.pass && !C.sandbox, stretch: J.stretch };
+  if (RUN && !C.sandbox) { RUN.spent += cost.total; RUN.tests++; RUN.log.push({ pass: R.pass, fail: F ? F.type : S.aborted ? 'abort' : null, cost: cost.total });
+    R.broke = RUN.spent >= RUN.C.budget && !R.pass; }
+  T.report = R; T.repT = 0;
+  if (R.pass) sfx('success'); else sfx('fail');
+  announce(R.pass ? 'Test passed. Requirements met.' : F ? 'Test failed: ' + FAILS[F.type].name + '. ' + R.hint : S.aborted ? 'Test aborted.' : 'Test complete but requirements not met.');
+}
+// ---------- rendering ----------
+function drawTestScene() {
+  const S = T.S, C = T.C, d = T.d, vac = C.env === 'vac', M = MATS[d.mat];
+  cx.save(); cx.translate(game.fox, game.foy);
+  sceneBG(C.env);
+  if (!vac) standLights(1);
+  if (T.tankGone) { cx.fillStyle = 'rgba(8,6,6,0.95)'; rrect(cx, 236, 4, 128, 70, 20); cx.fill(); }
+  drawFX(cx, 'smoke');
+  // engine
+  const heat = M.abl ? clamp(0.3 + S.abl * 0.7 + (S.thr > 0.1 ? 0.25 : 0), 0, 1.1) : (S.Tw - 300) / (M.limit - 300);
+  const shakeX = (S.aS * 3 + S.aC * 2 + (S.pr ? S.pr.sep : 0) * 3) * (RMOTION ? 0.3 : 1) * Math.sin(game.t * 70);
+  const A = drawEngine(cx, ST.ex, ST.top, d, { maxH: ST.maxH, maxW: ST.maxW, heat: T.gone ? 0 : heat, nozGlow: T.vthr * 0.6, injGlow: T.injGlow, green: T.green, noNozzle: !T.noz || T.gone, pumpGone: T.pumpGone || T.gone, char: T.gone, shakeX });
+  if (T.gone) { // charred stub + glowing embers
+    glowAt(ST.ex, A.yC, 30, '#ff5a20', 0.3 + 0.2 * Math.sin(game.t * 9));
+  }
+  // plume
+  if (!T.gone && T.vthr > 0.02) {
+    const pr = S.pr, ratio = pr ? pr.pe / (S.pa || 1e-6) : 1;
+    const yE = T.noz ? A.yE : A.yT, rE = T.noz ? A.re : A.rt * 1.3;
+    const len = vac ? H - yE + 60 : ST.defY - yE + 30;
+    const green = T.green > 0.2;
+    drawPlume(cx, ST.ex + shakeX, yE, rE, len, green ? 'hyp' : d.prop, { thr: T.vthr, ratio: T.noz ? ratio : 0.3, vac, aC: S.aC, aS: S.aS, sep: T.noz ? (pr ? pr.sep : 0) + S.sepD * 0.3 : 1, wob: S.aS * 0.6, stub: !T.noz, t: game.t });
+    if (!vac && yE + len * (0.42 + 0.58 * T.vthr) > ST.defY - 20) { // deflector splash + trench tongue
+      const P = PROPS[d.prop], a = T.vthr * (d.prop === 'lh2' ? 0.5 : 1);
+      cx.save(); cx.globalCompositeOperation = 'lighter';
+      cx.fillStyle = radg(cx, ST.ex - 40, ST.defY, 0, ST.ex - 120, ST.defY, 220, [[0, rgba(P.plume[0], 0.6 * a)], [0.3, rgba(P.plume[1], 0.35 * a)], [1, rgba(P.plume[2], 0)]]);
+      cx.globalAlpha = 0.7; cx.beginPath(); cx.moveTo(ST.ex + 40, ST.defY - 8); cx.quadraticCurveTo(ST.ex - 60, ST.defY - 26, ST.ex - 290, ST.defY - 4); cx.quadraticCurveTo(ST.ex - 120, ST.defY + 26, ST.ex + 40, ST.defY + 6); cx.closePath(); cx.fill(); cx.globalAlpha = 1;
+      glowAt(ST.ex, ST.defY - 6, 70, P.plume[0], 0.5 * a); cx.restore();
+    }
+    // scene light from plume
+    cx.save(); cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = Math.min(1, T.vthr) * (d.prop === 'lh2' ? 0.25 : 0.55);
+    cx.drawImage(glowOf(PROPS[d.prop].plume[1]), ST.ex - 360, (vac ? 380 : ST.defY - 60) - 300, 720, 600); cx.restore();
+  }
+  if (S.ignFlash > 0 && T.phase === 'run') glowAt(ST.ex, A.yT, 60, '#fff4d0', S.ignFlash);
+  drawFX(cx, 'front');
+  cx.restore();
+  // colour grade: warm/cool tint
+  cx.save(); cx.globalCompositeOperation = 'soft-light'; cx.fillStyle = vac ? 'rgba(60,110,170,0.35)' : 'rgba(255,140,60,0.18)'; cx.fillRect(0, 0, W, H); cx.restore();
+}
+function chart(x, y, w, h, c) {
+  const cfg = chanCfg(c.id), S = T.S, data = T.hist[c.id], v = chanVal(c.id, S), lim = cfg.lim, over = lim != null && v > lim * 0.9;
+  const blink = over && Math.sin(game.t * 14) > 0;
+  glass(x, y, w, h, blink ? '#ff3b3b' : c.col, 0.82, 9);
+  txt(cfg.name || c.name, x + 9, y + 11, 8.5, 'rgba(255,255,255,0.6)', 'left', 900, MONO);
+  txtGlow(cfg.fmt(Math.max(0, v)), x + w - 9, y + 12, 12.5, over ? '#ff5a5a' : c.col);
+  const gx = x + 8, gy = y + 22, gw = w - 16, gh = h - 28;
+  cx.fillStyle = 'rgba(0,0,0,0.35)'; cx.fillRect(gx, gy, gw, gh);
+  cx.strokeStyle = 'rgba(255,255,255,0.05)'; cx.lineWidth = 1; for (let i = 1; i < 4; i++) { cx.beginPath(); cx.moveTo(gx, gy + gh * i / 4); cx.lineTo(gx + gw, gy + gh * i / 4); cx.stroke(); }
+  const N = T.C.sandbox ? 240 : Math.ceil(T.S.dur / T.sampDt) + 1, yv = val => gy + gh - clamp(val / cfg.max, 0, 1.02) * gh;
+  if (lim != null) { cx.strokeStyle = 'rgba(255,59,59,0.8)'; cx.setLineDash([4, 3]); cx.beginPath(); cx.moveTo(gx, yv(lim)); cx.lineTo(gx + gw, yv(lim)); cx.stroke(); cx.setLineDash([]); txt('LIMIT', gx + gw - 2, yv(lim) - 5, 7, '#ff6a6a', 'right', 900, MONO); }
+  if (c.id === 'F' && T.C.req) { const rq = T.C.env === 'vac' ? T.C.req.fvac : T.C.req.fsl; if (rq) { cx.strokeStyle = 'rgba(60,255,122,0.6)'; cx.setLineDash([2, 3]); cx.beginPath(); cx.moveTo(gx, yv(rq)); cx.lineTo(gx + gw, yv(rq)); cx.stroke(); cx.setLineDash([]); } }
+  if (data.length > 1) {
+    cx.beginPath(); data.forEach((q, i) => { const px = gx + i / (N - 1) * gw; i ? cx.lineTo(px, yv(q)) : cx.moveTo(px, yv(q)); });
+    const lx = gx + (data.length - 1) / (N - 1) * gw;
+    cx.save(); cx.lineTo(lx, gy + gh); cx.lineTo(gx, gy + gh); cx.closePath(); cx.fillStyle = lin(cx, 0, gy, 0, gy + gh, [[0, rgba(c.col, 0.35)], [1, rgba(c.col, 0.02)]]); cx.fill(); cx.restore();
+    cx.beginPath(); data.forEach((q, i) => { const px = gx + i / (N - 1) * gw; i ? cx.lineTo(px, yv(q)) : cx.moveTo(px, yv(q)); });
+    cx.strokeStyle = c.col; cx.lineWidth = 1.5; cx.shadowColor = c.col; cx.shadowBlur = 6; cx.stroke(); cx.shadowBlur = 0;
+    glowAt(lx, yv(data[data.length - 1]), 6, c.col, 0.9);
+  }
+}
+function drawTest() {
+  const S = T.S, C = T.C, d = T.d;
+  drawTestScene();
+  // --- top-left status
+  const st = T.phase === 'count' ? 'T\u2212' + Math.max(0, T.cd).toFixed(1) : T.phase === 'run' ? (S.on ? (S.thr < 0.9 * S.cmd ? 'IGNITION' : 'MAINSTAGE ' + Math.round(S.thr * 100) + '%') : 'COAST / SHUTDOWN') : T.phase === 'fail' ? FAILS[T.ftype].name : T.phase === 'abort' ? 'ABORTED' : T.phase === 'shutdown' ? 'SHUTDOWN' : '';
+  glass(12, 12, 270, 64, T.phase === 'fail' ? '#ff3b3b' : '#ffd23f', 0.7, 10);
+  txt((C.sandbox ? 'SANDBOX' : 'CONTRACT ' + C.n + ' \u00b7 ' + C.name.toUpperCase()), 24, 26, 9.5, 'rgba(255,210,63,0.9)', 'left', 900, MONO);
+  txt(st, 24, 46, 16, T.phase === 'fail' ? '#ff5a5a' : '#fff', 'left', 900);
+  txt(PROPS[d.prop].short + ' \u00b7 ' + CYCLES[d.cyc].short + ' \u00b7 ' + MATS[d.mat].short + ' \u00b7 ' + INJS[d.inj].short, 24, 65, 8.5, 'rgba(255,255,255,0.5)', 'left', 800, MONO);
+  if (T.alarms.length && T.phase === 'run') { const a = Math.sin(game.t * 12) > -0.2; glass(12, 82, 270, 26, '#ff3b3b', a ? 0.85 : 0.6, 8); txt('\u26a0 ' + T.alarms.join('  \u00b7  '), 24, 95, 10, a ? '#ff6a6a' : '#ff9a9a', 'left', 900, MONO); }
+  if (T.phase === 'count') { metalTxt(String(Math.max(1, Math.ceil(T.cd))), ST.ex, 300, 90, 'center', 'rgba(255,154,31,0.6)'); }
+  if (T.phase === 'fail' && T.failT > 0.2) { const F = FAILS[T.ftype], a = clamp((T.failT - 0.2) * 3, 0, 1); cx.globalAlpha = a; txtS(F.name, ST.ex, 486, 26, F.col, 'center', 900); txtS(F.sub, ST.ex, 512, 12, 'rgba(255,255,255,0.8)', 'center', 800); cx.globalAlpha = 1; }
+  // --- right telemetry column
+  const x = 622, w = 328;
+  glass(x, 10, w, 58, '#ffd23f', 0.85, 10);
+  const tt = Math.min(S.t, S.dur);
+  txt('T+' + tt.toFixed(1) + ' s', x + 12, 26, 15, '#fff', 'left', 900, MONO);
+  txt(C.sandbox ? 'LIVE THROTTLE' : 'PROGRAM ' + Math.round(S.dur) + ' s \u00b7 IGN ' + S.ign + '/' + C.ign, x + w - 12, 26, 9.5, 'rgba(255,255,255,0.6)', 'right', 900, MONO);
+  // profile strip
+  const px = x + 12, py = 40, pw = w - 24, ph = 20;
+  cx.fillStyle = 'rgba(0,0,0,0.4)'; cx.fillRect(px, py, pw, ph);
+  if (!C.sandbox) {
+    cx.beginPath(); for (let i = 0; i <= 120; i++) { const f = i / 120, v = profCmd(C.prof, Math.min(0.9999, f)); const yy = py + ph - v * ph; i ? cx.lineTo(px + f * pw, yy) : cx.moveTo(px, yy); }
+    cx.lineTo(px + pw, py + ph); cx.lineTo(px, py + ph); cx.closePath(); cx.fillStyle = 'rgba(255,154,31,0.25)'; cx.fill(); cx.strokeStyle = 'rgba(255,154,31,0.8)'; cx.lineWidth = 1; cx.stroke();
+    const mx = px + clamp(S.t / S.dur, 0, 1) * pw; cx.fillStyle = '#fff'; cx.fillRect(mx - 1, py - 2, 2, ph + 4); glowAt(mx, py + ph / 2, 10, '#ffd23f', 0.8);
+  } else { bar(px, py + 6, pw, 8, S.thr, '#ff9a1f'); }
+  const chH = 72; CHN.forEach((c, i) => chart(x, 76 + i * (chH + 4), w, chH, c));
+  const by = 76 + 5 * (chH + 4) + 2;
+  if (C.sandbox) {
+    button('ign', x, by, 120, 52, S.on ? 'CUTOFF' : 'IGNITE', { col: S.on ? '#ff3b3b' : '#3cff7a', size: 16, sub: 'Space', fn: sandboxIgn, disabled: T.phase !== 'run' });
+    button('end', x + 128, by, 96, 52, 'END TEST', { col: '#ffd23f', size: 13, sub: 'report', fn: () => { if (T.phase === 'run') { T.phase = 'shutdown'; T.endT = 0; S.done = true; } } });
+    // throttle lever
+    const lx = x + 236, ly = by - 2, lh = 56; glass(lx, ly, 92, lh, '#ff9a1f', 0.85, 8); txt('THROTTLE', lx + 8, ly + 11, 8, 'rgba(255,255,255,0.6)', 'left', 900, MONO); txt(Math.round(S.lever * 100) + '%', lx + 84, ly + 11, 11, '#ff9a1f', 'right', 900, MONO);
+    const tx = lx + 10, tw2 = 72, ty = ly + 34; bar(tx, ty - 3, tw2, 6, S.lever, '#ff9a1f'); const kx = tx + S.lever * tw2; cx.fillStyle = lin(cx, 0, ty - 9, 0, ty + 9, [[0, '#fff'], [1, '#8a929a']]); rrect(cx, kx - 5, ty - 9, 10, 18, 3); cx.fill();
+    UI.push({ id: 'lever', x: lx, y: ly + 18, w: 92, h: 38, fn: () => { T.leverDragX = { x: tx, w: tw2 }; } });
+    if (ptr.down && T.leverDragX) S.lever = clamp((ptr.x - T.leverDragX.x) / T.leverDragX.w, 0, 1); if (!ptr.down) T.leverDragX = null;
+    txt('\u2191\u2193 throttle', lx + 46, ly + lh + 8, 8, 'rgba(255,255,255,0.4)', 'center', 800);
+  } else {
+    const can = T.phase === 'run' || T.phase === 'count';
+    button('abort', x, by, 206, 52, 'ABORT', { col: '#ff3b3b', size: 20, sub: 'Space \u00b7 saves the hardware', fn: () => { if (T.phase === 'count') { T.phase = 'abort'; S.aborted = true; } else doAbort(); }, disabled: !can, hot: can && T.alarms.length > 0 });
+  }
+  if (!C.sandbox) button('spd', x + 214, by, 114, 52, T.speed + 'x', { col: '#7fe0e8', size: 18, sub: 'F \u00b7 sim speed', fn: cycleSpeed });
+  if (T.phase === 'report') drawReport();
+}
+
+// ---------- BENCH: design the engine ----------
+let RUN = null, EV = null, EVdirty = true, EVt = 0, helpId = 'intro', sliderFocus = -1, drag = null;
+const HELP = { intro: ['Engine bench', 'Pick parts on the chips, tune the factors on the sliders, watch the predicted numbers and checklist, then hot-fire it. Hover or touch anything to learn what it does. Predictions are RANGES until you test the hardware.'] };
+function startContract(ci) {
+  const C = ci < 0 ? SANDBOX : CONTRACTS[ci];
+  const saved = SAVE.designs[C.id];
+  const d = Object.assign({}, C.def, saved || {});
+  RUN = { ci, C, d, spent: 0, tests: 0, log: [] };
+  sanitize(d); EVdirty = true; helpId = 'intro'; sliderFocus = -1;
+  game.state = 'bench'; announce('Engine bench: ' + C.name + '. ' + C.brief);
+}
+function parts() { const U = unlockedParts(RUN.ci); if (RUN.C.props) U.prop = U.prop.filter(p => RUN.C.props.indexOf(p) >= 0); return U; }
+function sanitize(d) {
+  const U = parts(), P0 = PROPS[d.prop];
+  if (U.prop.indexOf(d.prop) < 0) d.prop = U.prop[0];
+  if (U.cyc.indexOf(d.cyc) < 0) d.cyc = U.cyc[0]; if (U.mat.indexOf(d.mat) < 0) d.mat = U.mat[0]; if (U.inj.indexOf(d.inj) < 0) d.inj = U.inj[0];
+  if (!U.baf) d.baf = 0;
+  const P = PROPS[d.prop];
+  if (P.hyper) d.ign = 'hyp'; else if (d.ign === 'hyp' || U.ign.indexOf(d.ign) < 0) d.ign = U.ign.filter(i => i !== 'hyp')[0];
+  d.of = clamp(d.of, P.of[0], P.of[1]); if (MATS[d.mat].abl) d.regen = 0;
+  for (const s of SLIDERS) if (s.id !== 'of') d[s.id] = clamp(d[s.id], s.min, s.max);
+}
+function setPart(k, v) { const d = RUN.d; if (d[k] === v) return; const oldP = d.prop; d[k] = v; if (k === 'prop' && oldP !== v) d.of = PROPS[v].ofOpt; sanitize(d); EVdirty = true; sfx('chip'); saveDesign(); }
+function saveDesign() { SAVE.designs[RUN.C.id] = Object.assign({}, RUN.d); saveProg(); }
+function sRange(s) { if (s.id === 'of') { const P = PROPS[RUN.d.prop]; return [P.of[0], P.of[1], 0.05]; } return [s.min, s.max, s.step]; }
+function setSlider(s, v) { const [a, b, st] = sRange(s); v = clamp(Math.round(v / st) * st, a, b); v = +v.toFixed(3); if (RUN.d[s.id] !== v) { RUN.d[s.id] = v; EVdirty = true; } }
+function budgetLeft() { return RUN.C.budget - RUN.spent; }
+function testCostEst() { const C = RUN.C; if (C.sandbox) return 0; const uc = unitCost(RUN.d), pr = perf(RUN.d, ZV, 1, 0), dur = burnDuration(RUN.d, C); return C.fee + uc * 0.25 + pr.mdot * dur * PROPS[RUN.d.prop].kgc / 1000; }
+function fireTest() {
+  if (!RUN) return; const C = RUN.C;
+  if (!C.sandbox && budgetLeft() <= 0) { sfx('deny'); toast('Out of budget!', '#ff3b3b'); return; }
+  saveDesign(); startTest(RUN.d, C);
+}
+function benchUpdate(dt) {
+  EVt -= dt;
+  if (EVdirty && EVt <= 0) { EV = evalDesign(RUN.d, RUN.C); EVdirty = false; EVt = drag ? 0.12 : 0; }
+  if (pressed.start) fireTest();
+  if (pressed.tab) { sliderFocus = (sliderFocus + (pressed.stab ? -1 + SLIDERS.length : 1)) % SLIDERS.length; helpId = 's_' + SLIDERS[sliderFocus].id; sfx('tick'); }
+  if (sliderFocus < 0 && (pressed.up || pressed.down)) sliderFocus = 0;
+  else if (pressed.down) { sliderFocus = (sliderFocus + 1) % SLIDERS.length; helpId = 's_' + SLIDERS[sliderFocus].id; }
+  else if (pressed.up) { sliderFocus = (sliderFocus + SLIDERS.length - 1) % SLIDERS.length; helpId = 's_' + SLIDERS[sliderFocus].id; }
+  if (sliderFocus >= 0 && (pressed.left || pressed.right)) { const s = SLIDERS[sliderFocus], r = sRange(s), stp = s.id === 'pc' ? 5 : s.id === 'eps' ? 2 : r[2] * (s.id === 'dt' ? 1 : 1); setSlider(s, RUN.d[s.id] + (pressed.right ? stp : -stp)); sfx('tick'); saveDesign(); helpId = 's_' + s.id; }
+  if (drag) { if (!ptr.down) { drag = null; saveDesign(); } else { const s = drag.s, r = sRange(s); const f = clamp((ptr.x - drag.x) / drag.w, 0, 1); const old = RUN.d[s.id]; setSlider(s, r[0] + f * (r[1] - r[0])); if (old !== RUN.d[s.id] && Math.random() < 0.5) sfx('tick'); } }
+  if (pressed.pause) { game.state = 'board'; saveDesign(); }
+}
+// ---------- drawing ----------
+function chipRow(label, y, key, ids, table, opt) {
+  opt = opt || {};
+  const U = parts(), x0 = 336, lw = 66, wTot = 312 - lw, n = ids.length, gap = 3, cw = (wTot - gap * (n - 1)) / n;
+  txt(label, x0 + 8, y + 12, 8, 'rgba(255,255,255,0.5)', 'left', 900, MONO);
+  ids.forEach((id, i) => {
+    const x = x0 + lw + i * (cw + gap), P = table[id], sel = RUN.d[key] === id, notUn = (U[key] || []).indexOf(id) < 0, locked = notUn || (opt.dis && opt.dis(id));
+    const hv = hov(x, y, cw, 24), col = opt.col || '#3cff7a';
+    if (hv) helpId = key + '_' + id;
+    cx.fillStyle = sel ? lin(cx, 0, y, 0, y + 24, [[0, rgba(col, 0.45)], [1, rgba(shade(col, -0.6), 0.7)]]) : hv && !locked ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)';
+    rrect(cx, x, y, cw, 24, 6); cx.fill(); cx.strokeStyle = sel ? col : 'rgba(255,255,255,' + (locked ? 0.06 : 0.16) + ')'; cx.lineWidth = sel ? 1.4 : 1; cx.stroke();
+    if (sel) { cx.save(); cx.shadowColor = col; cx.shadowBlur = 10; cx.stroke(); cx.restore(); }
+    const lbl = P.short; cx.font = '900 8px ' + FONT; const fs = Math.min(8.5, 8.5 * (cw - 6) / Math.max(1, cx.measureText(lbl).width + 1) * 8 / 8.5);
+    txt(notUn ? 'LOCKED' : lbl, x + cw / 2, y + 12.5, notUn ? 8 : Math.max(6.5, fs), locked ? 'rgba(255,255,255,0.25)' : sel ? '#fff' : 'rgba(255,255,255,0.75)', 'center', 900);
+    UI.push({ id: 'chip_' + key + id, x, y, w: cw, h: 24, dis: locked, fn: () => { helpId = key + '_' + id; setPart(key, id); } });
+  });
+}
+function slider(s, i, x, y, w) {
+  const d = RUN.d, [a, b] = sRange(s), v = d[s.id], f = (v - a) / (b - a), dis = s.id === 'regen' && MATS[d.mat].abl;
+  const foc = sliderFocus === i, hv = hov(x - 4, y - 2, w + 8, 28);
+  if (hv) helpId = 's_' + s.id;
+  if (foc || (drag && drag.s === s)) { cx.fillStyle = 'rgba(255,210,63,0.07)'; rrect(cx, x - 6, y - 3, w + 12, 30, 6); cx.fill(); }
+  txt(s.name, x, y + 5, 9.5, dis ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.8)', 'left', 800);
+  txt(s.sym, x + w - 70, y + 5, 9, 'rgba(255,210,63,0.75)', 'right', 900, MONO);
+  txt(dis ? 'n/a' : s.fmt(v) + ' ' + s.unit, x + w, y + 5, 10.5, dis ? 'rgba(255,255,255,0.3)' : '#fff', 'right', 900, MONO);
+  const ty = y + 17, th = 5;
+  cx.fillStyle = 'rgba(255,255,255,0.08)'; rrect(cx, x, ty, w, th, 2.5); cx.fill();
+  if (!dis) {
+    cx.fillStyle = lin(cx, x, 0, x + w, 0, [[0, '#3cff7a'], [0.5, '#ffd23f'], [1, '#ff3b3b']]); rrect(cx, x, ty, Math.max(th, w * f), th, 2.5); cx.fill();
+    // markers: O/F optimum, cycle Pc limit
+    if (s.id === 'of') { const P = PROPS[d.prop], mf = (P.ofOpt - a) / (b - a); cx.fillStyle = '#fff'; cx.fillRect(x + w * mf - 0.5, ty - 3, 1.5, th + 6); txt('opt', x + w * mf, ty + 12, 7, 'rgba(255,255,255,0.5)', 'center', 800); }
+    if (s.id === 'pc' && EV) { const fd = feedOf(d), mx = fd / ((1 + d.dp / 100 + 0.18 * regenOf(d) / 100) * PROPS[d.prop].pump); if (mx > a && mx < b) { const mf = (mx - a) / (b - a); cx.fillStyle = '#ff3b3b'; cx.fillRect(x + w * mf - 0.5, ty - 3, 1.5, th + 6); txt('cycle max', x + w * mf, ty + 12, 7, '#ff7a7a', 'center', 800); } }
+    const kx = x + w * f; cx.save(); cx.shadowColor = 'rgba(0,0,0,0.6)'; cx.shadowBlur = 4; cx.fillStyle = radg(cx, kx - 2, ty - 1, 0, kx, ty + 2, 8, [[0, '#ffffff'], [0.6, '#c8d0d8'], [1, '#6a737c']]); cx.beginPath(); cx.arc(kx, ty + 2.5, 6.5, 0, 6.29); cx.fill(); cx.restore();
+    cx.strokeStyle = foc ? '#ffd23f' : 'rgba(0,0,0,0.5)'; cx.lineWidth = 1; cx.beginPath(); cx.arc(kx, ty + 2.5, 6.5, 0, 6.29); cx.stroke();
+    UI.push({ id: 'sl_' + s.id, x: x - 6, y: y + 8, w: w + 12, h: 20, fn: () => { drag = { s, x, w }; sliderFocus = i; helpId = 's_' + s.id; } });
+  }
+}
+const ST_COL = { ok: '#3cff7a', maybe: '#ffd23f', no: '#ff3b3b' };
+function statusDot(x, y, st) { glowAt(x, y, 8, ST_COL[st], 0.5); cx.fillStyle = ST_COL[st]; cx.beginPath(); cx.arc(x, y, 3.2, 0, 6.29); cx.fill(); }
+function rng(lo, hi, dec, unit) { const a = lo.toFixed(dec), b = hi.toFixed(dec); return (a === b ? a : a + '\u2013' + b) + (unit ? ' ' + unit : ''); }
+function statRow(x, y, w, label, val, st, hid) {
+  if (hov(x, y - 8, w, 16)) helpId = hid;
+  txt(label, x + 14, y, 9.5, 'rgba(255,255,255,0.65)', 'left', 800);
+  txt(val, x + w - 6, y, 10, '#fff', 'right', 800, MONO);
+  if (st) statusDot(x + 5, y, st);
+}
+function drawBench() {
+  studio();
+  const d = RUN.d, C = RUN.C, E = EV;
+  if (!E) return;
+  helpId = drag ? 's_' + drag.s.id : (sliderFocus >= 0 && !ptr.seen ? 's_' + SLIDERS[sliderFocus].id : helpId);
+  // header
+  button('back', 10, 10, 104, 30, '\u25c2 Contracts', { col: '#7fe0e8', size: 12, fn: () => { saveDesign(); game.state = 'board'; } });
+  goldTxt(C.sandbox ? 'SANDBOX' : C.n + ' \u00b7 ' + C.name.toUpperCase(), 126, 25, 18, 'left');
+  cx.font = '900 18px ' + FONT; txt(C.client, 126 + 14 + cx.measureText(C.sandbox ? 'SANDBOX' : C.n + ' \u00b7 ' + C.name.toUpperCase()).width, 26, 10, 'rgba(255,255,255,0.45)', 'left', 700);
+  if (!C.sandbox) { const left = budgetLeft(); glass(W - 252, 8, 242, 34, left < testCostEst() * 2 ? '#ff3b3b' : '#ffd23f', 0.85, 9);
+    txt('BUDGET', W - 242, 25, 8.5, 'rgba(255,210,63,0.8)', 'left', 900, MONO); txt(fmtK(left), W - 196, 25, 15, left < 0 ? '#ff5a5a' : '#fff', 'left', 900, MONO);
+    txt('of ' + fmtK(C.budget) + ' \u00b7 ' + RUN.tests + ' test' + (RUN.tests === 1 ? '' : 's'), W - 18, 25, 9, 'rgba(255,255,255,0.5)', 'right', 800); }
+  // left: engine render
+  glass(10, 50, 316, 238, '#ff9a1f', 0.6, 12);
+  cx.save(); rrect(cx, 10, 50, 316, 238, 12); cx.clip();
+  cx.fillStyle = radg(cx, 168, 150, 0, 168, 160, 190, [[0, 'rgba(255,154,31,0.10)'], [1, 'rgba(0,0,0,0)']]); cx.fillRect(10, 50, 316, 238);
+  const heat = MATS[d.mat].abl ? 0.3 : (E.pN.Tw - 300) / (MATS[d.mat].limit - 300) * 0.85;
+  const A = drawEngine(cx, 168, 92, d, { maxH: 168, maxW: 200, heat: heat + 0.05 * Math.sin(game.t * 2) });
+  // reflection floor
+  cx.fillStyle = lin(cx, 0, 268, 0, 288, [[0, 'rgba(255,255,255,0.05)'], [1, 'rgba(255,255,255,0)']]); cx.fillRect(10, 268, 316, 20);
+  cx.restore();
+  // scale bar
+  const G = A.G, m1 = A.s; let sb = 0.1; while (sb * m1 < 30) sb *= sb < 1 ? (String(sb)[2] === '1' || sb === 0.1 ? 2.5 : 2) : 2; sb = sb >= 1 ? Math.round(sb) : +sb.toPrecision(2);
+  cx.strokeStyle = 'rgba(255,255,255,0.6)'; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(24, 276); cx.lineTo(24 + sb * m1, 276); cx.moveTo(24, 272); cx.lineTo(24, 280); cx.moveTo(24 + sb * m1, 272); cx.lineTo(24 + sb * m1, 280); cx.stroke();
+  txt(sb + ' m', 28 + sb * m1, 276, 8.5, 'rgba(255,255,255,0.6)', 'left', 800, MONO);
+  txt('L ' + G.L.toFixed(2) + ' m \u00b7 exit \u00d8' + (G.Re * 2).toFixed(2) + ' m', 316, 276, 8.5, 'rgba(255,255,255,0.55)', 'right', 800, MONO);
+  txt(PROPS[d.prop].name.toUpperCase() + ' \u00b7 ' + CYCLES[d.cyc].name.toUpperCase(), 20, 64, 8.5, 'rgba(255,210,63,0.75)', 'left', 900, MONO);
+  if (d.baf) txt('+ ACOUSTIC BAFFLES', 316, 64, 8, 'rgba(60,255,122,0.7)', 'right', 900, MONO);
+  // left: predicted stats
+  glass(10, 294, 316, 196, '#ffd23f', 0.85, 12);
+  txt('PREDICTED PERFORMANCE', 20, 308, 9, 'rgba(255,210,63,0.85)', 'left', 900, MONO);
+  txt(E.K.n ? E.K.n + ' firing' + (E.K.n > 1 ? 's' : '') + ' of this hardware' : 'untested hardware', 316, 308, 8.5, E.K.n ? 'rgba(60,255,122,0.8)' : 'rgba(255,255,255,0.45)', 'right', 800);
+  const sx = 16, sw = 304; let y = 326;
+  const vac = C.env === 'vac';
+  statRow(sx, y, sw, 'Thrust  SL / vac', rng(E.pSW.F / 1e3, E.pSB.F / 1e3, E.pS.F > 1e5 ? 0 : 1) + ' / ' + rng(E.p0W.Fv / 1e3, E.p0B.Fv / 1e3, E.p0.Fv > 1e5 ? 0 : 1, 'kN'), null, 'st_F'); y += 17;
+  statRow(sx, y, sw, 'Isp  SL / vac', rng(E.pSW.isp, E.pSB.isp, 0) + ' / ' + rng(E.p0W.ispV, E.p0B.ispV, 0, 's'), null, 'st_isp'); y += 17;
+  statRow(sx, y, sw, 'Mass \u00b7 T/W \u00b7 unit cost', E.mass.total.toFixed(0) + ' kg \u00b7 ' + E.tw.toFixed(0) + ' \u00b7 ' + fmtK(E.cost), null, 'st_mass'); y += 17;
+  const M = MATS[d.mat], Ma = M.abl;
+  if (Ma) { const life = 1 / Math.max(1e-6, E.pW.ablRate); statRow(sx, y, sw, 'Ablative liner life', rng(1 / Math.max(1e-6, E.pW.ablRate), 1 / Math.max(1e-6, E.pB.ablRate), 0, 's') + ' (need ' + Math.round(E.dur) + ')', life > E.dur * 1.05 ? 'ok' : 1 / E.pB.ablRate > E.dur ? 'maybe' : 'no', 'st_abl'); }
+  else statRow(sx, y, sw, 'Throat wall temp', rng(E.pB.Tw, E.pW.Tw, 0) + ' / ' + M.limit + ' K', E.pW.Tw < M.limit * 0.97 ? (PROPS[d.prop].coke && regenOf(d) > 0 && E.pW.Tw > 700 ? 'maybe' : 'ok') : E.pB.Tw < M.limit ? 'maybe' : 'no', 'st_tw');
+  y += 17;
+  statRow(sx, y, sw, 'Screech index (>1 grows)', rng(E.pB.S, E.pW.S, 2), E.pW.S < 0.97 ? 'ok' : E.pB.S < 1 ? 'maybe' : 'no', 'st_S'); y += 17;
+  statRow(sx, y, sw, 'Chug index @ ' + Math.round(E.minThr * 100) + '% thr', rng(perf(d, hwCase(d, 'best'), E.minThr, vac ? 0 : PA_SL).C, E.pMinW.C, 2), E.pMinW.C < 0.97 ? 'ok' : 'maybe', 'st_C'); y += 17;
+  const ld = E.pW.load; statRow(sx, y, sw, 'Pump / feed load', ld > 5 ? 'NO POWER' : rng(E.pB.load * 100, ld * 100, 0, '%'), ld < 0.97 ? 'ok' : E.pB.load < 1.0 ? 'maybe' : 'no', 'st_load'); y += 17;
+  const sepMin = vac ? 0 : E.pMinW.sep;
+  statRow(sx, y, sw, vac ? 'Exit pressure (vacuum)' : 'Exit pressure \u00b7 sep @ min thr', E.pN.pe.toFixed(2) + ' bar' + (vac ? '' : ' / ' + (0.35 * PA_SL).toFixed(2) + ' min'), vac ? 'ok' : E.pN.sep > 0 ? 'no' : sepMin > 0 ? 'maybe' : 'ok', 'st_sep'); y += 17;
+  const hr = hardStartRisk(d, hwCase(d, 'worst'));
+  statRow(sx, y, sw, 'Ignition \u00b7 starts', (hr > 0.5 ? 'HARD-START RISK' : 'clean') + ' \u00b7 ' + (PROPS[d.prop].hyper ? 'hypergolic \u221e' : IGNS[d.ign].starts > 50 ? '\u221e' : IGNS[d.ign].starts + ' / ' + C.ign + ' needed'), hr > 0.5 ? (hardStartRisk(d, hwCase(d, 'best')) > 0.5 ? 'no' : 'maybe') : (!PROPS[d.prop].hyper && IGNS[d.ign].starts < C.ign) ? 'no' : 'ok', 'st_ign'); y += 17;
+  // middle: parts
+  glass(330, 50, 324, 186, '#3cff7a', 0.85, 12);
+  txt('PARTS', 342, 63, 9, 'rgba(60,255,122,0.85)', 'left', 900, MONO);
+  const U = parts();
+  if (U.baf) { const on = !!d.baf; button('baf', 548, 54, 100, 18, on ? 'Baffles: ON' : 'Baffles: off', { col: on ? '#3cff7a' : '#8a929a', size: 9, fn: () => { d.baf = on ? 0 : 1; EVdirty = true; saveDesign(); } }); if (hov(548, 54, 100, 18)) helpId = 'baf'; }
+  chipRow('PROPELLANT', 74, 'prop', Object.keys(PROPS), PROPS, { col: '#ff9a1f' });
+  chipRow('CYCLE', 101, 'cyc', Object.keys(CYCLES), CYCLES, { col: '#3cff7a' });
+  chipRow('CHAMBER', 128, 'mat', Object.keys(MATS), MATS, { col: '#ffd23f' });
+  chipRow('INJECTOR', 155, 'inj', Object.keys(INJS), INJS, { col: '#9fd8ff' });
+  chipRow('IGNITER', 182, 'ign', ['pyro', 'tea', 'spark', 'hyp'], IGNS, { col: '#ff3b3b', dis: id => (id === 'hyp') !== !!PROPS[d.prop].hyper });
+  txt('Locked parts unlock as you complete contracts.', 342, 222, 8.5, 'rgba(255,255,255,0.35)', 'left', 700);
+  // middle: sliders
+  glass(330, 242, 324, 248, '#ffd23f', 0.85, 12);
+  txt('FACTORS', 342, 255, 9, 'rgba(255,210,63,0.85)', 'left', 900, MONO); txt('drag \u00b7 or Tab/\u2191\u2193 + \u2190\u2192', 642, 255, 8, 'rgba(255,255,255,0.35)', 'right', 700);
+  SLIDERS.forEach((s, i) => slider(s, i, 344, 264 + i * 28, 296));
+  // right: contract + checklist
+  glass(660, 50, 290, 330, '#ff3b3b', 0.85, 12);
+  txt('CONTRACT', 672, 63, 9, 'rgba(255,90,90,0.9)', 'left', 900, MONO);
+  txt((vac ? 'VACUUM' : 'SEA LEVEL') + ' \u00b7 ' + (C.sandbox ? 'free run' : Math.round(E.dur) + ' s \u00b7 ' + C.ign + ' ign'), 940, 63, 8.5, 'rgba(255,255,255,0.5)', 'right', 800, MONO);
+  const nl = wrap(C.brief, 672, 80, 268, 9.5, 'rgba(255,255,255,0.78)', 13);
+  let ry = 86 + nl * 13;
+  txt('REQUIREMENT', 672, ry, 8, 'rgba(255,255,255,0.4)', 'left', 900, MONO); txt('PREDICTED', 938, ry, 8, 'rgba(255,255,255,0.4)', 'right', 900, MONO); ry += 15;
+  for (const r of E.reqs) {
+    if (hov(664, ry - 8, 282, 16)) helpId = 'rq_' + r.k;
+    statusDot(678, ry, r.st);
+    if (r.k === 'burn') { txt(r.label, 688, ry, 9.5, '#fff', 'left', 800); txt(r.st === 'ok' ? 'survives' : r.fail ? (r.st === 'maybe' ? 'risk: ' : '') + FAILS[r.fail.type].name.split(' \u2192')[0].toLowerCase() : '?', 938, ry, 9, ST_COL[r.st], 'right', 800, MONO); }
+    else { const dec = r.need < 10 ? 2 : 0; txt(r.label + ' ' + r.op + ' ' + (r.need >= 1000 && r.unit === '$k' ? fmtK(r.need) : r.need + (r.unit ? ' ' + r.unit : '')), 688, ry, 9.5, '#fff', 'left', 800);
+      txt(r.unit === '$k' ? fmtK(r.lo) : rng(r.lo, r.hi, dec), 938, ry, 9.5, ST_COL[r.st], 'right', 800, MONO); }
+    ry += 17;
+  }
+  if (C.stretch) { ry += 2; star(679, ry, 5, (SAVE.stars[C.id] || 0) >= 3); txt('Stretch: ' + C.stretch.label, 688, ry, 9, 'rgba(255,210,63,0.85)', 'left', 800); ry += 15; }
+  if (E.fl && E.fl.trk !== undefined) { txt(C.flight.kind === 'sound' ? 'Burn ' + E.dur.toFixed(0) + ' s \u00b7 lift-off T/W ' + E.fl.tw0.toFixed(2) : 'Stage burn ' + E.dur.toFixed(0) + ' s \u00b7 9 engines', 672, ry + 2, 8.5, 'rgba(255,255,255,0.45)', 'left', 800); }
+  // test fire button
+  const est = testCostEst(), allOk = E.reqs.every(r => r.st === 'ok');
+  button('fire', 660, 388, 290, 58, C.sandbox ? 'HOT-FIRE' : 'TEST FIRE', { col: '#ff9a1f', size: 22, sub: C.sandbox ? 'Enter \u00b7 free' : 'Enter \u00b7 ~' + fmtK(est) + ' per test (more if it blows up)', hot: allOk, fn: fireTest, disabled: !C.sandbox && budgetLeft() <= 0 });
+  button('reset', 660, 452, 140, 38, 'Reset design', { col: '#8a929a', size: 11, fn: () => { RUN.d = Object.assign({}, C.def); sanitize(RUN.d); EVdirty = true; saveDesign(); } });
+  button('hint', 810, 452, 140, 38, 'What failed?', { col: '#9fd8ff', size: 11, fn: () => { helpId = 'predict'; }, disabled: allOk });
+  // help strip
+  drawHelp();
+}
+function helpText(id) {
+  if (HELP[id]) return HELP[id];
+  const [k, v] = [id.slice(0, id.indexOf('_')), id.slice(id.indexOf('_') + 1)];
+  const T2 = { prop: PROPS, cyc: CYCLES, mat: MATS, inj: INJS, ign: IGNS }[k];
+  if (T2 && T2[v]) return [T2[v].name, T2[v].desc];
+  if (k === 's') { const s = SLIDERS.find(q => q.id === v); return [s.name + ' (' + s.sym + ')', s.help]; }
+  if (id === 'baf') return ['Acoustic baffles', 'Radial blades on the injector face that break up transverse acoustic modes. Cuts the screech index ~45%, adds 4% mass and 6% cost. Cheap insurance for big, high-Pc engines.'];
+  if (id === 'predict') { const r = EV.reqs.find(q => q.st !== 'ok'); if (!r) return ['All green', 'Prediction looks good. Hardware variance can still bite \u2014 that is what test firings are for.'];
+    if (r.k === 'burn' && r.fail) { const S2 = simRun(RUN.d, RUN.C, hwCase(RUN.d, 'worst'), 0.1); return ['Predicted: ' + FAILS[r.fail.type].name, S2.fail ? failHint(S2) : 'Marginal.']; }
+    return [r.label + ' predicted short', 'Need ' + r.op + ' ' + r.need + ' ' + r.unit + ', predicted ' + rng(r.lo, r.hi, 1) + '. Adjust the factors above; hover each for what it does.']; }
+  const ST2 = { st_F: ['Thrust', 'Thrust = Cf \u00d7 Pc \u00d7 throat area. Sea-level thrust is lower than vacuum because ambient pressure pushes back on the nozzle exit (more so with big nozzles).'],
+    st_isp: ['Specific impulse', 'Seconds of thrust per weight of propellant: fuel economy. Rises with c* (propellant + mixture + L*), Pc, and expansion ratio (in vacuum). Film cooling and gas-generator dumps cost Isp.'],
+    st_mass: ['Mass, T/W, cost', 'Mass from the cycle\u2019s power density, chamber length, material, nozzle area and batteries. T/W = thrust / (mass \u00d7 g). Cost scales with thrust^0.6 and exotic parts.'],
+    st_tw: ['Throat wall temperature', 'Heat flux ~ Pc^0.8 \u00d7 (flame temp)^2.5 at the throat. Wall temp = 300 K + flux / cooling. Over the material limit = burn-through. RP-1 also cokes above 700 K in regen channels.'],
+    st_abl: ['Ablative liner life', 'How long the liner lasts at this heat flux. The throat erodes as it goes (thrust droops). Lower Pc or add film cooling to stretch it.'],
+    st_S: ['Screech index', 'Acoustic (high-frequency) instability driver. Above 1.0 the oscillation grows exponentially until the injector face is destroyed. Pc, chamber size, RP-1, doublets and short L* raise it; baffles and swirl injectors cut it.'],
+    st_C: ['Chug index', 'Low-frequency feed-system coupling. Injector \u0394P falls with throttle; below ~10% of Pc (6% for pintles) the chamber and feed lines start pumping each other. Above 1.0 = chugging.'],
+    st_load: ['Pump / feed load', 'Feed pressure needed (Pc + injector \u0394P + cooling-jacket drop) vs what the cycle can deliver. Over 100% the turbine overspeeds (or tanks/batteries overload). Expanders lose power with big throats.'],
+    st_sep: ['Exit pressure & flow separation', 'At sea level, gas leaving the nozzle below ~35% of ambient pressure separates from the wall and slams it sideways. Throttling down lowers exit pressure too. In vacuum: expand away.'],
+    st_ign: ['Ignition', 'Hard starts come from huge L* (propellant pools) or soft injectors (<8% \u0394P). Igniters have limited starts: pyro 1, TEA-TEB 3, spark unlimited. Hypergolics need none.'] };
+  if (ST2[id]) return ST2[id];
+  if (k === 'rq') { const L = REQ_LABEL[v]; return L ? [L[0], 'Contract requirement. Green = met even with worst-case hardware, yellow = depends on your hardware luck, red = will not meet. Test firings narrow the uncertainty.'] : ['Full test program', 'The engine must run the entire throttle/ignition program without a failure or abort.']; }
+  return HELP.intro;
+}
+function drawHelp() {
+  const [t, b] = helpText(helpId);
+  glass(10, 496, 940, 38, '#9fd8ff', 0.88, 10);
+  txt(t, 22, 507, 10, '#9fd8ff', 'left', 900);
+  cx.font = '900 10px ' + FONT; const tw = cx.measureText(t).width;
+  cx.save(); cx.beginPath(); cx.rect(10, 496, 940, 38); cx.clip();
+  const lines = []; cx.font = '700 9.5px ' + FONT; let line = '', maxW = 900; for (const wd of b.split(' ')) { const tt = line + wd + ' '; if (cx.measureText(tt).width > (lines.length ? maxW : maxW - tw - 16) && line) { lines.push(line); line = wd + ' '; } else line = tt; } lines.push(line);
+  txt(lines[0], 22 + tw + 12, 507, 9.5, 'rgba(255,255,255,0.78)', 'left', 700); if (lines[1]) txt(lines[1] + (lines[2] ? lines[2] : ''), 22, 522, 9.5, 'rgba(255,255,255,0.78)', 'left', 700);
+  cx.restore();
+}
+
+// ---------- SCREENS: title, contract board, report, results, pause ----------
+let DEMO = null;
+function demoTick(dt) {
+  if (!DEMO) { const d = { prop: 'rp1', cyc: 'gg', mat: 'cu', inj: 'swl', ign: 'spark', baf: 1, pc: 100, of: 2.4, dt: 22, eps: 14, regen: 100, film: 2, dp: 18, ls: 1.1 };
+    DEMO = startTestObj(d, SANDBOX); }
+  const S = DEMO.S; S.lever = 0.85 + 0.15 * Math.sin(game.t * 0.4); simStep(S, dt); DEMO.vthr = S.thr;
+  const keep = T; T = DEMO; updateFX(dt); emitters(dt, S.thr); T = keep;
+}
+function startTestObj(d, C) { const keep = T, st = game.state; startTest(d, C, { skipCount: true }); const o = T; T = keep; game.state = st; o.phase = 'run'; o.S.sandbox = true; return o; }
+function totalStars() { let s = 0; for (const k in SAVE.stars) s += SAVE.stars[k]; return s; }
+function drawTitle() {
+  if (DEMO) { const keep = T; T = DEMO; drawTestScene(); T = keep; }
+  cx.fillStyle = lin(cx, 420, 0, W, 0, [[0, 'rgba(2,2,6,0)'], [0.25, 'rgba(2,2,6,0.55)'], [1, 'rgba(2,2,6,0.82)']]); cx.fillRect(0, 0, W, H);
+  const x0 = 690;
+  cloverLogo(x0, 78, 40);
+  metalTxt('CLOVER', x0, 142, 40, 'center', 'rgba(255,154,31,0.6)');
+  metalTxt('PROPULSION', x0, 182, 40, 'center', 'rgba(255,154,31,0.6)');
+  goldTxt('E N G I N E   L A B', x0, 220, 18, 'center');
+  txt('Build it. Light it. Watch it explode. Fix it.', x0, 248, 12.5, 'rgba(255,255,255,0.78)', 'center', 700);
+  button('play', x0 - 130, 274, 260, 54, 'CONTRACTS', { col: '#ff9a1f', size: 20, sub: 'Enter \u00b7 career mode \u00b7 ' + totalStars() + '/24 \u2605', hot: true, fn: () => { game.state = 'board'; } });
+  button('sand', x0 - 130, 336, 260, 42, 'SANDBOX', { col: '#3cff7a', size: 15, sub: 'every part, live throttle, no budget', fn: () => startContract(-1) });
+  button('mute', x0 - 130, 388, 84, 28, muted ? 'Sound off' : 'Sound on', { col: '#7fe0e8', size: 10.5, fn: () => setMute(!muted) });
+  button('mus', x0 - 42, 388, 84, 28, musicOn ? 'Music on' : 'Music off', { col: '#7fe0e8', size: 10.5, fn: () => setMusic(!musicOn) });
+  button('rm', x0 + 46, 388, 84, 28, RMOTION ? 'Calm FX' : 'Full FX', { col: '#7fe0e8', size: 10.5, fn: () => { RMOTION = !RMOTION; LS.set('re_rm', RMOTION ? '1' : '0'); } });
+  txt('Mouse / touch / keyboard \u00b7 Tab + arrows tune factors \u00b7 Enter fire \u00b7 Space abort \u00b7 F speed \u00b7 P pause', x0, 438, 9.5, 'rgba(255,255,255,0.5)', 'center', 700);
+  txt('Original game by Viktor for MyClover.Tech', x0, H - 34, 10.5, 'rgba(255,210,63,0.7)', 'center', 800);
+  txt('every pixel and every bang is generated in code', x0, H - 18, 9, 'rgba(255,255,255,0.35)', 'center', 700);
+}
+function drawBoard() {
+  studio();
+  button('home', 14, 12, 90, 30, '\u25c2 Title', { col: '#7fe0e8', size: 12, fn: () => { game.state = 'title'; } });
+  goldTxt('CONTRACT BOARD', W / 2, 30, 26, 'center');
+  txt(totalStars() + ' / 24 \u2605', W - 20, 28, 14, '#ffd23f', 'right', 900, MONO);
+  const cw = 222, ch = 196, gx = 14, gy = 52;
+  CONTRACTS.forEach((C, i) => {
+    const x = 18 + (i % 4) * (cw + 12), y = 54 + Math.floor(i / 4) * (ch + 12), open = contractOpen(i), stars = SAVE.stars[C.id] || 0, hv = hov(x, y, cw, ch) && open;
+    cx.save(); if (hv) { cx.shadowColor = '#ff9a1f'; cx.shadowBlur = 20; } glass(x, y, cw, ch, open ? (stars ? '#ffd23f' : '#ff9a1f') : '#555', open ? 0.88 : 0.6, 14); cx.restore();
+    if (!open) cx.globalAlpha = 0.45;
+    txt(String(C.n), x + 14, y + 22, 26, open ? '#ff9a1f' : '#777', 'left', 900, MONO);
+    txt(C.name, x + 44, y + 17, 14, '#fff', 'left', 900); txt(C.client, x + 44, y + 33, 9, 'rgba(255,255,255,0.5)', 'left', 700);
+    for (let k = 0; k < 3; k++) star(x + cw - 52 + k * 17, y + ch - 15, 6.5, stars > k);
+    wrap(C.brief, x + 14, y + 56, cw - 26, 9.5, 'rgba(255,255,255,0.72)', 13);
+    const tag = (C.env === 'vac' ? 'VACUUM' : 'SEA LEVEL') + ' \u00b7 ' + (C.dur === 'burn' ? 'flight' : C.dur + ' s') + ' \u00b7 ' + C.ign + ' ign';
+    txt(tag, x + 14, y + ch - 46, 8.5, 'rgba(255,210,63,0.8)', 'left', 900, MONO);
+    const un = []; for (const k in C.unlock) { if (k === 'baf') un.push('Baffles'); else C.unlock[k].forEach(p => un.push(({ prop: PROPS, cyc: CYCLES, mat: MATS, inj: INJS, ign: IGNS })[k][p].short)); }
+    { let s = 'NEW: ' + un.join(', '); cx.font = '800 8.5px ' + FONT; while (cx.measureText(s).width > cw - 26 && s.length > 8) s = s.slice(0, -2); if (s.length < ('NEW: ' + un.join(', ')).length) s = s.slice(0, -1) + '\u2026'; txt(s, x + 14, y + ch - 30, 8.5, 'rgba(60,255,122,0.75)', 'left', 800); }
+    txt('Budget ' + fmtK(C.budget), x + 14, y + ch - 14, 8.5, 'rgba(255,255,255,0.45)', 'left', 800);
+    if (!open) { cx.globalAlpha = 1; cx.fillStyle = 'rgba(6,8,10,0.9)'; cx.fillRect(x + cw - 120, y + ch - 24, 112, 18); txt('LOCKED \u00b7 finish #' + i, x + cw - 14, y + ch - 14, 9, '#aaa', 'right', 900); }
+    cx.globalAlpha = 1;
+    UI.push({ id: 'c' + i, x, y, w: cw, h: ch, dis: !open, fn: () => startContract(i) });
+  });
+  const sy = 54 + 2 * (ch + 12);
+  button('sb', W / 2 - 150, sy, 300, 40, 'SANDBOX TEST STAND', { col: '#3cff7a', size: 14, sub: 'all parts, live throttle, unlimited explosions', fn: () => startContract(-1) });
+}
+// ---------- report overlay ----------
+function drawReport() {
+  const R = T.report;
+  const a = clamp(T.repT * 4, 0, 1);
+  cx.fillStyle = 'rgba(2,3,6,' + 0.55 * a + ')'; cx.fillRect(0, 0, W, H);
+  const x = 110, y = 40 + (1 - a) * 20, w = 740, h = 460, F = R.F, S = R.S, C = R.C;
+  cx.globalAlpha = a;
+  const col = R.pass ? '#3cff7a' : F ? FAILS[F.type].col : '#ffd23f';
+  glass(x, y, w, h, col, 0.94, 16);
+  const title = R.pass ? 'TEST PASSED \u2014 REQUIREMENTS MET' : F ? FAILS[F.type].name : S.aborted ? 'TEST ABORTED' : C.sandbox ? 'TEST COMPLETE' : 'RAN CLEAN \u2014 BUT SHORT OF SPEC';
+  txt('POST-TEST REPORT \u00b7 ' + (C.sandbox ? 'SANDBOX' : 'CONTRACT ' + C.n), x + 20, y + 20, 9, 'rgba(255,255,255,0.5)', 'left', 900, MONO);
+  txtS(title, x + 20, y + 44, 22, col, 'left', 900);
+  if (F) txt(FAILS[F.type].sub + ' at T+' + F.t.toFixed(1) + ' s', x + w - 20, y + 44, 11, 'rgba(255,255,255,0.7)', 'right', 800);
+  // left: requirement table
+  let ry = y + 78; const lx = x + 20;
+  txt('REQUIREMENT', lx, ry, 8.5, 'rgba(255,255,255,0.45)', 'left', 900, MONO); txt('NEED', lx + 230, ry, 8.5, 'rgba(255,255,255,0.45)', 'right', 900, MONO); txt('MEASURED', lx + 330, ry, 8.5, 'rgba(255,255,255,0.45)', 'right', 900, MONO); ry += 18;
+  for (const r of R.J.rows) {
+    if (C.sandbox && r.k !== 'burn') continue;
+    const ok = r.ok; cx.fillStyle = ok ? 'rgba(60,255,122,0.07)' : 'rgba(255,59,59,0.08)'; rrect(cx, lx - 6, ry - 9, 350, 18, 5); cx.fill();
+    txt(ok ? '\u2714' : '\u2716', lx, ry, 11, ok ? '#3cff7a' : '#ff5a5a', 'left', 900);
+    txt(r.label, lx + 18, ry, 10.5, '#fff', 'left', 800);
+    if (r.k === 'burn') txt(ok ? 'survived' : F ? 'failed T+' + F.t.toFixed(0) + ' s' : S.aborted ? 'aborted' : '\u2014', lx + 330, ry, 10, ok ? '#3cff7a' : '#ff5a5a', 'right', 800, MONO);
+    else { const dec = r.need < 10 ? 2 : 0; txt(r.op + ' ' + (r.unit === '$k' ? fmtK(r.need) : r.need), lx + 230, ry, 10, 'rgba(255,255,255,0.65)', 'right', 800, MONO); txt(r.unit === '$k' ? fmtK(r.val) : r.val.toFixed(dec) + ' ' + r.unit, lx + 330, ry, 10, ok ? '#3cff7a' : '#ff5a5a', 'right', 800, MONO); }
+    ry += 21;
+  }
+  // telemetry peaks
+  ry += 6; txt('TELEMETRY PEAKS', lx, ry, 8.5, 'rgba(255,255,255,0.45)', 'left', 900, MONO); ry += 16;
+  const M = MATS[R.d.mat], pk = [
+    [M.abl ? 'Liner consumed' : 'Wall temp', M.abl ? (S.abl * 100).toFixed(0) + '%' : S.max.Tw.toFixed(0) + ' / ' + M.limit + ' K'],
+    [CYCLES[R.d.cyc].id === 'press' ? 'Tank load' : 'Turbine temp', CYCLES[R.d.cyc].id === 'press' ? (S.max.load * 100).toFixed(0) + '%' : S.max.Tt.toFixed(0) + ' / 1020 K'],
+    ['Screech / chug peak amp', (S.max.aS * 100).toFixed(0) + '% / ' + (S.max.aC * 100).toFixed(0) + '%'],
+    ['Max vibration', S.max.vib.toFixed(1) + ' g'], ['Ignitions', S.ign + ' / ' + C.ign]];
+  pk.forEach(p => { txt(p[0], lx, ry, 9.5, 'rgba(255,255,255,0.65)', 'left', 700); txt(p[1], lx + 330, ry, 9.5, '#fff', 'right', 800, MONO); ry += 15; });
+  // right: diagnosis + cost
+  const rx = x + 390, rw = w - 410;
+  glass(rx, y + 70, rw, 190, col, 0.5, 10);
+  txt(F ? 'ENGINEERING POST-MORTEM' : R.pass ? 'CHIEF ENGINEER SAYS' : 'NOTES', rx + 12, y + 86, 9, col, 'left', 900, MONO);
+  let note = R.hint;
+  if (!F) { if (S.aborted) note = 'Aborted before anything broke. Hardware refurbished at a fraction of the cost. Coward. (Smart coward.)';
+    else if (R.pass) note = R.stretch ? 'Every requirement met AND the stretch goal. The board is ecstatic. Frame that telemetry.' : 'Requirements met. ' + (C.stretch ? 'Stretch goal (' + C.stretch.label + ') still on the table for the third star.' : '');
+    else if (C.sandbox) note = 'Clean run. Now try to break it.';
+    else { const bad = R.J.rows.filter(r => !r.ok).map(r => r.label.toLowerCase()); note = 'It ran the whole program, but missed: ' + bad.join(', ') + '. Measured numbers include this hardware\u2019s manufacturing quirks.'; } }
+  const marg = marginalNotes(S); if (R.pass && marg.length) note += ' Warning: thin margins (' + marg.join(', ') + ')' + (C.flight ? ' \u2014 risky in flight!' : '.');
+  wrap(note, rx + 12, y + 106, rw - 24, 10.5, 'rgba(255,255,255,0.88)', 15);
+  // cost
+  if (!C.sandbox) {
+    let cy = y + 276; const c = R.cost; txt('TEST BILL', rx + 12, cy, 9, 'rgba(255,210,63,0.85)', 'left', 900, MONO); cy += 16;
+    [['Stand time', c.fee], ['Propellant', c.prop], [F && ['nolight', 'separation'].indexOf(F.type) < 0 ? 'Hardware (destroyed)' : 'Hardware / refurb', c.hw], ['Stand repairs', c.repair]].forEach(r => { if (r[1] < 0.05 && r[0] !== 'Stand time') return; txt(r[0], rx + 12, cy, 9.5, 'rgba(255,255,255,0.65)', 'left', 700); txt(fmtK(r[1]), rx + rw - 12, cy, 9.5, '#fff', 'right', 800, MONO); cy += 14; });
+    cx.fillStyle = 'rgba(255,255,255,0.15)'; cx.fillRect(rx + 12, cy - 5, rw - 24, 1); cy += 6;
+    txt('Total', rx + 12, cy, 10.5, '#fff', 'left', 900); txt(fmtK(c.total), rx + rw - 12, cy, 11, '#ffd23f', 'right', 900, MONO); cy += 16;
+    txt('Budget left', rx + 12, cy, 9.5, 'rgba(255,255,255,0.65)', 'left', 700); txt(fmtK(budgetLeft()), rx + rw - 12, cy, 10, budgetLeft() < 0 ? '#ff5a5a' : '#3cff7a', 'right', 900, MONO);
+  }
+  // buttons
+  const by = y + h - 62;
+  if (R.pass) {
+    const fl = !!C.flight;
+    T.reportDefault = () => certify();
+    button('cert', x + w - 270, by, 250, 46, fl ? 'LAUNCH IT!' : 'CERTIFY ENGINE', { col: '#3cff7a', size: 17, sub: 'Enter', hot: true, fn: certify });
+    button('rb', x + 20, by, 200, 46, 'Back to bench', { col: '#7fe0e8', size: 13, sub: 'keep tweaking', fn: backToBench });
+  } else if (R.broke) {
+    T.reportDefault = () => contractFailed();
+    button('broke', x + w - 300, by, 280, 46, 'OUT OF BUDGET', { col: '#ff3b3b', size: 16, sub: 'Enter \u00b7 contract failed', hot: true, fn: contractFailed });
+  } else {
+    T.reportDefault = backToBench;
+    button('rb', x + w - 270, by, 250, 46, 'BACK TO BENCH', { col: '#ff9a1f', size: 17, sub: 'Enter \u00b7 adjust and retest', hot: true, fn: backToBench });
+    button('rt', x + 20, by, 180, 46, 'Retest as-is', { col: '#8a929a', size: 12, sub: C.sandbox ? 'free' : 'same hardware design', fn: () => fireTest() });
+  }
+  cx.globalAlpha = 1;
+}
+function marginalNotes(S) {
+  const M = MATS[S.d.mat], out = [];
+  if (!M.abl && S.max.Tw > M.limit * 0.95) out.push('wall temp');
+  if (S.max.S > 0.95) out.push('screech');
+  if (S.max.load > 0.97 && S.max.load < 5) out.push('pump load');
+  if (S.sepD > 0.5) out.push('nozzle fatigue');
+  if (M.abl && S.abl > 0.9) out.push('liner');
+  return out;
+}
+function backToBench() { roarSet(0, 0, 0, 0, 0); FX = []; game.state = 'bench'; EVdirty = true; T = null; }
+let RESULT = null;
+function certify() {
+  const R = T.report;
+  if (R.C.flight) { startFlight(R); return; }
+  completeContract(R);
+}
+function completeContract(R) {
+  const C = RUN.C, half = RUN.spent <= C.budget * 0.5, stars = 1 + (half ? 1 : 0) + (R.stretch ? 1 : 0);
+  const prev = SAVE.stars[C.id] || 0; SAVE.stars[C.id] = Math.max(prev, stars); SAVE.designs[C.id] = Object.assign({}, RUN.d); saveProg();
+  const nx = CONTRACTS[RUN.ci + 1];
+  RESULT = { ok: true, C, stars, half, stretch: R.stretch, spent: RUN.spent, tests: RUN.tests, unlock: nx && prev === 0 ? nx : null, t: 0, extra: R.extra };
+  roarSet(0, 0, 0, 0, 0); game.state = 'results'; sfx('success');
+  announce('Contract complete! ' + stars + ' of 3 stars.');
+}
+function contractFailed() { RESULT = { ok: false, C: RUN.C, spent: RUN.spent, tests: RUN.tests, t: 0 }; roarSet(0, 0, 0, 0, 0); game.state = 'results'; sfx('fail'); announce('Contract failed: out of budget.'); }
+function drawResults() {
+  studio(); const R = RESULT; R.t += 1 / 60;
+  if (DEMO) { cx.save(); cx.globalAlpha = 0.3; const keep = T; T = DEMO; drawTestScene(); T = keep; cx.restore(); cx.fillStyle = 'rgba(4,4,8,0.55)'; cx.fillRect(0, 0, W, H); }
+  const x = W / 2 - 280, y = 60, w = 560, h = 420;
+  glass(x, y, w, h, R.ok ? '#ffd23f' : '#ff3b3b', 0.92, 18);
+  cloverLogo(W / 2, y + 44, 26);
+  if (R.ok) {
+    goldTxt('CONTRACT COMPLETE', W / 2, y + 96, 30, 'center');
+    txt(R.C.n + ' \u00b7 ' + R.C.name + ' \u00b7 ' + R.C.client, W / 2, y + 124, 12, 'rgba(255,255,255,0.7)', 'center', 800);
+    for (let k = 0; k < 3; k++) { const on = R.stars > k && R.t > 0.4 + k * 0.35, s = on ? 1 + 0.3 * Math.max(0, 1 - (R.t - 0.4 - k * 0.35) * 3) : 1; if (on && !R['s' + k]) { R['s' + k] = 1; sfx('star', k); } star(W / 2 - 60 + k * 60, y + 170, 22 * s, on); }
+    const rows = [['\u2605 Requirements met', true], ['\u2605 Under 50% of budget (' + fmtK(R.spent) + ' of ' + fmtK(R.C.budget) + ')', R.half], ['\u2605 Stretch: ' + (R.C.stretch ? R.C.stretch.label : ''), R.stretch]];
+    rows.forEach((r, i) => txt(r[0], W / 2 - 170, y + 214 + i * 20, 11, r[1] ? '#3cff7a' : 'rgba(255,255,255,0.35)', 'left', 800));
+    txt(R.tests + ' test firing' + (R.tests === 1 ? '' : 's') + (R.extra ? ' \u00b7 ' + R.extra : ''), W / 2, y + 284, 10.5, 'rgba(255,255,255,0.55)', 'center', 700);
+    if (R.unlock) { txt('NEW CONTRACT UNLOCKED: ' + R.unlock.name.toUpperCase(), W / 2, y + 312, 12, '#ff9a1f', 'center', 900); const un = []; for (const k in R.unlock.unlock) { if (k === 'baf') un.push('Acoustic baffles'); else R.unlock.unlock[k].forEach(p => un.push(({ prop: PROPS, cyc: CYCLES, mat: MATS, inj: INJS, ign: IGNS })[k][p].name)); } txt('New parts: ' + un.join(', '), W / 2, y + 332, 10.5, '#3cff7a', 'center', 800); }
+    else if (R.C.n === 8) txt('You built a methalox monster. The board wants nine of them. Try the sandbox and break everything.', W / 2, y + 320, 10.5, '#ffd23f', 'center', 800);
+    const nx = CONTRACTS[R.C.n];
+    if (nx) button('next', W / 2 + 10, y + h - 66, 230, 46, 'NEXT CONTRACT', { col: '#3cff7a', size: 16, sub: 'Enter \u00b7 ' + nx.name, hot: true, fn: () => startContract(R.C.n) });
+    button('brd', W / 2 - 240, y + h - 66, 230, 46, 'Contract board', { col: '#7fe0e8', size: 14, fn: () => { game.state = 'board'; } });
+    if (pressed.start) { if (nx) startContract(R.C.n); else game.state = 'board'; }
+  } else {
+    metalTxt('CONTRACT FAILED', W / 2, y + 100, 30, 'center', 'rgba(255,59,59,0.6)');
+    txt('Out of budget after ' + R.tests + ' test' + (R.tests === 1 ? '' : 's') + ' (' + fmtK(R.spent) + ' spent).', W / 2, y + 140, 12, 'rgba(255,255,255,0.75)', 'center', 800);
+    wrap('The client has pulled funding... but they will take your call again. Your design and all the hardware test data you gathered are kept, so the predictions are sharper this time.', W / 2 - 220, y + 180, 440, 11, 'rgba(255,255,255,0.7)', 16);
+    button('retry', W / 2 + 10, y + h - 66, 230, 46, 'RETRY CONTRACT', { col: '#ff9a1f', size: 16, sub: 'Enter \u00b7 fresh budget', hot: true, fn: () => startContract(RUN.ci) });
+    button('brd', W / 2 - 240, y + h - 66, 230, 46, 'Contract board', { col: '#7fe0e8', size: 14, fn: () => { game.state = 'board'; } });
+    if (pressed.start) startContract(RUN.ci);
+  }
+}
+function drawPause() {
+  cx.fillStyle = 'rgba(0,2,6,0.72)'; cx.fillRect(0, 0, W, H);
+  glass(W / 2 - 170, 120, 340, 300, '#7fe0e8', 0.94, 16);
+  metalTxt('PAUSED', W / 2, 160, 30, 'center');
+  button('resume', W / 2 - 130, 190, 260, 44, 'Resume', { col: '#3cff7a', size: 16, sub: 'P / Esc', fn: () => { game.paused = false; } });
+  button('snd', W / 2 - 130, 244, 126, 34, muted ? 'Sound off' : 'Sound on', { col: '#7fe0e8', size: 12, fn: () => setMute(!muted) });
+  button('mus', W / 2 + 4, 244, 126, 34, musicOn ? 'Music on' : 'Music off', { col: '#7fe0e8', size: 12, fn: () => setMusic(!musicOn) });
+  button('rm', W / 2 - 130, 286, 260, 34, RMOTION ? 'Reduced motion: ON' : 'Reduced motion: off', { col: '#7fe0e8', size: 12, fn: () => { RMOTION = !RMOTION; LS.set('re_rm', RMOTION ? '1' : '0'); } });
+  button('quit', W / 2 - 130, 340, 260, 44, game.state === 'flight' ? 'Abandon flight' : 'Quit test (counts as abort)', { col: '#ff6a40', size: 13, fn: () => { game.paused = false; roarSet(0, 0, 0, 0, 0); if (game.state === 'test') { if (T.phase === 'run' || T.phase === 'count') { T.S.aborted = true; T.S.on = false; } finishTest(); backToBench(); } else { game.state = 'bench'; FL = null; } } });
+}
+
+// ---------- FLIGHT: sounding rocket / orbital booster launch ----------
+let FL = null;
+function startFlight(R) {
+  const C = R.C, d = R.d, res = flightSim(d, C, R.S.v, true);
+  const trk = res.trk, tEnd = trk.length ? trk[trk.length - 1][0] : 1;
+  const marg = marginalNotes(R.S);
+  let failAt = -1; if (marg.length && Math.random() < 0.6) failAt = res.tb * (0.35 + Math.random() * 0.5);
+  FL = { R, C, d, res, trk, tEnd, t: 0, warp: tEnd / (C.flight.kind === 'sound' ? 15 : 14), phase: 'pad', padT: 2.2, failAt, failed: false, trail: [], stageT: -1, endT: 0, marg, sep: null, vis: { x: 0 } };
+  FX = []; GROUND_Y = 5000; game.state = 'flight'; game.paused = false; T = null;
+  announce('Launch! ' + (C.flight.kind === 'sound' ? 'Sounding rocket' : 'Orbital booster with ' + C.flight.n + ' engines') + ' lifting off.');
+}
+function flState() {
+  const trk = FL.trk; if (!trk.length) return [0, 0, 0, 0, Math.PI / 2, 0, 0];
+  const t = FL.t; let i = 0; while (i < trk.length - 2 && trk[i + 1][0] < t) i++;
+  const a = trk[i], b = trk[Math.min(trk.length - 1, i + 1)], f = clamp((t - a[0]) / Math.max(1e-6, b[0] - a[0]), 0, 1);
+  return a.map((v, k) => lerp(v, b[k], f));
+}
+function flightUpdate(dt) {
+  if (pressed.pause) { game.paused = !game.paused; }
+  if (game.paused) { roarSet(0, 0, 0, 0, 0); return; }
+  updateFX(dt);
+  const F = FL;
+  if (F.phase === 'pad') { F.padT -= dt; if (F.padT < 1 && !F.lit) { F.lit = 1; sfx('ignite'); } if (F.padT <= 0) { F.phase = 'fly'; } }
+  else if (F.phase === 'fly') {
+    const prevT = F.t; F.t = Math.min(F.tEnd, F.t + dt * F.warp * (F.t < 8 ? 0.35 : 1));
+    const s = flState();
+    if (F.failAt > 0 && prevT < F.failAt && F.t >= F.failAt) { F.phase = 'boom'; F.failed = true; F.endT = 0; explode(480, 300, 1.5, { debris: 16, cols: ['#e8ecf0', '#c8ccd0', '#ff3b3b', '#8a929a'] }); sfx('boom', 1.5); announce('Vehicle lost! Engine failure in flight.'); }
+    if (F.C.flight.kind === 'orbit' && s[3] < 0.5 && F.stageT < 0 && F.t > 5) { F.stageT = 0; sfx('stage'); F.sep = { y: 0, vy: 0, rot: 0 }; }
+    if (F.stageT >= 0) { F.stageT += dt; F.sep.vy += 60 * dt; F.sep.y += F.sep.vy * dt; F.sep.rot += dt * 0.5; }
+    if (F.t >= F.tEnd || (F.stageT > 3.2)) { F.phase = 'done'; F.endT = 0; sfx('success'); }
+  } else if (F.phase === 'boom' || F.phase === 'done') { F.endT += dt; if (F.endT > 3.4) finishFlight(); }
+  if (!FL) return;
+  const s = flState(), burning = F.phase === 'pad' ? (F.padT < 1 ? 1 - F.padT : 0) : (F.phase === 'fly' && s[3] > 0.5) ? 1 : 0;
+  roarSet(burning * Math.max(0.25, 1 - s[1] / 60000), { rp1: 0.9, eth: 0.7, ch4: 0.6, lh2: 0.35, hyp: 0.55 }[F.d.prop], 0, 0, 0);
+  if (burning) game.shake = Math.max(game.shake, 4 * Math.max(0, 1 - s[1] / 20000));
+  // exhaust trail in world coords
+  if (burning && Math.random() < 0.9) F.trail.push({ h: s[1], x: s[5] || 0, life: 3 + Math.random() * 2, s: 8 + Math.random() * 10 });
+  for (const p of F.trail) { p.life -= dt; p.s += dt * 12; } F.trail = F.trail.filter(p => p.life > 0);
+  if (pressed.start && (F.phase === 'done' || F.phase === 'boom')) finishFlight();
+}
+function finishFlight() {
+  const F = FL; if (!F || F.finished) return; F.finished = true; roarSet(0, 0, 0, 0, 0);
+  if (F.failed) {
+    const loss = F.C.fee * 4 + unitCost(F.d) * F.C.flight.n; RUN.spent += loss; RUN.log.push({ pass: false, fail: 'flight', cost: loss });
+    toast('Vehicle lost in flight (' + fmtK(loss) + '). Widen your margins: ' + F.marg.join(', '), '#ff5a5a', 5);
+    FL = null; game.state = 'bench'; EVdirty = true;
+    if (budgetLeft() <= 0) contractFailed();
+    return;
+  }
+  const extra = F.C.flight.kind === 'sound' ? 'apogee ' + F.res.apogee.toFixed(0) + ' km' : 'stage \u0394v ' + F.res.dv.toFixed(2) + ' km/s';
+  const R = Object.assign({}, F.R, { extra }); FL = null; completeContract(R);
+}
+function drawRocket(x, y, rot, d, C, sc, burning, s, part) {
+  const kind = C.flight.kind, n = C.flight.n;
+  cx.save(); cx.translate(x, y); cx.rotate(rot);
+  const bw = kind === 'sound' ? 11 : 20, bh = kind === 'sound' ? 120 : 150;
+  // plume(s)
+  const alt = s[1], pa = patm(alt), pr = perf(d, ZV, 1, pa), ratio = pr.pe / Math.max(1e-6, pa);
+  if (burning && part !== 'upper') {
+    const nn = kind === 'sound' ? 1 : 3;
+    for (let i = 0; i < nn; i++) { const ox = (i - (nn - 1) / 2) * bw * 0.6; drawPlume(cx, ox, bh / 2 + 6, kind === 'sound' ? 5 : 6, 120 + Math.min(260, alt / 120), d.prop, { thr: 1, ratio, vac: alt > 45000, aC: 0, aS: 0, sep: 0, t: game.t, dim: alt > 20000 ? 0.6 : 0.85 }); }
+  }
+  if (part === 'upper' && burning) drawPlume(cx, 0, -bh * 0.05, 4, 160, 'lh2', { thr: 1, ratio: 99, vac: true, aC: 0, aS: 0, t: game.t });
+  const body = (y0, y1) => { cx.fillStyle = lin(cx, -bw / 2, 0, bw / 2, 0, [[0, '#7c848c'], [0.3, '#ffffff'], [0.55, '#e4e8ec'], [1, '#6a7076']]); cx.fillRect(-bw / 2, y0, bw, y1 - y0); };
+  if (part !== 'upper') {
+    body(kind === 'sound' ? -bh / 2 + 20 : -bh * 0.05, bh / 2);
+    cx.fillStyle = '#1a1c20'; cx.fillRect(-bw / 2, bh / 2 - 22, bw, 3);
+    // engine bells
+    cx.fillStyle = lin(cx, -bw / 2, 0, bw / 2, 0, [[0, '#3a2a20'], [0.4, MATS[d.mat].col], [1, '#2a1a10']]);
+    if (kind === 'sound') { cx.beginPath(); cx.moveTo(-3, bh / 2); cx.lineTo(3, bh / 2); cx.lineTo(5, bh / 2 + 7); cx.lineTo(-5, bh / 2 + 7); cx.fill(); }
+    else for (let i = 0; i < 3; i++) { const ox = (i - 1) * bw * 0.32; cx.beginPath(); cx.moveTo(ox - 2, bh / 2); cx.lineTo(ox + 2, bh / 2); cx.lineTo(ox + 3.5, bh / 2 + 6); cx.lineTo(ox - 3.5, bh / 2 + 6); cx.fill(); }
+    if (kind === 'sound') { cx.fillStyle = '#ff3b3b'; [-1, 1].forEach(sd => { cx.beginPath(); cx.moveTo(sd * bw / 2, bh / 2 - 26); cx.lineTo(sd * (bw / 2 + 10), bh / 2 + 2); cx.lineTo(sd * bw / 2, bh / 2 - 2); cx.fill(); }); }
+    else { cx.fillStyle = '#2a2d31'; [-1, 1].forEach(sd => cx.fillRect(sd * bw / 2 - (sd > 0 ? 0 : 3), -bh * 0.05, 3, 10)); }
+    // clover decal
+    const cl = ['#ff3b3b', '#3cff7a', '#ff9a1f', '#ffd23f']; for (let i = 0; i < 4; i++) { const a = -2.356 + i * 1.5708; cx.fillStyle = cl[i]; cx.beginPath(); cx.arc(Math.cos(a) * 2.2, 10 + Math.sin(a) * 2.2, 2.2, 0, 6.29); cx.fill(); }
+  }
+  if (part !== 'booster') {
+    if (kind === 'sound') { body(-bh / 2 + 20, -bh / 2 + 22); cx.fillStyle = lin(cx, -bw / 2, 0, bw / 2, 0, [[0, '#8a9098'], [0.35, '#fff'], [1, '#70767c']]); cx.beginPath(); cx.moveTo(-bw / 2, -bh / 2 + 20); cx.quadraticCurveTo(-bw / 2, -bh / 2 - 6, 0, -bh / 2 - 14); cx.quadraticCurveTo(bw / 2, -bh / 2 - 6, bw / 2, -bh / 2 + 20); cx.fill(); }
+    else { body(-bh / 2, -bh * 0.05); cx.fillStyle = '#1a1c20'; cx.fillRect(-bw / 2, -bh * 0.05 - 2, bw, 2); cx.fillStyle = lin(cx, -bw / 2 - 2, 0, bw / 2 + 2, 0, [[0, '#8a9098'], [0.35, '#fff'], [1, '#70767c']]); cx.beginPath(); cx.moveTo(-bw / 2 - 2, -bh / 2 + 4); cx.quadraticCurveTo(-bw / 2, -bh / 2 - 26, 0, -bh / 2 - 34); cx.quadraticCurveTo(bw / 2, -bh / 2 - 26, bw / 2 + 2, -bh / 2 + 4); cx.fill(); }
+  }
+  cx.restore();
+}
+function drawFlight() {
+  const F = FL, s = flState(), alt = s[1], C = F.C, kind = C.flight.kind;
+  const k = clamp(alt / 70000, 0, 1);
+  // sky
+  const top = lerpCol('#0b1638', '#000003', k), mid = lerpCol('#3a3a6a', '#02030a', k), hor = lerpCol('#ff9a5a', '#2a3a7a', Math.min(1, k * 1.4));
+  cx.fillStyle = lin(cx, 0, 0, 0, H, [[0, top], [0.6, mid], [1, hor]]); cx.fillRect(0, 0, W, H);
+  if (k > 0.15) { seed = 5; for (let i = 0; i < 140; i++) { const x = sr(0, W), y = sr(0, H), a = sr(0.2, 1) * clamp((k - 0.15) * 2, 0, 1); cx.fillStyle = 'rgba(255,255,255,' + a + ')'; cx.fillRect(x, (y + alt / 400) % H, 1.3, 1.3); } }
+  cx.save(); cx.translate(game.fox, game.foy);
+  const ppm = 0.12, ry = 330;
+  const gOff = kind === 'sound' ? 68 : 82, wy = h => ry + gOff - (h - alt) * ppm;
+  // earth curvature (high altitude)
+  if (alt > 2000) { const R = 9000 / (1 + alt / 12000), topY = H - 40 + 60 * clamp(alt / 120000, 0, 1) - Math.max(0, 60 - alt / 50);
+    cx.fillStyle = radg(cx, W / 2, topY + R, R - 30, W / 2, topY + R, R + 40, [[0, 'rgba(90,160,255,0)'], [0.4, 'rgba(120,190,255,0.5)'], [0.75, 'rgba(255,170,110,0.25)'], [1, 'rgba(60,120,255,0)']]); cx.beginPath(); cx.arc(W / 2, topY + R, R + 40, 0, 6.29); cx.fill();
+    cx.fillStyle = lin(cx, 0, topY, 0, H, [[0, '#2a3a4a'], [0.2, '#1a2a20'], [1, '#0a120c']]); cx.beginPath(); cx.arc(W / 2, topY + R, R, 0, 6.29); cx.fill();
+    cx.save(); cx.beginPath(); cx.arc(W / 2, topY + R, R, 0, 6.29); cx.clip(); seed = 9; cx.globalAlpha = 0.35; for (let i = 0; i < 30; i++) { cx.drawImage(STEAM[i % 2], sr(-100, W), topY + sr(0, 80), sr(60, 160), sr(10, 30)); } cx.restore(); }
+  // ground + pad (low altitude)
+  const gy = wy(0);
+  if (gy < H + 200) {
+    if (!BG_STAND) BG_STAND = buildStand();
+    cx.fillStyle = lin(cx, 0, gy - 40, 0, gy + 200, [[0, '#2a1d1a'], [1, '#0b0807']]); cx.fillRect(0, gy - 6, W, H);
+    ridge2(gy - 6);
+    // launch tower
+    cx.fillStyle = '#16181c'; cx.fillRect(498, gy - 190, 18, 190); lattice(cx, 498, gy - 190, 516, gy, 14, '#2c3036');
+    cx.fillStyle = '#3a3634'; cx.fillRect(400, gy - 8, 160, 10);
+    glowAt(507, gy - 194, 6, '#ff3b3b', Math.sin(game.t * 3) > 0 ? 1 : 0.2);
+  }
+  // clouds
+  seed = 77; for (let i = 0; i < 14; i++) { const ch = 2000 + sr(0, 9000), cxp = sr(-100, W + 100), y = wy(ch); if (y > -80 && y < H + 80) { cx.globalAlpha = 0.55 * (1 - k); cx.drawImage(STEAM[i % 2], cxp - 120, y - 30, 240, 60); cx.globalAlpha = 1; } }
+  // exhaust trail
+  for (const p of F.trail) { const y = wy(p.h) + 40, x = 480 + ((p.x || 0) - (s[5] || 0)) * ppm; if (y < -50 || y > H + 50) continue; cx.globalAlpha = clamp(p.life / 3, 0, 1) * 0.7 * (1 - k * 0.8); cx.drawImage(alt < 15000 ? SMOKE[0] : STEAM[0], x - p.s, y - p.s, p.s * 2, p.s * 2); } cx.globalAlpha = 1;
+  // pad smoke burst
+  if (F.phase === 'pad' && F.padT < 1 && Math.random() < 0.8) smokeAt(480 + (Math.random() - 0.5) * 60, gy - 8, (Math.random() - 0.5) * 300, -20, 20, 3, PROPS[F.d.prop].steam > 0.5, 0.8);
+  if (alt < 300 && F.phase === 'fly' && Math.random() < 0.7) smokeAt(480 + (Math.random() - 0.5) * 60, gy - 8, (Math.random() - 0.5) * 380, -30, 24, 3.5, PROPS[F.d.prop].steam > 0.5, 0.8);
+  drawFX(cx, 'smoke');
+  // rocket
+  const rot = Math.PI / 2 - s[4], ryR = ry;
+  const burning = F.phase === 'pad' ? F.padT < 1 : F.phase === 'fly' && s[3] > 0.5;
+  if (!F.failed) {
+    if (F.stageT >= 0) { drawRocket(480, ryR + F.sep.y, rot + F.sep.rot, F.d, C, 1, false, s, 'booster'); drawRocket(480, ryR - 20 - F.stageT * 30, rot, F.d, C, 1, F.stageT > 0.8, s, 'upper'); }
+    else drawRocket(480, ryR, rot, F.d, C, 1, burning, s);
+  }
+  drawFX(cx, 'front');
+  cx.restore();
+  // HUD
+  glass(14, 14, 250, 150, '#ffd23f', 0.82, 12);
+  txt(kind === 'sound' ? 'SOUNDING ROCKET' : 'ORBITAL BOOSTER \u00b7 ' + C.flight.n + ' ENGINES', 26, 30, 9, 'rgba(255,210,63,0.85)', 'left', 900, MONO);
+  const g = s[0] > 0.1 ? 0 : 0;
+  [['T+', s[0].toFixed(1) + ' s'], ['ALTITUDE', (alt / 1000).toFixed(1) + ' km'], ['VELOCITY', Math.abs(s[2]).toFixed(0) + ' m/s'], ['DOWNRANGE', ((s[5] || 0) / 1000).toFixed(1) + ' km'], ['MASS', (s[6] / 1000).toFixed(s[6] > 1e5 ? 0 : 2) + ' t']].forEach((r, i) => { txt(r[0], 26, 52 + i * 21, 9.5, 'rgba(255,255,255,0.55)', 'left', 800, MONO); txtGlow(r[1], 252, 52 + i * 21, 13, '#fff'); });
+  glass(W - 280, 14, 266, 70, '#3cff7a', 0.82, 12);
+  if (kind === 'sound') { const goal = C.req.apogee; txt('APOGEE TARGET ' + goal + ' km', W - 268, 32, 9, 'rgba(60,255,122,0.85)', 'left', 900, MONO); bar(W - 268, 46, 242, 10, alt / 1000 / (C.stretch.apogee * 1.1), alt / 1000 >= goal ? '#3cff7a' : '#ffd23f');
+    const gx2 = W - 268 + 242 * goal / (C.stretch.apogee * 1.1); cx.fillStyle = '#fff'; cx.fillRect(gx2, 42, 1.5, 18); txt('predicted ' + F.res.apogee.toFixed(0) + ' km', W - 26, 70, 9, 'rgba(255,255,255,0.6)', 'right', 800); }
+  else { const dvNow = F.res.dv * clamp(s[0] / Math.max(1, F.res.tb), 0, 1); txt('STAGE \u0394v TARGET ' + C.req.dv + ' km/s', W - 268, 32, 9, 'rgba(60,255,122,0.85)', 'left', 900, MONO); bar(W - 268, 46, 242, 10, dvNow / 4, dvNow >= C.req.dv ? '#3cff7a' : '#ffd23f');
+    const gx2 = W - 268 + 242 * C.req.dv / 4; cx.fillStyle = '#fff'; cx.fillRect(gx2, 42, 1.5, 18); txt('lift-off T/W ' + F.res.tw0.toFixed(2) + ' \u00b7 burn ' + F.res.tb.toFixed(0) + ' s', W - 26, 70, 9, 'rgba(255,255,255,0.6)', 'right', 800); }
+  let msg = '';
+  if (F.phase === 'pad') msg = F.padT > 1 ? 'IGNITION SEQUENCE' : 'LIFT-OFF!';
+  else if (F.phase === 'boom') msg = 'VEHICLE LOST';
+  else if (F.phase === 'done') msg = kind === 'sound' ? 'APOGEE ' + F.res.apogee.toFixed(0) + ' km \u00b7 PAYLOAD AWAY' : 'MECO \u00b7 STAGING NOMINAL \u00b7 \u0394v ' + F.res.dv.toFixed(2) + ' km/s';
+  else if (F.stageT >= 0) msg = 'MECO \u00b7 STAGE SEPARATION';
+  else if (s[3] < 0.5 && kind === 'sound') msg = 'BURNOUT \u00b7 COASTING TO APOGEE';
+  else if (alt > 9000 && alt < 14000) msg = 'MAX-Q';
+  if (msg) { txtS(msg, W / 2, 470, 22, F.phase === 'boom' ? '#ff5a5a' : '#ffd23f', 'center', 900); }
+  txt('time warp \u00d7' + F.warp.toFixed(0), W / 2, 500, 9.5, 'rgba(255,255,255,0.45)', 'center', 800, MONO);
+  cx.save(); cx.globalCompositeOperation = 'soft-light'; cx.fillStyle = 'rgba(255,140,60,' + 0.15 * (1 - k) + ')'; cx.fillRect(0, 0, W, H); cx.restore();
+}
+function ridge2(gy) { seed = 31; cx.fillStyle = '#140e12'; cx.beginPath(); cx.moveTo(0, gy); for (let x = 0; x <= W; x += 8) cx.lineTo(x, gy - 30 * fbm(x * 0.006 + 3, 1.3, 4)); cx.lineTo(W, gy); cx.closePath(); cx.fill(); }
+function lerpCol(a, b, t) { const A = hexRgb(a), B = hexRgb(b); return 'rgb(' + A.map((v, i) => Math.round(lerp(v, B[i], t))).join(',') + ')'; }
+
+// ---------- MAIN LOOP ----------
+function update(dt) {
+  game.t += dt;
+  for (const tm of game.timers) { tm.t -= dt; if (tm.t <= 0 && !tm.fired) { tm.fired = true; tm.fn(); } } game.timers = game.timers.filter(q => !q.fired);
+  for (const m of toasts) m.t -= dt; toasts = toasts.filter(m => m.t > 0);
+  if (pressed.mute) setMute(!muted);
+  musicTick();
+  const st = game.state;
+  MUS.on = st === 'title' || st === 'board' || st === 'bench' || st === 'results';
+  if (st === 'title') { GROUND_Y = ST.groundY; demoTick(dt); if (pressed.start) game.state = 'board'; }
+  else if (st === 'board') { demoTick(dt); if (pressed.pause) game.state = 'title'; if (pressed.start) { let i = 0; while (i < CONTRACTS.length - 1 && contractOpen(i + 1) && (SAVE.stars['c' + (i + 1)] || 0) > 0) i++; startContract(i); } }
+  else if (st === 'bench') benchUpdate(dt);
+  else if (st === 'results') demoTick(dt);
+  else if (st === 'test') {
+    if (pressed.pause && T.phase !== 'report') game.paused = !game.paused;
+    if (game.paused) { roarSet(0, 0, 0, 0, 0); }
+    else testUpdate(dt);
+  } else if (st === 'flight') flightUpdate(dt);
+  game.shake = Math.max(0, game.shake - dt * 40); game.flash = Math.max(0, game.flash - dt * 2.2);
+  const sh = Math.min(30, RMOTION ? game.shake * 0.2 : game.shake);
+  game.fox = (Math.random() - 0.5) * sh; game.foy = (Math.random() - 0.5) * sh;
+}
+function drawToasts() {
+  toasts.forEach((m, i) => { const a = clamp(m.t / 0.3, 0, 1), y = 96 + i * 34; cx.globalAlpha = a; cx.font = '800 12px ' + FONT; const w = cx.measureText(m.s).width + 34;
+    glass(W / 2 - w / 2, y - 14, w, 28, m.col, 0.9, 10); txt(m.s, W / 2, y, 12, m.col, 'center', 800); cx.globalAlpha = 1; });
+}
+function render() {
+  UI = [];
+  cx.setTransform(SC, 0, 0, SC, 0, 0);
+  cx.clearRect(0, 0, W, H);
+  const st = game.state;
+  if (st === 'title') drawTitle();
+  else if (st === 'board') drawBoard();
+  else if (st === 'bench') drawBench();
+  else if (st === 'test') drawTest();
+  else if (st === 'flight') drawFlight();
+  else if (st === 'results') drawResults();
+  if ((st === 'test' || st === 'flight') && !game.paused && !(st === 'test' && T && T.phase === 'report')) button('pz', st === 'test' ? 566 : W - 60, st === 'test' ? 12 : 92, 40, 28, 'II', { col: '#7fe0e8', size: 12, fn: () => { game.paused = true; } });
+  if (game.flash > 0) { cx.save(); cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = game.flash * 0.55; cx.fillStyle = game.flashCol; cx.fillRect(0, 0, W, H); cx.restore(); }
+  vignette();
+  grainOverlay();
+  if (game.paused && (st === 'test' || st === 'flight')) drawPause();
+  drawToasts();
+  UIprev = UI;
+  cv.style.cursor = UI.some(b => !b.dis && ptr.x > b.x && ptr.x < b.x + b.w && ptr.y > b.y && ptr.y < b.y + b.h) ? 'pointer' : 'default';
+}
+let GRAIN_OFF = 0;
+function grainOverlay() { GRAIN_OFF = (GRAIN_OFF + 37) % 256; cx.save(); cx.globalAlpha = 0.045; cx.globalCompositeOperation = 'overlay'; const o = RMOTION ? 0 : GRAIN_OFF; for (let y = -o; y < H; y += 256) for (let x = -((o * 3) % 256); x < W; x += 256) cx.drawImage(NOISE, x, y); cx.restore(); }
+cv.addEventListener('pointerdown', () => { ptr.consumed = false; }, true);
+function frame(dt) {
+  if (pressed.click && processClicks()) { ptr.consumed = true; }
+  if (ptr.consumed) pressed.up = false;
+  update(dt);
+  for (const k in pressed) pressed[k] = false;
+}
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  try { frame(dt); render(); } catch (e) { console.error(e); }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+// ---------- test hooks ----------
+window.__RE = {
+  game, SAVE, CONTRACTS, SANDBOX, PROPS, CYCLES, MATS, INJS, IGNS, perf, simRun, simNew, simStep, judge, evalDesign, engineMass, unitCost, flightSim, hwTrue, hwCase, failHint,
+  get T() { return T; }, get RUN() { return RUN; }, get EV() { return EV; }, get FL() { return FL; },
+  startContract, startTest, fireTest, finishTest, certify, startFlight, backToBench,
+  step: (n, dt) => { for (let i = 0; i < n; i++) { frame(dt || 1 / 60); } render(); }, render, ptr, pressed, held,
+  // force a failure visual right now on the current test
+  forceFail(type) { if (!T) return; const S = T.S; T.phase = 'run'; S.thr = Math.max(S.thr, 0.9); simFail(S, type, { Tw: 1140, limit: MATS[S.d.mat].limit, q: 30, pe: 0.2, load: 1.12, oxr: 1.3, S: 1.4, C: 1.6, ign: 2, starts: 1, coke: 0.3, src: type === 'loxfire' ? 'chamber' : 'turbine' }); beginFail(); },
+  unlockAll() { CONTRACTS.forEach(C => SAVE.stars[C.id] = Math.max(1, SAVE.stars[C.id] || 0)); saveProg(); },
+  setDesign(o) { Object.assign(RUN.d, o); sanitize(RUN.d); EVdirty = true; }
+};
+
+})();
+</script>
+</body>
+</html>
