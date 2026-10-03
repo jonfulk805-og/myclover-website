@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05040c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%230a0603%22/%3E%3Ccircle cx=%2222%22 cy=%2222%22 r=%2212%22 fill=%22%23ff3b3b%22/%3E%3Ccircle cx=%2242%22 cy=%2222%22 r=%2212%22 fill=%22%233cff7a%22/%3E%3Ccircle cx=%2222%22 cy=%2242%22 r=%2212%22 fill=%22%23ff9a1f%22/%3E%3Ccircle cx=%2242%22 cy=%2242%22 r=%2212%22 fill=%22%23ffd23f%22/%3E%3C/svg%3E">
+<title>TESLA FORGE: Coil Builder | MyClover.Tech</title>
+<meta name="description" content="TESLA FORGE: Coil Builder - design a real spark-gap Tesla coil (power supply, MMC cap bank, spark gap, primary, secondary, toroid), tune it, and throw lightning for 12 contracts. Free browser game from MyClover.Tech.">
+<style>
+html,body{margin:0;height:100%;background:#05040c;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+body{display:flex;align-items:center;justify-content:center}
+canvas{display:block;box-shadow:0 0 60px rgba(150,120,255,.10);outline:none}
+#rot{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#05040c;color:#fff;font:800 18px system-ui,sans-serif;text-align:center;z-index:9;padding:24px}
+#rot .ph{width:46px;height:78px;border:3px solid #ffd23f;border-radius:9px;animation:rt 1.6s ease-in-out infinite}
+@keyframes rt{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (orientation:portrait) and (max-width:820px){#rot{display:flex}}
+html,body{cursor:default}
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="0" role="img" aria-label="TESLA FORGE Tesla coil builder. Build a coil from parts, tune it, then hold to fire and drag to aim the spark. Arrow keys aim and set the variac, Space fires, P pauses."></canvas>
+<div id="live" class="sr" aria-live="polite"></div>
+<div id="rot"><div class="ph"></div><div>Rotate your phone to landscape</div><div style="font-weight:600;font-size:13px;opacity:.65">TESLA FORGE needs the wide view</div></div>
+<script>
+(function(){
+'use strict';
+// ===== TESLA FORGE: Coil Builder =====
+// Original code + procedurally drawn art by Viktor for MyClover.Tech. No external assets.
+const W = 960, H = 540;
+const cv = document.getElementById('c');
+const cx = cv.getContext('2d');
+const TOUCH = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1 || /Mobi|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent);
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
+let RMOTION = LS.get('tf_rm', null) != null ? LS.get('ov_rm') === '1' : !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+let SC = 1, CRect = null;
+function fit() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  const cw = Math.max(1, Math.floor(W * s)), ch = Math.max(1, Math.floor(H * s));
+  cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  SC = Math.max(1, Math.min(2, cw * (window.devicePixelRatio || 1) / W));
+  cv.width = Math.round(W * SC); cv.height = Math.round(H * SC);
+  CRect = null;
+}
+addEventListener('resize', fit); fit();
+
+// ---------- utils ----------
+const RND = (a, b) => a + Math.random() * (b - a);
+const RI = (a, b) => Math.floor(RND(a, b + 1));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const angTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+const wrapA = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
+const turnTo = (a, t, m) => { const d = wrapA(t - a); return a + clamp(d, -m, m); };
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const MONO = 'ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace';
+
+// ---------- GFX: noise, glow sprites, painted arenas ----------
+function layer(w, h, s) {
+  s = s || Math.min(2, SC);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w * s)); c.height = Math.max(1, Math.ceil(h * s));
+  const g = c.getContext('2d'); g.scale(s, s); return [c, g];
+}
+let seed = 1337;
+const srand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const sr = (a, b) => a + srand() * (b - a);
+function hash(x, y) { let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y, o) { o = o || 4; let s = 0, a = 0.5, f = 1, n = 0; for (let i = 0; i < o; i++) { s += a * vnoise(x * f, y * f); n += a; f *= 2; a *= 0.5; } return s / n; }
+const RGBC = {};
+function hexRgb(c) {
+  if (RGBC[c]) return RGBC[c];
+  let r = 255, g = 255, b = 255;
+  if (c[0] === '#') { let h = c.slice(1); if (h.length === 3) h = h.split('').map(q => q + q).join(''); const n = parseInt(h, 16); r = (n >> 16) & 255; g = (n >> 8) & 255; b = n & 255; }
+  else { const m = c.match(/\d+/g); if (m) { r = +m[0]; g = +m[1]; b = +m[2]; } }
+  return (RGBC[c] = [r, g, b]);
+}
+const SHC = {};
+function shade(c, k) { const key = c + k; if (SHC[key]) return SHC[key]; const f = v => Math.max(0, Math.min(255, Math.round(k > 0 ? v + (255 - v) * k : v * (1 + k)))); const [r, g, b] = hexRgb(c); return (SHC[key] = 'rgb(' + f(r) + ',' + f(g) + ',' + f(b) + ')'); }
+const rgba = (c, a) => { const [r, g, b] = hexRgb(c); return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'; };
+function glowSprite(rgb, size) {
+  size = size || 128; const [c, g] = layer(size, size, 1);
+  const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gr.addColorStop(0, 'rgba(' + rgb + ',1)'); gr.addColorStop(0.22, 'rgba(' + rgb + ',0.5)'); gr.addColorStop(0.55, 'rgba(' + rgb + ',0.13)'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+  g.fillStyle = gr; g.fillRect(0, 0, size, size); return c;
+}
+const GLOWC = {};
+function glowOf(c) { return GLOWC[c] || (GLOWC[c] = glowSprite(hexRgb(c).join(','), 64)); }
+function glowAt(x, y, r, c, a, g) {
+  g = g || cx; g.globalCompositeOperation = 'lighter'; g.globalAlpha = a == null ? 1 : a;
+  g.drawImage(glowOf(c), x - r, y - r, r * 2, r * 2); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+}
+const SMOKE = [0, 1, 2].map(i => { seed = 50 + i; const size = 96, [c, g] = layer(size, size, 1);
+  for (let k = 0; k < 14; k++) { const a = srand() * 6.28, d = srand() * 22, r = 14 + srand() * 20, x = 48 + Math.cos(a) * d, y = 48 + Math.sin(a) * d, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(70,66,74,0.36)'); gr.addColorStop(1, 'rgba(70,66,74,0)'); g.fillStyle = gr; g.fillRect(0, 0, size, size); }
+  return c; });
+const FIRE = (() => { const [c, g] = layer(64, 64, 1), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,250,225,1)'); gr.addColorStop(0.25, 'rgba(255,200,90,0.9)'); gr.addColorStop(0.55, 'rgba(230,90,20,0.45)'); gr.addColorStop(1, 'rgba(120,20,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
+function pnoise(x, y, p) { // periodic value noise (period p cells) so grain tiles seamlessly
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), m = q => ((q % p) + p) % p;
+  const a = hash(m(xi), m(yi)), b = hash(m(xi + 1), m(yi)), c = hash(m(xi), m(yi + 1)), d = hash(m(xi + 1), m(yi + 1));
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+const NOISE = (() => { const N = 256, [c, g] = layer(N, N, 1), id = g.createImageData(N, N), d = id.data;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let n = 0, a = 0.5, f = 8, s = 0; for (let o = 0; o < 4; o++) { n += a * pnoise(x / N * f, y / N * f, f); s += a; a *= 0.5; f *= 2; }
+    n = n / s * 0.6 + hash(x * 7 + 1, y * 13 + 5) * 0.4; const v = clamp(128 + (n - 0.5) * 220, 0, 255), i = (y * N + x) * 4; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  g.putImageData(id, 0, 0); return c; })();
+let VIG = null;
+function vignette() {
+  if (!VIG) { const [c, g] = layer(W, H, 1), vg = g.createRadialGradient(W / 2, H * 0.52, H * 0.35, W / 2, H / 2, W * 0.66);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(0.7, 'rgba(4,3,10,0.25)'); vg.addColorStop(1, 'rgba(2,1,6,0.7)'); g.fillStyle = vg; g.fillRect(0, 0, W, H); VIG = c; }
+  cx.drawImage(VIG, 0, 0, W, H);
+}
+const lin = (g, x0, y0, x1, y1, stops) => { const gr = g.createLinearGradient(x0, y0, x1, y1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+const radg = (g, x0, y0, r0, x1, y1, r1, stops) => { const gr = g.createRadialGradient(x0, y0, r0, x1, y1, r1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function grain(g, x, y, w, h, alpha, mode) {
+  g.save(); g.globalAlpha = alpha; g.globalCompositeOperation = mode || 'overlay';
+  for (let yy = y; yy < y + h; yy += 256) for (let xx = x; xx < x + w; xx += 256) g.drawImage(NOISE, xx, yy);
+  g.restore();
+}
+
+
+// ---------- UI kit ----------
+let UI = [], UIprev = [];
+function txt(s, x, y, size, col, align, weight, font) {
+  cx.font = (weight || 800) + ' ' + size + 'px ' + (font || FONT); cx.textAlign = align || 'left'; cx.textBaseline = 'middle';
+  cx.fillStyle = col || '#fff'; cx.fillText(s, x, y);
+}
+function txtS(s, x, y, size, col, align, weight) { cx.save(); cx.shadowColor = 'rgba(0,0,0,0.85)'; cx.shadowBlur = 8; cx.shadowOffsetY = 2; txt(s, x, y, size, col, align, weight); cx.restore(); }
+function glass(x, y, w, h, accent, a, r) {
+  r = r || 12; cx.save();
+  cx.fillStyle = 'rgba(6,12,14,' + (a == null ? 0.8 : a) + ')'; rrect(cx, x, y, w, h, r); cx.fill();
+  cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, 'rgba(255,255,255,0.08)'], [0.15, 'rgba(255,255,255,0.02)'], [1, 'rgba(255,255,255,0)']]); rrect(cx, x, y, w, h, r); cx.fill();
+  cx.strokeStyle = rgba(accent || '#7fe0e8', 0.35); cx.lineWidth = 1.2; rrect(cx, x + 0.5, y + 0.5, w - 1, h - 1, r); cx.stroke();
+  cx.restore();
+}
+function hov(x, y, w, h) { return ptr.seen && ptr.type === 'mouse' && ptr.x > x && ptr.x < x + w && ptr.y > y && ptr.y < y + h; }
+function button(id, x, y, w, h, label, opt) {
+  opt = opt || {}; const hv = hov(x, y, w, h), col = opt.col || '#3cff7a', dis = opt.disabled;
+  cx.save();
+  if (!dis && (hv || opt.hot)) { cx.shadowColor = col; cx.shadowBlur = 18; }
+  cx.fillStyle = dis ? 'rgba(40,44,50,0.75)' : lin(cx, 0, y, 0, y + h, [[0, rgba(col, hv ? 0.5 : 0.32)], [1, rgba(shade(col, -0.65), hv ? 0.8 : 0.6)]]);
+  rrect(cx, x, y, w, h, Math.min(10, h / 2)); cx.fill(); cx.shadowBlur = 0;
+  cx.strokeStyle = dis ? 'rgba(255,255,255,0.15)' : rgba(col, 0.9); cx.lineWidth = 1.4; cx.stroke();
+  cx.fillStyle = 'rgba(255,255,255,0.1)'; rrect(cx, x + 3, y + 2, w - 6, h * 0.42, Math.min(8, h / 3)); cx.fill();
+  if (opt.sub) { txt(label, x + w / 2, y + h * 0.36, opt.size || 14, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900); txt(opt.sub, x + w / 2, y + h * 0.72, 10.5, dis ? 'rgba(255,255,255,0.35)' : rgba(shade(col, 0.5), 0.95), 'center', 700); }
+  else txt(label, x + w / 2, y + h / 2 + 1, opt.size || 15, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900);
+  if (opt.key) { cx.fillStyle = 'rgba(0,0,0,0.45)'; rrect(cx, x + w - 22, y + 5, 17, 15, 4); cx.fill(); txt(opt.key, x + w - 13.5, y + 13, 9.5, 'rgba(255,255,255,0.7)', 'center', 900); }
+  if (opt.fill != null) { cx.fillStyle = rgba(col, 0.35); rrect(cx, x, y + h - 4, w * clamp(opt.fill, 0, 1), 4, 2); cx.fill(); }
+  cx.restore();
+  UI.push({ id, x, y, w, h, fn: opt.fn, dis });
+}
+function processClicks() {
+  if (!pressed.click) return false;
+  for (let i = UIprev.length - 1; i >= 0; i--) { const b = UIprev[i];
+    if (ptr.x > b.x && ptr.x < b.x + b.w && ptr.y > b.y && ptr.y < b.y + b.h) { if (b.dis) sfx('deny'); else if (b.fn) { sfx('select'); b.fn(); } pressed.click = false; pressed.down = false; return true; } }
+  return false;
+}
+let toasts = [];
+function toast(s, col, dur) {
+  if (toasts.length && toasts[toasts.length - 1].s === s) { toasts[toasts.length - 1].t = dur || 1.8; return; }
+  toasts.push({ s, col: col || '#fff', t: dur || 1.8, max: dur || 1.8 }); if (toasts.length > 3) toasts.shift();
+}
+const liveEl = document.getElementById('live');
+function announce(s) { if (liveEl) liveEl.textContent = s; }
+function cloverLogo(x, y, r) {
+  const cols = ['#ff3b3b', '#3cff7a', '#ff9a1f', '#ffd23f'];
+  for (let i = 0; i < 4; i++) { const a = -2.356 + i * 1.5708, lx = x + Math.cos(a) * r * 0.5, ly = y + Math.sin(a) * r * 0.5;
+    cx.fillStyle = radg(cx, lx - r * 0.15, ly - r * 0.15, 0, lx, ly, r * 0.55, [[0, '#fffbe8'], [0.3, cols[i]], [1, shade(cols[i], -0.65)]]); cx.beginPath(); cx.arc(lx, ly, r * 0.48, 0, 6.29); cx.fill();
+    cx.strokeStyle = 'rgba(255,235,170,0.8)'; cx.lineWidth = 1; cx.stroke(); }
+}
+function star(x, y, r, on) {
+  cx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; cx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } cx.closePath();
+  cx.fillStyle = on ? lin(cx, x, y - r, x, y + r, [[0, '#fff3b0'], [0.5, '#ffd23f'], [1, '#c07a10']]) : 'rgba(255,255,255,0.12)'; cx.fill();
+  cx.strokeStyle = on ? '#fff0a0' : 'rgba(255,255,255,0.25)'; cx.lineWidth = 1; cx.stroke();
+}
+function fmtT(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function txtGlow(s, x, y, size, col, align) { cx.save(); cx.shadowColor = col; cx.shadowBlur = 12; txt(s, x, y, size, col, align || 'right', 700, MONO); cx.restore(); }
+function bar(x, y, w, h, f, col) {
+  cx.fillStyle = 'rgba(255,255,255,0.08)'; rrect(cx, x, y, w, h, h / 2); cx.fill();
+  if (f > 0) { cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, shade(col, 0.4)], [0.5, col], [1, shade(col, -0.35)]]); rrect(cx, x, y, Math.max(h, w * clamp(f, 0, 1)), h, h / 2); cx.fill(); }
+}
+
+// ---------- global game state ----------
+const game = { state: 'title', t: 0, paused: false, timers: [], shake: 0, flash: 0, flashCol: '#fff', fox: 0, foy: 0 };
+function later(fn, d) { game.timers.push({ fn, t: d }); }
+
+// ---------- input: pointer + keyboard ----------
+const ptr = { x: W / 2, y: H / 2, down: false, type: 'mouse', seen: false, sx: 0, sy: 0, moved: 0 };
+const pressed = {}, held = {};
+function toLogical(e) {
+  if (!CRect) CRect = cv.getBoundingClientRect();
+  return { x: (e.clientX - CRect.left) / CRect.width * W, y: (e.clientY - CRect.top) / CRect.height * H };
+}
+addEventListener('scroll', () => CRect = null);
+cv.addEventListener('pointerdown', e => {
+  ensureAudio(); const p = toLogical(e); ptr.x = p.x; ptr.y = p.y; ptr.sx = p.x; ptr.sy = p.y; ptr.moved = 0;
+  ptr.down = true; ptr.type = e.pointerType; ptr.seen = true;
+  if (e.button === 2) pressed.rclick = true; else { pressed.click = true; pressed.down = true; }
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', e => { const p = toLogical(e); ptr.moved += Math.hypot(p.x - ptr.x, p.y - ptr.y); ptr.x = p.x; ptr.y = p.y; ptr.type = e.pointerType; ptr.seen = true; });
+const up = e => { if (ptr.down) pressed.up = true; ptr.down = false; };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); addEventListener('pointerup', up);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+const KM = { Space: 'fire', KeyF: 'fire', Escape: 'pause', KeyP: 'pause', Enter: 'start', KeyM: 'mute', Tab: 'cycle' };
+const HK = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Space: 'hfire', KeyF: 'hfire' };
+addEventListener('keydown', e => {
+  ensureAudio(); const a = KM[e.code], h = HK[e.code];
+  if (a && !e.repeat) { pressed[a] = true; e.preventDefault(); }
+  if (h) { held[h] = true; ptr.kb = true; e.preventDefault(); }
+});
+addEventListener('keyup', e => { const h = HK[e.code]; if (h) held[h] = false; });
+addEventListener('blur', () => { ptr.down = false; for (const k in held) held[k] = false; if (game.state === 'play') game.paused = true; });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (game.state === 'play') game.paused = true; if (AC && AC.state === 'running') AC.suspend(); }
+  else if (AC && AC.state === 'suspended') AC.resume();
+});
+
+// ---------- AUDIO ENGINE (100% synthesized, no samples) ----------
+let AC = null, master = null, comp = null, musicBus = null, sfxBus = null, distBus = null, delay = null, noiseBuf = null;
+let muted = LS.get('tf_mute', '0') === '1', musicOn = LS.get('tf_music', '1') === '1';
+const VOL = 0.5;
+function ensureAudio() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    comp = AC.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.18;
+    master = AC.createGain(); master.gain.value = muted ? 0 : VOL; master.connect(comp); comp.connect(AC.destination);
+    sfxBus = AC.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
+    musicBus = AC.createGain(); musicBus.gain.value = musicOn ? 0.55 : 0; musicBus.connect(master);
+    // distortion bus for explosions / big hits
+    distBus = AC.createWaveShaper(); const n = 1024, cu = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; cu[i] = Math.tanh(x * 4.5); } distBus.curve = cu; distBus.oversample = '2x';
+    const dg = AC.createGain(); dg.gain.value = 0.7; distBus.connect(dg); dg.connect(sfxBus);
+    // ping-pong-ish delay for arps and zaps
+    delay = AC.createDelay(1); delay.delayTime.value = 60 / 96 * 0.75; const fb = AC.createGain(); fb.gain.value = 0.34;
+    const dl = AC.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 2600;
+    delay.connect(dl); dl.connect(fb); fb.connect(delay); const dOut = AC.createGain(); dOut.gain.value = 0.5; dl.connect(dOut); dOut.connect(master);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (err) { AC = null; }
+}
+function out(bus) { return bus === 'd' ? distBus : bus === 'm' ? musicBus : bus === 'e' ? delay : sfxBus; }
+function tone(f, d, type, v, slide, when, bus, attack) {
+  if (!AC || muted) return null;
+  const t = when || AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square'; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, f + slide), t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v || 0.1, t + (attack || 0.004)); g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+  o.connect(g); g.connect(out(bus)); if (bus === 'e') g.connect(sfxBus);
+  o.start(t); o.stop(t + d + 0.03); return o;
+}
+function noise(d, v, freq, slide, type, when, q, bus) {
+  if (!AC || muted) return;
+  const t = when || AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf; f.type = type || 'lowpass'; f.frequency.setValueAtTime(freq || 1200, t); if (q) f.Q.value = q;
+  if (slide) f.frequency.exponentialRampToValueAtTime(Math.max(40, (freq || 1200) + slide), t + d);
+  g.gain.setValueAtTime(v || 0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  s.connect(f); f.connect(g); g.connect(out(bus)); s.start(t, Math.random() * 1.2); s.stop(t + d + 0.02);
+}
+// buzzy electrical tone: carrier with fast FM wobble (mains hum / arc)
+function arc(f, d, v, when, bus, modf) {
+  if (!AC || muted) return;
+  const t = when || AC.currentTime, o = AC.createOscillator(), m = AC.createOscillator(), mg = AC.createGain(), g = AC.createGain();
+  o.type = 'sawtooth'; o.frequency.value = f; m.type = 'square'; m.frequency.value = modf || 60; mg.gain.value = f * 0.6;
+  m.connect(mg); mg.connect(o.frequency);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.005); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  o.connect(g); g.connect(out(bus)); o.start(t); m.start(t); o.stop(t + d + 0.02); m.stop(t + d + 0.02);
+}
+function duck(amt, dur) { if (!AC || !musicBus || !musicOn) return; const t = AC.currentTime, g = musicBus.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0.55 * (1 - amt), t + 0.02); g.linearRampToValueAtTime(0.55, t + dur); }
+
+// ---------- PARTS CATALOG + COIL PHYSICS (pure functions; node-testable) ----------
+// Real formulas, simplified: Wheeler (solenoid + flat spiral), Medhurst self-capacitance,
+// LC resonance, resonant charging (C_res = I / (2 pi 60 V)), Freau spark-length rule (1.7 * sqrt(W)).
+const PI2 = Math.PI * 2;
+const PARTS = {
+  psu: [
+    { id: 'obit', name: 'Oil-Burner Ignition', sub: '10 kV / 23 mA', V: 10000, I: 0.023, cost: 25, lv: 0, desc: 'Junkyard classic. Weak, but cheap and tough.' },
+    { id: 'nst9', name: 'Neon Sign Xfmr', sub: '9 kV / 30 mA', V: 9000, I: 0.030, cost: 40, lv: 0, desc: 'Pulled from a dead bar sign.' },
+    { id: 'nst12', name: 'Neon Sign Xfmr', sub: '12 kV / 30 mA', V: 12000, I: 0.030, cost: 60, lv: 1, desc: 'More voltage, same current.' },
+    { id: 'nst15', name: 'Neon Sign Xfmr', sub: '15 kV / 60 mA', V: 15000, I: 0.060, cost: 140, lv: 3, desc: 'The hobbyist workhorse. 900 VA.' },
+    { id: 'mot', name: 'MOT Stack', sub: '4.2 kV / 450 mA', V: 4200, I: 0.45, cost: 55, lv: 4, desc: 'Two microwave transformers. Lots of current, low voltage. Needs a FAT cap.' },
+    { id: 'nst2x', name: '2x NST Parallel', sub: '15 kV / 120 mA', V: 15000, I: 0.120, cost: 290, lv: 6, desc: '1800 VA. Will trip a 15 A breaker at full variac.' },
+    { id: 'pig', name: 'Pole Pig', sub: '14.4 kV / 10 kVA', V: 14400, I: 0.70, cost: 650, lv: 8, desc: 'Utility distribution transformer. Needs 240 V shop power.' },
+    { id: 'pig25', name: 'Substation Pig', sub: '14.4 kV / 25 kVA', V: 14400, I: 1.74, cost: 1150, lv: 10, desc: 'Absolutely unreasonable. Needs 100 A service.' }
+  ],
+  capm: [ // MMC unit capacitors
+    { id: 'c15', name: '0.15 \u00b5F / 2 kV', c: 0.15e-6, v: 2000, cost: 3, lv: 0 },
+    { id: 'c10', name: '0.10 \u00b5F / 3 kV', c: 0.10e-6, v: 3000, cost: 5, lv: 3 },
+    { id: 'c47', name: '0.047 \u00b5F / 6 kV', c: 0.047e-6, v: 6000, cost: 11, lv: 6 },
+    { id: 'c33', name: '0.33 \u00b5F / 3 kV', c: 0.33e-6, v: 3000, cost: 16, lv: 8 }
+  ],
+  gap: [
+    { id: 'static', name: 'Static Gap', sub: 'two bolts', q: 0.70, heat: 1.0, bps: 120, cost: 6, lv: 0, loud: 1, desc: 'Cheap and LOUD. Overheats fast and stops quenching.' },
+    { id: 'multi', name: 'Multi-Gap', sub: '8 copper pipes', q: 0.80, heat: 0.55, bps: 120, cost: 30, lv: 1, loud: 1, desc: 'Splits the arc across many gaps. Runs cooler.' },
+    { id: 'sucker', name: 'Sucker Gap', sub: 'vacuum-cooled', q: 0.88, heat: 0.22, bps: 120, cost: 60, lv: 3, loud: 0, desc: 'Shop-vac pulls the arc apart. Great quench.' },
+    { id: 'rsg', name: 'Sync Rotary Gap', sub: '240 BPS', q: 0.97, heat: 0.08, bps: 240, cost: 190, lv: 5, loud: 0, ltr: 1, desc: 'Best quench there is. Needs an LTR cap (1.3x+ resonant).' }
+  ],
+  pri: [
+    { id: 'p8', name: 'Flat Spiral', sub: '8 turns, 1/4" tube', n: 8, cost: 35, lv: 0 },
+    { id: 'p12', name: 'Flat Spiral', sub: '12 turns, 1/4" tube', n: 12, cost: 55, lv: 0 },
+    { id: 'p16', name: 'Flat Spiral', sub: '16 turns, 3/8" tube', n: 16, cost: 90, lv: 2 },
+    { id: 'p20', name: 'Flat Spiral', sub: '20 turns, 3/8" tube', n: 20, cost: 130, lv: 6 }
+  ],
+  sec: [
+    { id: 's3', name: '3" x 12"', sub: '28 AWG', r: 1.5, h: 12, wd: 0.0136, cost: 20, lv: 0, pmax: 300 },
+    { id: 's4', name: '4.3" x 18"', sub: '26 AWG', r: 2.15, h: 18, wd: 0.0170, cost: 35, lv: 0, pmax: 700 },
+    { id: 's6', name: '6.3" x 24"', sub: '24 AWG', r: 3.15, h: 24, wd: 0.0213, cost: 65, lv: 2, pmax: 1600 },
+    { id: 's8', name: '8" x 32"', sub: '22 AWG', r: 4.0, h: 32, wd: 0.0265, cost: 120, lv: 6, pmax: 5000 },
+    { id: 's10', name: '10.5" x 44"', sub: '20 AWG', r: 5.25, h: 44, wd: 0.0334, cost: 210, lv: 8, pmax: 12000 },
+    { id: 's14', name: '14" x 56"', sub: '18 AWG', r: 7.0, h: 56, wd: 0.0420, cost: 340, lv: 10, pmax: 30000 }
+  ],
+  top: [
+    { id: 'none', name: 'Bare Wire', sub: 'no topload', d1: 0.3, d2: 0.3, cost: 0, lv: 0, desc: 'Corona city. Sparks spray everywhere.' },
+    { id: 'ball', name: 'Brass Doorknob', sub: '3" sphere', d1: 3, d2: 3, cost: 10, lv: 0, sph: 1 },
+    { id: 't3', name: 'Dryer-Duct Toroid', sub: '3" x 12"', d1: 3, d2: 12, cost: 25, lv: 0 },
+    { id: 't4', name: 'Dryer-Duct Toroid', sub: '4" x 16"', d1: 4, d2: 16, cost: 40, lv: 1 },
+    { id: 't6', name: 'Spun Aluminum', sub: '6" x 24"', d1: 6, d2: 24, cost: 120, lv: 3 },
+    { id: 't8', name: 'Spun Aluminum', sub: '8" x 30"', d1: 8, d2: 30, cost: 220, lv: 6 },
+    { id: 't12', name: 'Spun Aluminum', sub: '12" x 48"', d1: 12, d2: 48, cost: 420, lv: 8 },
+    { id: 't16', name: 'Spun Aluminum', sub: '16" x 64"', d1: 16, d2: 64, cost: 640, lv: 10 }
+  ],
+  gnd: [
+    { id: 'outlet', name: 'Outlet Ground', sub: 'house wiring', eff: 0.55, cost: 0, lv: 0, desc: 'RF in your house wiring. Weak, and rude to your electronics.' },
+    { id: 'rod', name: 'Ground Rod', sub: '8 ft copper', eff: 0.9, cost: 25, lv: 0 },
+    { id: 'plane', name: 'RF Ground Plane', sub: 'rod + mesh + radials', eff: 1.0, cost: 70, lv: 4 }
+  ],
+  prot: [
+    { id: 'pnone', name: 'No Protection', sub: 'YOLO', cost: 0, lv: 0, sg: 0, desc: 'Overvoltage goes straight back into your transformer.' },
+    { id: 'sgap', name: 'Safety Gap', sub: 'clamps at 115%', cost: 12, lv: 0, sg: 1, desc: 'Fires (loudly) before your cap or PSU can die. Counts as a fault.' },
+    { id: 'terry', name: 'Terry Filter + Safety Gap', sub: 'MOVs + RC + gap', cost: 45, lv: 2, sg: 2, desc: 'Absorbs spikes: cap stress -12%, and the safety gap rarely needs to fire.' }
+  ]
+};
+const SLOTS = [
+  { k: 'psu', name: 'POWER SUPPLY' }, { k: 'cap', name: 'TANK CAPACITOR' }, { k: 'gap', name: 'SPARK GAP' }, { k: 'pri', name: 'PRIMARY COIL' },
+  { k: 'sec', name: 'SECONDARY COIL' }, { k: 'top', name: 'TOPLOAD' }, { k: 'gnd', name: 'RF GROUND' }, { k: 'prot', name: 'PROTECTION' }, { k: 'tune', name: 'TUNING' }
+];
+const partOf = (k, id) => PARTS[k].find(p => p.id === id) || PARTS[k][0];
+function buildCost(b) {
+  const cm = partOf('capm', b.capm);
+  return partOf('psu', b.psu).cost + cm.cost * b.ns * b.np + partOf('gap', b.gap).cost + partOf('pri', b.pri).cost + partOf('sec', b.sec).cost + partOf('top', b.top).cost + partOf('gnd', b.gnd).cost + partOf('prot', b.prot).cost;
+}
+function secTurns(s) { return Math.floor(s.h / s.wd); }
+function priInner(s) { return s.r + 1.5 + s.r * 0.15; }
+function priL(s, n) { const ri = priInner(s), w = n * 0.55, R = ri + w / 2; return R * R * n * n / (8 * R + 11 * w) * 1e-6; }
+function topC(t) { // pF, empirical fit to measured toroids; sphere = 4 pi e0 r
+  if (t.sph) return 1.113 * (t.d1 * 2.54 / 2);
+  if (t.id === 'none') return 0.4;
+  return 0.98 * t.d2 + 0.25 * t.d1;
+}
+function topVb(t) { return t.id === 'none' ? 25 : (t.sph ? 40 : 50) * t.d1; } // breakout voltage, kV
+function coilModel(b, env) {
+  env = env || {};
+  const ps = partOf('psu', b.psu), cm = partOf('capm', b.capm), gp = partOf('gap', b.gap), pr = partOf('pri', b.pri), s = partOf('sec', b.sec), t = partOf('top', b.top), gd = partOf('gnd', b.gnd), pt = partOf('prot', b.prot);
+  const m = { warn: [] };
+  // secondary
+  const N = secTurns(s), Ls = s.r * s.r * N * N / (9 * s.r + 10 * s.h) * 1e-6;
+  const Dcm = s.r * 2 * 2.54, hd = s.h / (s.r * 2), Cself = (0.1126 * hd + 0.08 + 0.27 / Math.sqrt(hd)) * Dcm;
+  const Ct = Cself + topC(t);
+  m.N = N; m.Ls = Ls; m.Cs = Ct * 1e-12; m.fs = 1 / (PI2 * Math.sqrt(Ls * m.Cs));
+  // tank
+  m.C = cm.c * b.np / b.ns; m.Vr = cm.v * b.ns;
+  const tap = clamp(b.tap, 0.5, pr.n); m.Lp = priL(s, tap); m.fp = 1 / (PI2 * Math.sqrt(m.Lp * m.C));
+  m.ratio = m.fp / m.fs; m.tuneEff = Math.max(0.05, Math.exp(-Math.pow((m.ratio - 0.93) / 0.07, 2)));
+  // coupling
+  const Ravg = priInner(s) + tap * 0.55 / 2;
+  const k0 = 0.29 * Math.pow(s.r / Ravg, 0.75) * Math.pow(4.2 / hd, 0.3);
+  m.k = k0 * Math.exp(-b.hgt / (s.r * 1.4 + 2.5));
+  m.kEff = clamp(0.35 + 0.65 * m.k / 0.13, 0.35, 1);
+  // charging
+  m.Cres = ps.I / (PI2 * 60 * ps.V); m.ltr = m.C / m.Cres;
+  const r = m.ltr;
+  m.chargeEff = r >= 1.2 ? 1 / (1 + 0.12 * Math.pow(Math.max(0, r - 1.6), 2)) * (r < 1.6 ? 0.96 + 0.04 * (r - 1.2) / 0.4 : 1) : r <= 0.8 ? 0.3 + 0.55 * r / 0.8 : 0.85 + 0.25 * Math.sin((r - 0.8) / 0.4 * Math.PI);
+  m.rise = 1 + 1.5 * Math.exp(-Math.pow((r - 1) / 0.16, 2));
+  m.Vc = ps.V * 1.414 * m.rise; // gap fire voltage on the cap
+  m.stress = m.Vc / m.Vr * (pt.sg === 2 ? 0.88 : 1);
+  m.gapQ = gp.q * (gp.ltr && r < 1.3 ? 0.62 : 1);
+  m.Pin = ps.V * ps.I; // VA at full variac
+  m.P = m.Pin * m.chargeEff * m.gapQ;
+  // output voltage: energy transfer C_p -> C_s
+  m.Vout = m.Vc * Math.sqrt(m.C / m.Cs) * Math.sqrt(0.5 * m.tuneEff * m.gapQ * gd.eff) / 1000; // kV
+  m.Vb = topVb(t); m.fit = m.Vout / m.Vb;
+  let tf = Math.exp(-Math.pow((Math.log(Math.max(0.05, m.fit)) - Math.log(1.3)) / 0.85, 2));
+  if (m.fit < 0.8) tf *= clamp((m.fit - 0.4) / 0.4, 0.08, 1);
+  m.topEff = Math.max(0.05, tf);
+  m.spread = 0.35 * clamp(m.fit / 1.3, 0.7, 2.6) * (t.id === 'none' ? 1.6 : 1);
+  m.secFit = m.P > s.pmax ? Math.pow(s.pmax / m.P, 0.3) : 1;
+  m.gndEff = gd.eff;
+  m.weather = env.rain ? 0.85 : 1;
+  const raw = 1.7 * Math.sqrt(m.P);
+  m.eff = m.tuneEff * m.kEff * m.topEff * m.gndEff * m.secFit * m.weather;
+  m.maxLen = s.h * 5.5;
+  m.spark = Math.min(m.maxLen, raw * m.eff); // inches at full variac
+  m.race = Math.max(0, (m.k - 0.18) / 0.05) + Math.max(0, (m.P / s.pmax - 1) * 1.6) + (env.rain ? 0.25 : 0) + (t.id === 'none' ? 0.3 : 0);
+  m.heat = gp.heat * m.P / 700;
+  m.mainsA = m.Pin / (env.mainsV || 120) * 1.25;
+  m.breaker = env.breaker || 15;
+  m.sg = pt.sg; m.bps = gp.bps; m.loud = gp.loud;
+  // warnings, most important first: [severity 0-3, text, slot]
+  const W_ = (sev, t, slot) => m.warn.push({ sev, t, slot });
+  if (m.mainsA > m.breaker * 1.9) W_(3, 'This supply pulls ' + m.mainsA.toFixed(0) + ' A. The ' + m.breaker + ' A breaker will trip instantly.', 'psu');
+  else if (m.mainsA > m.breaker) W_(2, 'Draws ' + m.mainsA.toFixed(0) + ' A at full variac (' + m.breaker + ' A breaker). Keep the variac under ' + Math.floor(Math.sqrt(m.breaker / m.mainsA) * 100) + '%.', 'psu');
+  if (m.stress > 1.0) W_(3, 'Cap rated ' + (m.Vr / 1000).toFixed(0) + ' kV but sees ' + (m.Vc / 1000).toFixed(0) + ' kV peaks' + (r > 0.8 && r < 1.2 ? ' (resonant rise!)' : '') + '. Add caps in SERIES.', 'cap');
+  else if (m.stress > 0.8) W_(1, 'Cap margin is thin (' + Math.round(m.stress * 100) + '% of rating). It will cook at full power.', 'cap');
+  if (r > 0.8 && r < 1.2) W_(2, 'Cap is near resonant size (' + r.toFixed(2) + 'x). Voltage rise will kill caps. Go 1.5x (LTR).', 'cap');
+  else if (r < 0.8) W_(1, 'Small cap (' + r.toFixed(2) + 'x resonant) wastes supply power. Aim for ~1.5x.', 'cap');
+  else if (r > 2.6) W_(1, 'Cap is huge (' + r.toFixed(2) + 'x resonant): the supply cannot fill it every half-cycle.', 'cap');
+  if (gp.ltr && r < 1.3) W_(2, 'Sync rotary needs an LTR cap (1.3x resonant or more).', 'cap');
+  if (m.tuneEff < 0.7) W_(m.tuneEff < 0.35 ? 3 : 2, 'Out of tune: primary ' + (m.fp / 1000).toFixed(0) + ' kHz vs secondary ' + (m.fs / 1000).toFixed(0) + ' kHz. ' + (m.ratio > 0.93 ? 'Move tap OUT (more turns)' : 'Move tap IN (fewer turns)') + (m.ratio > 0.93 && tap >= pr.n - 0.01 ? ' - out of turns: bigger cap or bigger primary.' : m.ratio < 0.93 && tap <= 0.51 ? ' - out of room: smaller cap.' : '.'), 'tune');
+  if (m.k > 0.18) W_(2, 'Coupling k=' + m.k.toFixed(3) + ' is too tight: racing arcs. Raise the primary.', 'tune');
+  else if (m.k < 0.09) W_(1, 'Coupling k=' + m.k.toFixed(3) + ' is loose. Lower the primary.', 'tune');
+  if (m.fit < 0.8) W_(2, 'Topload too big for this power: ' + m.Vout.toFixed(0) + ' kV vs ' + m.Vb.toFixed(0) + ' kV breakout.', 'top');
+  else if (m.fit > 3) W_(1, 'Topload too small: sparks spray in every direction and stay short.', 'top');
+  if (m.P > s.pmax) W_(2, 'Secondary is overpowered (' + Math.round(m.P) + ' W vs ~' + s.pmax + ' W): racing arcs.', 'sec');
+  if (raw * m.eff > m.maxLen) W_(1, 'Spark is capped by secondary length. Go taller.', 'sec');
+  if (gd.eff < 0.8) W_(1, 'Outlet ground leaks RF into the house. Use a ground rod.', 'gnd');
+  if (!pt.sg) W_(1, 'No safety gap: an overvoltage will kill the supply.', 'prot');
+  if (env.maxFs && m.fs > env.maxFs) W_(3, 'Contract needs resonance under ' + env.maxFs / 1000 + ' kHz (you are at ' + (m.fs / 1000).toFixed(0) + '). Bigger topload / taller secondary.', 'top');
+  if (env.ban && env.ban.indexOf(b.gap) >= 0) W_(3, 'This venue bans the ' + gp.name + '.', 'gap');
+  m.warn.sort((a, b) => b.sev - a.sev);
+  m.ok = !m.warn.some(w => w.sev >= 3);
+  return m;
+}
+// best tap for a build (used by "AUTO" hint + the solver)
+function bestTap(b) {
+  const pr = partOf('pri', b.pri); let best = b.tap, bv = -Infinity;
+  for (let t = 0.5; t <= pr.n + 1e-6; t += 0.25) { const m = coilModel(Object.assign({}, b, { tap: t })), v = -Math.abs(m.ratio - 0.93); if (v > bv) { bv = v; best = t; } }
+  return best;
+}
+if (typeof module !== 'undefined') module.exports = { PARTS, coilModel, bestTap, buildCost, partOf };
+
+// ---------- SFX + live coil buzz + music (all synthesized) ----------
+const note = (base, semi) => base * Math.pow(2, semi / 12);
+const SFX = {
+  select: () => tone(1400, 0.04, 'triangle', 0.05),
+  deny: () => { tone(150, 0.14, 'square', 0.07, -40); tone(155, 0.14, 'sawtooth', 0.04); },
+  click: () => { tone(2600, 0.02, 'square', 0.03); noise(0.02, 0.08, 4000, 0, 'highpass'); },
+  tick: () => tone(3200, 0.012, 'square', 0.02),
+  equip: () => { const t = AC.currentTime; noise(0.06, 0.2, 1800, 0, 'bandpass', t, 3); tone(240, 0.08, 'square', 0.06, -80, t); tone(1568, 0.12, 'triangle', 0.04, 0, t + 0.05, 'e'); },
+  strike: k => { const t = AC.currentTime; duck(0.5, 0.4); noise(0.25, 0.55, 9000, -7000, 'lowpass', t, 0, 'd'); noise(0.05, 0.4, 6000, 0, 'highpass', t); tone(60, 0.3, 'sine', 0.45, -25, t); tone(note(660, (k || 0) * 2), 0.18, 'square', 0.03, 0, t + 0.03, 'e'); },
+  hitok: k => { const t = AC.currentTime; [0, 4, 7].forEach((s, i) => tone(note(784, s + (k || 0)), 0.14, 'triangle', 0.05, 0, t + i * 0.05, 'e')); },
+  zap: () => { arc(420 + Math.random() * 400, 0.12, 0.08, 0, 'd', 120); noise(0.08, 0.2, 5000, 0, 'highpass'); },
+  race: () => { const t = AC.currentTime; arc(180, 0.4, 0.12, t, 'd', 240); noise(0.4, 0.35, 3000, -2000, 'bandpass', t, 2, 'd'); tone(1200, 0.3, 'sawtooth', 0.04, -900, t); },
+  sgap: () => { const t = AC.currentTime; duck(0.9, 0.8); noise(0.18, 0.9, 7000, -5000, 'lowpass', t, 0, 'd'); tone(90, 0.25, 'square', 0.25, -50, t, 'd'); noise(0.04, 0.6, 9000, 0, 'highpass', t); },
+  breaker: () => { const t = AC.currentTime; duck(1, 1.5); tone(48, 0.15, 'square', 0.4, 0, t, 'd'); noise(0.12, 0.6, 1500, -1200, 'lowpass', t, 0, 'd'); tone(1000, 0.6, 'sine', 0.08, -900, t + 0.05); },
+  reset: () => { const t = AC.currentTime; noise(0.05, 0.3, 1200, 0, 'bandpass', t, 4); tone(90, 0.08, 'square', 0.2, 0, t); tone(400, 0.4, 'sine', 0.05, 800, t + 0.1); },
+  boom: () => { const t = AC.currentTime; duck(1, 2.5); noise(1.6, 0.9, 5000, -4900, 'lowpass', t, 0, 'd'); tone(42, 1.4, 'sine', 0.9, -20, t); tone(110, 0.5, 'sawtooth', 0.3, -80, t, 'd'); for (let i = 0; i < 12; i++) noise(0.03, 0.2, 7000, 0, 'highpass', t + 0.1 + Math.random() * 1.1); },
+  shatter: () => { const t = AC.currentTime; for (let i = 0; i < 9; i++) tone(2500 + Math.random() * 4000, 0.08, 'triangle', 0.04, 0, t + Math.random() * 0.25); noise(0.4, 0.3, 7000, 0, 'highpass', t); },
+  warn: () => { const t = AC.currentTime; tone(880, 0.09, 'square', 0.05, 0, t); tone(880, 0.09, 'square', 0.05, 0, t + 0.14); },
+  win: () => { const t = AC.currentTime; duck(1, 2.6);
+    noise(1.0, 0.25, 300, 9000, 'bandpass', t, 1.5); tone(220, 1.0, 'sawtooth', 0.05, 440, t, 'e');
+    [0, 4, 7, 12, 16, 19, 24].forEach((s, i) => tone(note(392, s), 0.5, 'square', 0.035, 0, t + 0.9 + i * 0.07, 'e')); tone(49, 1.2, 'sine', 0.5, 0, t + 0.9); },
+  fail: () => { const t = AC.currentTime; duck(1, 2); [0, -3, -6, -10].forEach((s, i) => tone(note(330, s), 0.35, 'sawtooth', 0.05, 0, t + i * 0.2, 'e')); tone(55, 1.0, 'sine', 0.4, -20, t + 0.6); },
+  star: k => { const t = AC.currentTime; tone(note(1047, k * 4), 0.3, 'triangle', 0.07, 0, t, 'e'); tone(note(2093, k * 4), 0.2, 'sine', 0.04, 0, t + 0.03); noise(0.08, 0.15, 8000, 0, 'highpass', t); },
+  power: () => { const t = AC.currentTime; tone(60, 0.6, 'sawtooth', 0.12, 60, t, 'd'); tone(120, 0.6, 'sine', 0.1, 120, t); noise(0.4, 0.15, 400, 2000, 'bandpass', t, 2); }
+};
+const sfxLast = {};
+function sfx(n, k) {
+  if (!AC || muted || !SFX[n]) return;
+  const t = performance.now(); if (sfxLast[n] && t - sfxLast[n] < 30) return;
+  sfxLast[n] = t; SFX[n](k);
+}
+function setMute(v) { muted = v; LS.set('tf_mute', v ? '1' : '0'); if (master) master.gain.value = muted ? 0 : VOL; }
+function setMusic(v) { musicOn = v; LS.set('tf_music', v ? '1' : '0'); if (musicBus) { musicBus.gain.cancelScheduledValues(0); musicBus.gain.value = v ? 0.55 : 0; } }
+
+// live coil voice: buzz at the gap's break rate (120 or 240 Hz) + AM-gated hiss
+const BUZZ = { ready: false, lvl: 0 };
+function buzzInit() {
+  if (BUZZ.ready || !AC) return; BUZZ.ready = true;
+  const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 120;
+  const sh = AC.createWaveShaper(), n = 512, cu = new Float32Array(n); for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; cu[i] = Math.tanh(x * 3); } sh.curve = cu;
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2400; lp.Q.value = 2;
+  const g1 = AC.createGain(); g1.gain.value = 0; o.connect(sh); sh.connect(lp); lp.connect(g1); g1.connect(sfxBus);
+  const ns = AC.createBufferSource(); ns.buffer = noiseBuf; ns.loop = true;
+  const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 3000; bp.Q.value = 0.6;
+  const am = AC.createGain(); am.gain.value = 0.5; const lfo = AC.createOscillator(); lfo.type = 'square'; lfo.frequency.value = 120; const lg = AC.createGain(); lg.gain.value = 0.5; lfo.connect(lg); lg.connect(am.gain);
+  const g2 = AC.createGain(); g2.gain.value = 0; ns.connect(bp); bp.connect(am); am.connect(g2); g2.connect(sfxBus);
+  o.start(); ns.start(); lfo.start();
+  Object.assign(BUZZ, { o, lfo, g1, g2, lp, bp });
+}
+function buzzSet(level, bps, bright) {
+  if (!AC) return; buzzInit(); const t = AC.currentTime, L = muted ? 0 : level;
+  BUZZ.o.frequency.setTargetAtTime(bps, t, 0.05); BUZZ.lfo.frequency.setTargetAtTime(bps, t, 0.05);
+  BUZZ.g1.gain.setTargetAtTime(L * 0.16, t, 0.03); BUZZ.g2.gain.setTargetAtTime(L * 0.3, t, 0.03);
+  BUZZ.lp.frequency.setTargetAtTime(900 + bright * 4200, t, 0.05); BUZZ.bp.frequency.setTargetAtTime(1800 + bright * 3500, t, 0.05);
+}
+
+// music: slow analog lab groove in D minor; drops back while the coil is singing
+const MUS = { next: 0, step: 0, bpm: 96, inten: 0, target: 0, on: false };
+const CHORDS = [[50, 53, 57], [46, 50, 53], [48, 52, 55], [45, 49, 52]];
+const BASS = [38, 34, 36, 33];
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function mKick(t, v) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3); o.connect(g); g.connect(musicBus); o.start(t); o.stop(t + 0.32); }
+function mBass(t, f, d, cut, v) { const o = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
+  o.type = 'sawtooth'; o.frequency.value = f; fl.type = 'lowpass'; fl.Q.value = 6; fl.frequency.setValueAtTime(cut * 2, t); fl.frequency.exponentialRampToValueAtTime(cut * 0.5, t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.006); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  o.connect(fl); fl.connect(g); g.connect(musicBus); o.start(t); o.stop(t + d + 0.02); }
+function mArp(t, f, d, v, bright) { const o = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
+  o.type = 'triangle'; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.value = bright;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.004); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  o.connect(fl); fl.connect(g); g.connect(musicBus); g.connect(delay); o.start(t); o.stop(t + d + 0.02); }
+function mNoise(t, d, v, f, type) { const s = AC.createBufferSource(), fl = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f;
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + d); s.connect(fl); fl.connect(g); g.connect(musicBus); s.start(t, Math.random()); s.stop(t + d + 0.02); }
+function mPad(t, chord, d, v) { chord.forEach(m => { [0.995, 1.005].forEach(det => { const o = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
+  o.type = 'sawtooth'; o.frequency.value = mtof(m) * det; fl.type = 'lowpass'; fl.frequency.value = 700;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + d * 0.35); g.gain.linearRampToValueAtTime(0.0001, t + d);
+  o.connect(fl); fl.connect(g); g.connect(musicBus); o.start(t); o.stop(t + d + 0.02); }); }); }
+function musicTick() {
+  if (!AC || muted || !musicOn || !MUS.on) { if (AC) MUS.next = AC.currentTime + 0.05; return; }
+  MUS.inten += (MUS.target - MUS.inten) * 0.02;
+  const I = MUS.inten, sp = 60 / MUS.bpm / 4;
+  if (MUS.next < AC.currentTime) MUS.next = AC.currentTime + 0.03;
+  while (MUS.next < AC.currentTime + 0.12) {
+    const t = MUS.next, s = MUS.step % 16, bar = Math.floor(MUS.step / 16) % 4, ch = CHORDS[bar];
+    if (s === 0) mPad(t, ch.map(m => m + 12), sp * 16, 0.011);
+    if (I > 0.3 && (s === 0 || s === 10)) mKick(t, 0.4);
+    if (I > 0.6 && s % 4 === 2) mNoise(t, 0.03, 0.07, 9000, 'highpass');
+    if (I > 0.2 && (s === 0 || s === 3 || s === 8 || s === 11 || s === 14)) mBass(t, mtof(BASS[bar]), sp * 2.2, 260 + I * 300, 0.1);
+    const seq = [0, 2, 1, 2, 0, 1, 2, 1];
+    if (s % 2 === 0 || I > 1) mArp(t, mtof(ch[seq[s % 8]] + 24), sp * 1.6, 0.022, 1400 + I * 900);
+    MUS.next += sp; MUS.step++;
+  }
+}
+
+// ---------- CONTRACTS ----------
+// targets: d = inches from the topload surface, a = degrees (0 right, 180 left, negative = up)
+// kinds: marker (reach ring), rod, bell, performer (moves), tube (light by field, don't strike)
+// avoid: things you must NOT strike (instant fail)
+const LEVELS = [
+  { id: 'garage', name: 'Garage Debut', scene: 'garage', client: 'You, age 14', budget: 240, par: 190, mains: [120, 15], time: 40, cxf: 0.42,
+    brief: 'First coil! Throw a spark at least 30 cm (12 in) long, three times. Your dad says do not burn the garage down.',
+    goals: [{ kind: 'marker', d: 12, a: 0, n: 3 }], avoid: [] },
+  { id: 'bell', name: 'Ring the Bell', scene: 'garage', client: 'Grandpa Ray', budget: 270, par: 210, mains: [120, 15], time: 40, cxf: 0.36,
+    brief: 'Grandpa grounded his old brass ship bell. Strike it 3 times from 45 cm (18 in) away. He wants to hear it ring.',
+    goals: [{ kind: 'bell', d: 18, a: 8, n: 3 }], avoid: [] },
+  { id: 'fair', name: 'Science Fair', scene: 'gym', client: 'Lincoln Middle School', budget: 420, par: 350, mains: [120, 15], time: 45, cxf: 0.42,
+    brief: 'Hit the lightning rod 61 cm (24 in) away 5 times. The kid next to you built a baking-soda volcano. DO NOT zap the volcano.',
+    goals: [{ kind: 'rod', d: 24, a: 4, n: 5 }], avoid: [{ kind: 'volcano', d: 19, a: 168 }] },
+  { id: 'ghost', name: 'Ghost Light', scene: 'lab', client: 'Hollow Pines Haunted House', budget: 300, par: 245, mains: [120, 15], time: 45, cxf: 0.38,
+    brief: 'Light three handheld fluorescent tubes with pure field, no wires, for 6 seconds total. Strike a tube and it shatters. Aim AWAY from them.',
+    goals: [{ kind: 'tube', d: 34, a: 10, n: 6, field: 4.6 }, { kind: 'tube', d: 38, a: 30, field: 4.6, link: 1 }, { kind: 'tube', d: 36, a: -12, field: 4.6, link: 1 }], avoid: [] },
+  { id: 'barn', name: 'Haunted Barn', scene: 'barn', client: 'Hollow Pines (again)', budget: 380, par: 300, mains: [120, 15], time: 50, cxf: 0.5,
+    brief: 'Two lightning rods on either side of the coil. Hit EACH one 3 times. You will have to swing the breakout point back and forth.',
+    goals: [{ kind: 'rod', d: 28, a: 172, n: 3 }, { kind: 'rod', d: 32, a: 6, n: 3 }], avoid: [] },
+  { id: 'concert', name: 'Chainmail Rock Show', scene: 'stage', client: 'VOLTAGE BARONS (band)', budget: 560, par: 450, mains: [120, 15], time: 50, cxf: 0.3,
+    brief: 'The singer wears a grounded chainmail Faraday suit and walks the stage 0.9 to 1.1 m (34-44 in) away. Strike him 6 times. He is fine. Probably.',
+    goals: [{ kind: 'performer', d: 34, d2: 44, a: 2, n: 6 }], avoid: [] },
+  { id: 'museum', name: 'Museum Night', scene: 'museum', client: 'Franklin Science Museum', budget: 1000, par: 860, mains: [120, 15], time: 50, cxf: 0.36,
+    brief: 'Quiet hall: noisy static and multi gaps are banned. Hit the copper sculpture 1.4 m (55 in) away 4 times. Glass display case on the left: never touch it.',
+    goals: [{ kind: 'rod', d: 55, a: 6, n: 4 }], avoid: [{ kind: 'case', d: 34, a: 172 }], ban: ['static', 'multi'] },
+  { id: 'radio', name: 'AM Radio Complaint', scene: 'lab', client: 'FCC (sort of)', budget: 1150, par: 1000, mains: [120, 15], time: 50, cxf: 0.32,
+    brief: 'Your neighbor\'s AM radio is buzzing. Keep the secondary resonance under 120 kHz (big topload, tall coil) and hit a rod 1.5 m (60 in) away 5 times.',
+    goals: [{ kind: 'rod', d: 60, a: 4, n: 5 }], avoid: [], maxFs: 120000 },
+  { id: 'thunder', name: 'Thunder Barn', scene: 'barn', client: 'County Fair', budget: 1600, par: 1450, mains: [240, 50], time: 55, cxf: 0.25,
+    brief: 'Shop power unlocked: 240 V / 50 A. Pole pigs are on the table. Strike the grain silo rod 2.0 m (80 in) away 6 times.',
+    goals: [{ kind: 'rod', d: 80, a: 6, n: 6 }], avoid: [] },
+  { id: 'storm', name: 'Storm Festival', scene: 'field', client: 'Thunderfest Outdoor', budget: 2100, par: 1950, mains: [240, 50], time: 60, cxf: 0.2, rain: 1,
+    brief: 'Outdoors in the rain (sparks -15%, more racing arcs). Three rods at 1.6, 2.0 and 2.3 m (63/80/90 in). Hit each twice.',
+    goals: [{ kind: 'rod', d: 63, a: -10, n: 2 }, { kind: 'rod', d: 80, a: 4, n: 2 }, { kind: 'rod', d: 90, a: 14, n: 2 }], avoid: [] },
+  { id: 'tower', name: 'Lightning Tower', scene: 'tower', client: 'Private Collector', budget: 2400, par: 2000, mains: [240, 100], time: 60, cxf: 0.2,
+    brief: '100 A service. Strike the grounded tower 2.8 m (110 in) away 6 times. Bring a big coil.',
+    goals: [{ kind: 'rod', d: 110, a: 2, n: 6 }], avoid: [] },
+  { id: 'warden', name: 'Wardenclyffe', scene: 'tower', client: 'The Tesla Society', budget: 3200, par: 2700, mains: [240, 100], time: 70, cxf: 0.17,
+    brief: 'The finale. Strike the rod 3.3 m (130 in) away 8 times AND light the tube array hanging 2.4 m (95 in) overhead for 6 s. Wireless power, the way Nikola dreamed.',
+    goals: [{ kind: 'rod', d: 130, a: 3, n: 8 }, { kind: 'tube', d: 95, a: -75, n: 6, field: 4.2 }], avoid: [] }
+];
+const SANDBOX = { id: 'sandbox', name: 'Sandbox Lab', scene: 'tower', client: 'Nobody. Go wild.', budget: 99999, par: 99999, mains: [240, 100], time: 0, cxf: 0.3, sandbox: 1,
+  brief: 'Every part unlocked, no budget, no clock. Build the longest spark you can. The ruler records your best.', goals: [], avoid: [] };
+function levelEnv(L) { return { mainsV: L.mains[0], breaker: L.mains[1], rain: L.rain, maxFs: L.maxFs, ban: L.ban }; }
+function partUnlocked(p, L) { return L.sandbox || p.lv <= LEVELS.indexOf(L); }
+
+// ---------- save ----------
+const save = (() => { let s = {}; try { s = JSON.parse(LS.get('tf_save', '{}')) || {}; } catch (e) { s = {}; } s.stars = s.stars || {}; s.builds = s.builds || {}; s.best = s.best || 0; return s; })();
+function persist() { LS.set('tf_save', JSON.stringify(save)); }
+function totalStars() { let n = 0; for (const k in save.stars) n += save.stars[k]; return n; }
+function levelOpen(i) { return i === 0 || (save.stars[LEVELS[i - 1].id] || 0) > 0; }
+function defaultBuild() { return { psu: 'obit', capm: 'c15', ns: 10, np: 1, gap: 'static', pri: 'p8', sec: 's3', top: 'ball', gnd: 'outlet', prot: 'pnone', hgt: 1, tap: 4 }; }
+
+// ---------- ART: coil, lightning, props, scenes ----------
+const BASE_IN = 8;
+function coilGeo(b, x, floorY, S) {
+  const s = partOf('sec', b.sec), t = partOf('top', b.top), pr = partOf('pri', b.pri);
+  const ri = priInner(s), ro = ri + pr.n * 0.55;
+  const secY0 = floorY - (BASE_IN + 1) * S, secY1 = secY0 - s.h * S;
+  const R1 = Math.max(0.6, t.d1 / 2) * S, R2 = Math.max(0.6, t.d2 / 2) * S;
+  const topY = secY1 - (t.id === 'none' ? 1 : t.d1 / 2 + 1.2) * S;
+  return { x, floorY, S, s, t, pr, ri, ro, secY0, secY1, topY, R1, R2, priY: secY0 - b.hgt * S, baseTop: floorY - BASE_IN * S, rs: s.r * S };
+}
+// point on the topload outline at angle a (side view: stadium shape)
+function topPoint(G, a, out) {
+  out = out || 0; const c = Math.cos(a), sn = Math.sin(a);
+  if (G.t.sph || G.t.id === 'none') return { x: G.x + c * (G.R1 + out), y: G.topY + sn * (G.R1 + out) };
+  const hx = G.R2 - G.R1; // straight section half-length
+  const px = clamp(c * 1e3, -hx, hx);
+  return { x: G.x + px + c * (G.R1 + out), y: G.topY + sn * (G.R1 + out) };
+}
+function copperGrad(g, x0, x1, base) {
+  return lin(g, x0, 0, x1, 0, [[0, shade(base, -0.55)], [0.18, shade(base, -0.1)], [0.38, shade(base, 0.45)], [0.5, shade(base, 0.15)], [0.8, shade(base, -0.3)], [1, shade(base, -0.65)]]);
+}
+function drawCoil(g, b, G, o) {
+  o = o || {}; const S = G.S, x = G.x;
+  g.save();
+  // shadow
+  g.fillStyle = 'rgba(0,0,0,0.45)'; g.beginPath(); g.ellipse(x, G.floorY + 2, (G.ro + 4) * S, 4 + S * 1.2, 0, 0, 6.29); g.fill();
+  // base: wooden table with legs
+  const bw = (G.ro + 2.5) * S, bt = G.baseTop;
+  g.fillStyle = lin(g, 0, bt, 0, G.floorY, [[0, '#4a3220'], [1, '#22160c']]);
+  [-1, 1].forEach(sd => { g.fillRect(x + sd * (bw - 2.5 * S) - 1.2 * S, bt + 1.5 * S, 2.4 * S, G.floorY - bt - 1.5 * S); });
+  g.fillStyle = lin(g, 0, bt, 0, bt + 2 * S, [[0, '#a87848'], [0.4, '#7a5230'], [1, '#4a2e18']]); rrect(g, x - bw, bt, bw * 2, Math.max(3, 2 * S), 2); g.fill();
+  grain(g, x - bw, bt, bw * 2, Math.max(3, 2 * S), 0.25);
+  // ground strap
+  g.strokeStyle = '#b87333'; g.lineWidth = Math.max(1, S * 0.5); g.beginPath(); g.moveTo(x, G.secY0 + S); g.quadraticCurveTo(x + bw * 0.6, G.floorY - 2, x + bw + 6 * S, G.floorY - 1); g.stroke();
+  // primary spiral: ellipses back half, secondary, front half
+  const sq = 0.16, py = G.priY;
+  const priRing = (front) => {
+    for (let i = 0; i <= G.pr.n; i += 1) {
+      const r = (G.ri + i * 0.55) * S; g.beginPath(); g.ellipse(x, py, r, r * sq, 0, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2);
+      g.strokeStyle = i % 2 ? '#c8783a' : '#e09050'; g.lineWidth = Math.max(1, S * 0.3); g.stroke();
+    }
+  };
+  // primary supports (acrylic posts)
+  g.fillStyle = 'rgba(200,220,255,0.18)'; [-1, 1].forEach(sd => g.fillRect(x + sd * (G.ro * S * 0.7) - S * 0.4, py, S * 0.8, bt - py));
+  priRing(false);
+  // secondary
+  const rs = G.rs, y0 = G.secY0, y1 = G.secY1;
+  g.fillStyle = copperGrad(g, x - rs, x + rs, '#c46a2c'); g.fillRect(x - rs, y1, rs * 2, y0 - y1);
+  if (S > 1.6) { g.globalAlpha = 0.18; g.fillStyle = '#000'; const st = Math.max(1.5, S * 0.35); for (let yy = y1; yy < y0; yy += st * 2) g.fillRect(x - rs, yy, rs * 2, st * 0.5); g.globalAlpha = 1; }
+  g.fillStyle = 'rgba(255,230,190,0.18)'; g.fillRect(x - rs * 0.45, y1, rs * 0.18, y0 - y1);
+  // pvc end caps
+  g.fillStyle = '#e8e8e2'; g.fillRect(x - rs - 1, y0 - 0.6 * S, rs * 2 + 2, 1.2 * S); g.fillRect(x - rs - 1, y1 - 0.6 * S, rs * 2 + 2, 1.2 * S);
+  priRing(true);
+  // tap clip
+  const tr = (G.ri + clamp(b.tap, 0.5, G.pr.n) * 0.55) * S; g.fillStyle = '#ff3b3b'; g.beginPath(); g.arc(x + tr, py + 1, Math.max(2, S * 0.6), 0, 6.29); g.fill();
+  g.strokeStyle = '#ff3b3b'; g.lineWidth = Math.max(1, S * 0.25); g.beginPath(); g.moveTo(x + tr, py); g.quadraticCurveTo(x + tr + 6 * S, py + 4 * S, x + G.ro * S + 3 * S, bt + 0.5 * S); g.stroke();
+  // stem to topload
+  g.fillStyle = '#9aa'; g.fillRect(x - Math.max(1, S * 0.3), G.topY, Math.max(2, S * 0.6), y1 - G.topY);
+  // topload
+  const T = G.t, R1 = G.R1, R2 = G.R2, ty = G.topY;
+  if (T.id === 'none') { g.strokeStyle = '#ddd'; g.lineWidth = Math.max(1, S * 0.2); g.beginPath(); g.moveTo(x, y1); g.lineTo(x, ty - S * 2); g.stroke(); }
+  else {
+    g.save(); if (o.glow) { g.shadowColor = '#a8c8ff'; g.shadowBlur = 20 * o.glow; }
+    g.fillStyle = T.sph ? radg(g, x - R1 * 0.35, ty - R1 * 0.4, 0, x, ty, R1, [[0, '#fff6d8'], [0.3, '#e0b050'], [1, '#6a4a10']])
+      : lin(g, 0, ty - R1, 0, ty + R1, [[0, '#f4f8ff'], [0.22, '#c8d0dc'], [0.48, '#6a7280'], [0.62, '#9aa4b4'], [0.85, '#d8e0ea'], [1, '#4a525e']]);
+    rrect(g, x - R2, ty - R1, R2 * 2, R1 * 2, R1); g.fill(); g.restore();
+    g.fillStyle = 'rgba(255,255,255,0.35)'; rrect(g, x - R2 * 0.75, ty - R1 * 0.75, R2 * 1.5, R1 * 0.28, R1 * 0.14); g.fill();
+    if (!T.sph && S > 2) { g.strokeStyle = 'rgba(40,46,56,0.35)'; g.lineWidth = 1; for (let k = 1; k < 6; k++) { const xx = x - R2 + R1 + (R2 * 2 - R1 * 2) * k / 6; g.beginPath(); g.moveTo(xx, ty - R1 + 1); g.lineTo(xx, ty + R1 - 1); g.stroke(); } }
+  }
+  // breakout point
+  if (o.aim != null) { const p = topPoint(G, o.aim, 0), q = topPoint(G, o.aim, Math.max(4, S * 1.6));
+    g.strokeStyle = '#e8eef8'; g.lineWidth = Math.max(1.5, S * 0.35); g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(q.x, q.y); g.stroke();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(q.x, q.y, Math.max(1.5, S * 0.35), 0, 6.29); g.fill(); }
+  g.restore();
+}
+// side equipment cart: PSU + MMC + gap (drawn left of coil)
+function drawCart(g, b, x, floorY, S) {
+  const ps = partOf('psu', b.psu), gp = partOf('gap', b.gap), big = ps.I > 0.3 ? 1.6 : ps.I > 0.1 ? 1.25 : 1, w = 14 * S * big, h = 10 * S * big;
+  g.save();
+  g.fillStyle = 'rgba(0,0,0,0.4)'; g.beginPath(); g.ellipse(x, floorY + 2, w * 0.9, 3 + S, 0, 0, 6.29); g.fill();
+  // transformer
+  g.fillStyle = lin(g, 0, floorY - h, 0, floorY, [[0, ps.id.startsWith('pig') ? '#7a8a7a' : '#4a4e56'], [1, '#1c1e22']]); rrect(g, x - w / 2, floorY - h, w * 0.55, h, 3); g.fill();
+  g.fillStyle = '#ffd23f'; g.fillRect(x - w / 2 + 3, floorY - h + 4, w * 0.2, Math.max(2, S)); // warning label
+  g.fillStyle = '#ddd'; [0.15, 0.4].forEach(f => { g.fillRect(x - w / 2 + w * 0.55 * f, floorY - h - S * 2, S * 1.2, S * 2); });
+  // cap bank
+  const cx0 = x + w * 0.1, cw = w * 0.4, chh = h * 0.7;
+  g.fillStyle = '#20242c'; rrect(g, cx0, floorY - chh, cw, chh, 2); g.fill();
+  const nC = Math.min(12, b.ns * b.np); for (let i = 0; i < nC; i++) { g.fillStyle = '#3a6ad8'; g.fillRect(cx0 + 2 + (i % 6) * (cw - 4) / 6, floorY - chh + 3 + Math.floor(i / 6) * chh * 0.45, (cw - 4) / 6 - 1, chh * 0.38); }
+  // gap on top
+  const gy = floorY - chh - 3 * S; g.fillStyle = '#5a5e66'; g.fillRect(cx0, gy, cw, 3 * S);
+  if (gp.id === 'rsg') { g.fillStyle = '#9aa'; g.beginPath(); g.arc(cx0 + cw / 2, gy - 2 * S, 2.6 * S, 0, 6.29); g.fill(); }
+  else { g.fillStyle = '#c47a3a'; for (let i = 0; i < (gp.id === 'static' ? 2 : 6); i++) g.fillRect(cx0 + 2 + i * (cw - 4) / 6, gy - 2 * S, Math.max(1, S * 0.8), 2 * S); }
+  g.restore();
+  return { gapX: cx0 + cw / 2, gapY: gy - S };
+}
+
+// ---------- lightning ----------
+function boltPts(x0, y0, x1, y1, rough, minSeg) {
+  let pts = [[x0, y0], [x1, y1]], d = Math.hypot(x1 - x0, y1 - y0) * rough;
+  while (d > minSeg * 0.35 && pts.length < 400) {
+    const np = [pts[0]];
+    for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, off = (Math.random() - 0.5) * d;
+      np.push([mx - dy / l * off, my + dx / l * off]); np.push(b); }
+    pts = np; d *= 0.55; if (Math.hypot(pts[1][0] - pts[0][0], pts[1][1] - pts[0][1]) < minSeg) break;
+  }
+  return pts;
+}
+// streamer: wandering path from p along angle a for length L px, with forks
+function streamerPts(x, y, a, L) {
+  const pts = [[x, y]], n = Math.max(4, Math.round(L / 7)); let ang = a;
+  for (let i = 1; i <= n; i++) { ang += (Math.random() - 0.5) * 0.9 + (a - ang) * 0.12; x += Math.cos(ang) * L / n; y += Math.sin(ang) * L / n; pts.push([x, y]); }
+  return pts;
+}
+function strokePts(g, pts, w, col) { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1]); g.stroke(); }
+function drawBolt(g, B, k) {
+  // B: { pts, forks:[pts], w, hot, col }
+  k = k == null ? 1 : k; const col = B.col || '170,140,255';
+  g.save(); g.globalCompositeOperation = 'lighter'; g.lineCap = 'round'; g.lineJoin = 'round';
+  const w = B.w || 2;
+  strokePts(g, B.pts, w * 7, 'rgba(' + col + ',' + 0.07 * k + ')');
+  strokePts(g, B.pts, w * 3, 'rgba(' + col + ',' + 0.28 * k + ')');
+  strokePts(g, B.pts, w * 1.2, 'rgba(210,225,255,' + 0.85 * k + ')');
+  if (B.hot) strokePts(g, B.pts, w * 0.6, 'rgba(255,255,255,' + k + ')');
+  for (const f of B.forks || []) { strokePts(g, f, w * 2.2, 'rgba(' + col + ',' + 0.18 * k + ')'); strokePts(g, f, w * 0.7, 'rgba(200,215,255,' + 0.6 * k + ')'); }
+  g.restore();
+}
+function addForks(pts, n, scale) {
+  const forks = [];
+  for (let i = 0; i < n; i++) { const j = 1 + Math.floor(Math.random() * (pts.length - 2)); if (j >= pts.length - 1) continue;
+    const p = pts[j], q = pts[Math.min(pts.length - 1, j + 1)], a = Math.atan2(q[1] - p[1], q[0] - p[0]) + (Math.random() < 0.5 ? -1 : 1) * RND(0.4, 1.1);
+    const f = streamerPts(p[0], p[1], a, scale * RND(0.2, 0.5) * (1 - j / pts.length)); forks.push(f); }
+  return forks;
+}
+
+// ---------- props ----------
+function drawProp(g, P, S, t) {
+  const x = P.x, y = P.y, fy = P.floorY;
+  g.save();
+  if (P.kind === 'rod' || P.kind === 'marker0') {
+    const top = y; g.fillStyle = 'rgba(0,0,0,0.4)'; g.beginPath(); g.ellipse(x, fy + 2, 5 * S, 2 + S * 0.5, 0, 0, 6.29); g.fill();
+    g.fillStyle = '#2a2e36'; rrect(g, x - 4 * S, fy - 1.5 * S, 8 * S, 1.5 * S, 2); g.fill();
+    g.fillStyle = copperGrad(g, x - 0.5 * S - 1, x + 0.5 * S + 1, '#c46a2c'); g.fillRect(x - 0.5 * S - 1, top, S + 2, fy - top);
+    g.fillStyle = radg(g, x - S, top - S, 0, x, top, 2.2 * S + 2, [[0, '#fff0d0'], [0.4, '#d89050'], [1, '#6a3010']]); g.beginPath(); g.arc(x, top, 1.8 * S + 2, 0, 6.29); g.fill();
+    g.strokeStyle = '#3cff7a'; g.lineWidth = 1; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(x, fy); g.lineTo(x + 12 * S, fy + 0.5); g.stroke(); g.setLineDash([]);
+  } else if (P.kind === 'bell') {
+    g.strokeStyle = '#6a4a2a'; g.lineWidth = Math.max(2, S * 0.8); g.beginPath(); g.moveTo(x - 6 * S, fy); g.lineTo(x - 6 * S, y - 6 * S); g.lineTo(x + 6 * S, y - 6 * S); g.lineTo(x + 6 * S, fy); g.stroke();
+    const sw = Math.sin(t * 9) * (P.ring || 0) * 0.4;
+    g.translate(x, y - 6 * S); g.rotate(sw);
+    g.fillStyle = lin(g, -4 * S, 0, 4 * S, 0, [[0, '#6a4a10'], [0.3, '#ffd870'], [0.55, '#c89030'], [1, '#5a3a08']]);
+    g.beginPath(); g.moveTo(-2 * S, 0); g.quadraticCurveTo(-2.4 * S, 4 * S, -4.6 * S, 8 * S); g.lineTo(4.6 * S, 8 * S); g.quadraticCurveTo(2.4 * S, 4 * S, 2 * S, 0); g.closePath(); g.fill();
+  } else if (P.kind === 'performer') {
+    const h = 68 * S, by = fy, step = Math.sin(t * 6) * 2.4 * S;
+    g.fillStyle = 'rgba(0,0,0,0.4)'; g.beginPath(); g.ellipse(x, fy + 2, 8 * S, 2 + S * 0.5, 0, 0, 6.29); g.fill();
+    const mail = lin(g, x - 7 * S, 0, x + 7 * S, 0, [[0, '#3a3e46'], [0.35, '#d8dce4'], [0.55, '#8a8e98'], [1, '#2a2e36']]);
+    // legs (chainmail leggings) + boots
+    g.lineCap = 'round'; g.strokeStyle = mail; g.lineWidth = 3 * S;
+    g.beginPath(); g.moveTo(x - 1.6 * S, by - h * 0.47); g.lineTo(x - 2.4 * S + step, by - 2.2 * S); g.moveTo(x + 1.6 * S, by - h * 0.47); g.lineTo(x + 2.4 * S - step, by - 2.2 * S); g.stroke();
+    g.fillStyle = '#16161a'; rrect(g, x - 4.6 * S + step, by - 2.6 * S, 4.4 * S, 2.6 * S, S); g.fill(); rrect(g, x + 0.4 * S - step, by - 2.6 * S, 4.4 * S, 2.6 * S, S); g.fill();
+    // torso: tapered chainmail tunic
+    g.fillStyle = mail; g.beginPath(); g.moveTo(x - 5.5 * S, by - h * 0.82); g.lineTo(x + 5.5 * S, by - h * 0.82); g.lineTo(x + 4.6 * S, by - h * 0.44); g.lineTo(x - 4.6 * S, by - h * 0.44); g.closePath(); g.fill();
+    g.save(); g.clip(); g.strokeStyle = 'rgba(20,24,30,0.35)'; g.lineWidth = Math.max(0.6, S * 0.12);
+    for (let yy = by - h * 0.82; yy < by - h * 0.44; yy += S * 0.9) for (let xx = x - 6 * S + ((yy / S | 0) % 2) * S * 0.45; xx < x + 6 * S; xx += S * 0.9) { g.beginPath(); g.arc(xx, yy, S * 0.35, 0, 3.14); g.stroke(); }
+    g.restore();
+    g.fillStyle = '#2a1a10'; g.fillRect(x - 4.7 * S, by - h * 0.48, 9.4 * S, 1.4 * S);
+    // arms: one on guitar neck, one raised holding the strike rod
+    g.strokeStyle = mail; g.lineWidth = 2.4 * S;
+    g.beginPath(); g.moveTo(x - 4.6 * S, by - h * 0.79); g.lineTo(x - 6 * S, by - h * 0.62); g.lineTo(x - 1 * S, by - h * 0.56); g.stroke();
+    g.beginPath(); g.moveTo(x + 4.6 * S, by - h * 0.79); g.lineTo(x + 7 * S, by - h * 0.88); g.lineTo(x + 5 * S, y + 2 * S); g.stroke();
+    // head: mail coif + visor
+    g.fillStyle = mail; g.beginPath(); g.arc(x, by - h * 0.9, 3.8 * S, 0, 6.29); g.fill();
+    g.fillStyle = '#0c0c10'; rrect(g, x - 2.8 * S, by - h * 0.915, 5.6 * S, 1.6 * S, 0.6 * S); g.fill();
+    g.fillStyle = 'rgba(120,200,255,0.8)'; g.fillRect(x - 2.2 * S, by - h * 0.91, 4.4 * S, 0.4 * S);
+    // guitar (flying V, red)
+    g.save(); g.translate(x + 0.5 * S, by - h * 0.55); g.rotate(-0.45);
+    g.fillStyle = lin(g, -6 * S, 0, 6 * S, 0, [[0, '#8a0a0a'], [0.5, '#ff3b3b'], [1, '#6a0808']]);
+    g.beginPath(); g.moveTo(-7 * S, -3 * S); g.lineTo(2 * S, 0); g.lineTo(-7 * S, 3 * S); g.lineTo(-4 * S, 0); g.closePath(); g.fill();
+    g.fillStyle = '#2a1a0a'; g.fillRect(1.5 * S, -0.5 * S, 11 * S, S); g.fillStyle = '#ddd'; g.fillRect(12 * S, -0.9 * S, 2 * S, 1.8 * S); g.restore();
+    // strike rod in raised hand
+    g.strokeStyle = '#e8ecf4'; g.lineWidth = Math.max(1, S * 0.45); g.beginPath(); g.moveTo(x + 5 * S, y + 3 * S); g.lineTo(x + 3.5 * S, y - 1 * S); g.stroke();
+    g.fillStyle = '#fff'; g.beginPath(); g.arc(x + 3.5 * S, y - 1 * S, Math.max(1.2, S * 0.5), 0, 6.29); g.fill();
+  } else if (P.kind === 'tube') {
+    const lit = P.glow || 0, len = 22 * S;
+    g.translate(x, y); g.rotate(-0.35 + (P.wob || 0));
+    if (lit > 0.05) { glowAt(0, 0, len * 0.9, '#c8a8ff', lit * 0.6, g); }
+    g.fillStyle = lit > 0.05 ? 'rgba(' + Math.round(200 + 55 * lit) + ',' + Math.round(200 + 40 * lit) + ',255,' + (0.5 + lit * 0.5) + ')' : 'rgba(220,230,240,0.55)';
+    if (P.broken) { g.fillStyle = 'rgba(200,210,220,0.4)'; g.fillRect(-len / 2, -S, len * 0.3, 2 * S); g.fillRect(len * 0.1, -S, len * 0.25, 2 * S); }
+    else rrect(g, -len / 2, -1.1 * S, len, 2.2 * S, 1.1 * S), g.fill();
+    g.fillStyle = '#8a8e98'; g.fillRect(-len / 2 - S, -1.3 * S, 1.6 * S, 2.6 * S); g.fillRect(len / 2 - 0.6 * S, -1.3 * S, 1.6 * S, 2.6 * S);
+    g.rotate(0.35 - (P.wob || 0));
+    // stand / hand
+    g.strokeStyle = '#3a2e26'; g.lineWidth = Math.max(1.5, S * 0.8); g.beginPath(); g.moveTo(0, 2 * S); g.lineTo(0, fy - y); g.stroke();
+  } else if (P.kind === 'volcano') {
+    g.fillStyle = '#5a3a2a'; rrect(g, x - 16 * S, y + 2 * S, 32 * S, 2 * S, 2); g.fill(); g.fillRect(x - 14 * S, y + 4 * S, 2 * S, fy - y - 4 * S); g.fillRect(x + 12 * S, y + 4 * S, 2 * S, fy - y - 4 * S);
+    g.fillStyle = lin(g, 0, y - 10 * S, 0, y + 2 * S, [[0, '#7a5030'], [1, '#4a2a18']]); g.beginPath(); g.moveTo(x - 10 * S, y + 2 * S); g.lineTo(x - 2 * S, y - 9 * S); g.lineTo(x + 2 * S, y - 9 * S); g.lineTo(x + 10 * S, y + 2 * S); g.fill();
+    g.fillStyle = '#ff6a2a'; g.beginPath(); g.ellipse(x, y - 9 * S, 2 * S, 0.8 * S, 0, 0, 6.29); g.fill();
+    g.fillStyle = '#f4f0e6'; g.fillRect(x - 15 * S, y - 22 * S, 12 * S, 9 * S); txtAt(g, 'VOLCANO!', x - 9 * S, y - 17.5 * S, Math.max(6, 2 * S), '#d02020');
+  } else if (P.kind === 'case') {
+    g.fillStyle = '#2a2018'; g.fillRect(x - 12 * S, y + 6 * S, 24 * S, fy - y - 6 * S);
+    g.fillStyle = 'rgba(180,220,255,0.12)'; g.fillRect(x - 11 * S, y - 12 * S, 22 * S, 18 * S); g.strokeStyle = 'rgba(200,230,255,0.5)'; g.lineWidth = 1; g.strokeRect(x - 11 * S, y - 12 * S, 22 * S, 18 * S);
+    g.fillStyle = '#ffd23f'; g.beginPath(); g.ellipse(x, y + 2 * S, 5 * S, 3 * S, 0, 0, 6.29); g.fill(); g.fillStyle = '#c0c8d0'; g.fillRect(x - 0.5 * S, y - 8 * S, S, 8 * S);
+    if (P.broken) { g.strokeStyle = 'rgba(255,255,255,0.7)'; for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(x, y - 3 * S); g.lineTo(x + Math.cos(i) * 12 * S, y - 3 * S + Math.sin(i * 2.3) * 9 * S); g.stroke(); } }
+  }
+  if (P.flash > 0) glowAt(x, y, 30 + 40 * P.flash, '#b8a0ff', P.flash, g);
+  g.restore();
+}
+function txtAt(g, s, x, y, size, col) { g.font = '900 ' + size + 'px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = col; g.fillText(s, x, y); }
+
+// ---------- scenes (baked once per level) ----------
+function bakeScene(kind, floorY, S) {
+  const [c, g] = layer(W, H); seed = kind.length * 977 + 13;
+  const wallP = { garage: ['#2a2e33', '#14171b'], gym: ['#3a3226', '#1a160f'], lab: ['#20202a', '#0c0c12'], barn: ['#3a2416', '#170d07'], stage: ['#0e0a14', '#040308'], museum: ['#2e2a26', '#14120f'], field: ['#0a1428', '#03060e'], tower: ['#0c1022', '#020308'] }[kind];
+  g.fillStyle = lin(g, 0, 0, 0, floorY, [[0, wallP[1]], [1, wallP[0]]]); g.fillRect(0, 0, W, floorY);
+  const outdoor = kind === 'field' || kind === 'tower';
+  if (outdoor) {
+    for (let i = 0; i < 140; i++) { g.fillStyle = 'rgba(255,255,255,' + sr(0.15, 0.7) + ')'; g.fillRect(sr(0, W), sr(0, floorY * 0.7), 1.2, 1.2); }
+    for (let i = 0; i < 9; i++) { const x = sr(0, W), y = sr(10, floorY * 0.4), r = sr(60, 160); g.fillStyle = radg(g, x, y, 0, x, y, r, [[0, 'rgba(60,70,100,0.35)'], [1, 'rgba(60,70,100,0)']]); g.fillRect(x - r, y - r, r * 2, r * 2); }
+    // hills
+    g.fillStyle = '#060a10'; g.beginPath(); g.moveTo(0, floorY); for (let x = 0; x <= W; x += 20) g.lineTo(x, floorY - 30 - fbm(x / 200, 3) * 70); g.lineTo(W, floorY); g.fill();
+    if (kind === 'tower') { // Wardenclyffe-ish silhouette far right
+      const tx = W - 120, ty = floorY - 230; g.fillStyle = '#0a0e18'; g.beginPath(); g.moveTo(tx - 30, floorY - 30); g.lineTo(tx - 10, ty + 40); g.lineTo(tx + 10, ty + 40); g.lineTo(tx + 30, floorY - 30); g.fill();
+      g.beginPath(); g.ellipse(tx, ty + 20, 46, 26, 0, Math.PI, 0); g.fill(); g.fillRect(tx - 46, ty + 18, 92, 6);
+      g.strokeStyle = 'rgba(80,100,140,0.3)'; g.lineWidth = 1; for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(tx - 30 + i * 4, floorY - 30); g.lineTo(tx - 10 + i * 4, ty + 40); g.stroke(); }
+    }
+  } else if (kind === 'garage') {
+    g.fillStyle = '#3a2e22'; g.fillRect(40, 60, 300, 170); g.fillStyle = 'rgba(0,0,0,0.5)'; for (let y = 70; y < 225; y += 12) for (let x = 50; x < 335; x += 12) g.fillRect(x, y, 2, 2);
+    g.fillStyle = '#16181c'; [[80, 90, 10, 60], [120, 80, 30, 8], [170, 100, 8, 70], [210, 90, 40, 20], [270, 110, 12, 50]].forEach(r => g.fillRect(r[0], r[1], r[2], r[3]));
+    g.strokeStyle = 'rgba(255,255,255,0.05)'; for (let y = 40; y < floorY - 20; y += 34) { g.beginPath(); g.moveTo(520, y); g.lineTo(W - 20, y); g.stroke(); }
+    g.fillStyle = 'rgba(255,240,200,0.06)'; g.fillRect(520, 30, W - 540, floorY - 50);
+  } else if (kind === 'gym') {
+    for (let i = 0; i < 4; i++) { g.fillStyle = ['#7a2020', '#204a7a', '#2a6a2a', '#7a6a20'][i]; g.fillRect(60 + i * 230, 40, 150, 34); txtAt(g, ['SCIENCE', 'FAIR', '2026', 'GO TEAM'][i], 135 + i * 230, 57, 16, 'rgba(255,255,255,0.75)'); }
+    for (let r = 0; r < 5; r++) { g.fillStyle = 'rgba(255,255,255,' + (0.03 + r * 0.01) + ')'; g.fillRect(0, 110 + r * 26, W, 10); }
+    for (let i = 0; i < 5; i++) { const x = 40 + i * 200; g.fillStyle = '#e8e2d0'; g.beginPath(); g.moveTo(x, floorY - 30); g.lineTo(x + 20, floorY - 90); g.lineTo(x + 80, floorY - 90); g.lineTo(x + 100, floorY - 30); g.fill(); g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x + 30, floorY - 80, 40, 30); }
+  } else if (kind === 'lab') {
+    for (let y = 0; y < floorY; y += 22) for (let x = (y / 22 % 2) * 30; x < W; x += 60) { g.fillStyle = 'rgba(' + Math.floor(sr(40, 70)) + ',28,24,0.55)'; g.fillRect(x + 1, y + 1, 57, 19); }
+    g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(0, 0, W, floorY);
+    g.fillStyle = '#1a1e24'; g.fillRect(W - 260, floorY - 140, 220, 140); for (let i = 0; i < 5; i++) { g.fillStyle = pick(['#3cff7a', '#ff3b3b', '#ffd23f']); g.globalAlpha = 0.6; g.fillRect(W - 240 + i * 36, floorY - 120, 6, 6); g.globalAlpha = 1; }
+  } else if (kind === 'barn') {
+    for (let x = 0; x < W; x += 34) { g.fillStyle = 'rgba(' + Math.floor(sr(70, 100)) + ',' + Math.floor(sr(40, 55)) + ',24,0.5)'; g.fillRect(x + 1, 0, 32, floorY); }
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, 0, W, floorY);
+    g.strokeStyle = '#2a180c'; g.lineWidth = 10; g.beginPath(); g.moveTo(0, 60); g.lineTo(W, 60); g.stroke();
+    for (let i = 0; i < 3; i++) { const x = 60 + i * 64; g.fillStyle = '#8a6a2a'; rrect(g, x, floorY - 46, 60, 46, 6); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.3)'; g.lineWidth = 1; for (let k = 0; k < 6; k++) { g.beginPath(); g.moveTo(x + 4, floorY - 40 + k * 7); g.lineTo(x + 56, floorY - 40 + k * 7); g.stroke(); } }
+  } else if (kind === 'stage') {
+    for (let x = 0; x < W; x += 24) { g.fillStyle = lin(g, x, 0, x + 24, 0, [[0, '#1a0614'], [0.5, '#3a0a24'], [1, '#1a0614']]); g.fillRect(x, 0, 24, floorY); }
+    g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(0, 0, W, floorY);
+    g.fillStyle = '#2a2a30'; g.fillRect(0, 26, W, 10);
+    for (let i = 0; i < 6; i++) { const x = 80 + i * 160; g.fillStyle = '#111'; g.fillRect(x - 10, 34, 20, 16); g.fillStyle = lin(g, 0, 50, 0, floorY, [[0, 'rgba(255,200,120,0.14)'], [1, 'rgba(255,200,120,0)']]); g.beginPath(); g.moveTo(x - 8, 50); g.lineTo(x - 60, floorY); g.lineTo(x + 60, floorY); g.lineTo(x + 8, 50); g.fill(); }
+    g.fillStyle = '#16161a'; [[W - 120, 90], [30, 90]].forEach(p => { rrect(g, p[0], floorY - p[1], 90, p[1], 4); g.fill(); g.fillStyle = '#222'; g.beginPath(); g.arc(p[0] + 45, floorY - p[1] * 0.55, 26, 0, 6.29); g.fill(); g.fillStyle = '#16161a'; });
+  } else if (kind === 'museum') {
+    for (let i = 0; i < 5; i++) { const x = 50 + i * 220; g.fillStyle = lin(g, x, 0, x + 40, 0, [[0, '#4a4640'], [0.4, '#b8b0a4'], [1, '#3a3630']]); g.fillRect(x, 20, 40, floorY - 20); g.fillStyle = '#6a6458'; g.fillRect(x - 8, 14, 56, 10); g.fillRect(x - 8, floorY - 12, 56, 12); }
+    for (let i = 0; i < 4; i++) { const x = 120 + i * 220; g.fillStyle = '#8a6a2a'; g.fillRect(x, 70, 110, 80); g.fillStyle = ['#2a3a5a', '#5a2a2a', '#2a4a3a', '#3a2a4a'][i]; g.fillRect(x + 6, 76, 98, 68); }
+  }
+  // floor
+  const fl = outdoor ? ['#0e1a0e', '#050a05'] : kind === 'gym' || kind === 'stage' ? ['#6a4a28', '#2a1a0c'] : kind === 'barn' ? ['#4a3a1e', '#1a1208'] : kind === 'museum' ? ['#5a5650', '#1a1816'] : ['#3a3c40', '#16171a'];
+  g.fillStyle = lin(g, 0, floorY, 0, H, [[0, fl[0]], [1, fl[1]]]); g.fillRect(0, floorY, W, H - floorY);
+  if (kind === 'gym' || kind === 'stage') { g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 1; for (let x = -400; x < W + 400; x += 40) { g.beginPath(); g.moveTo(x, floorY); g.lineTo(x + (x - W / 2) * 0.8, H); g.stroke(); } }
+  g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(0, floorY, W, 1.5);
+  grain(g, 0, 0, W, H, 0.12);
+  // ambient light
+  g.fillStyle = radg(g, W / 2, floorY * 0.4, 30, W / 2, floorY * 0.6, W * 0.6, [[0, 'rgba(255,240,210,0.06)'], [1, 'rgba(0,0,0,0.35)']]); g.fillRect(0, 0, W, H);
+  return c;
+}
+
+// ---------- shared widgets ----------
+function metalTxt(s, x, y, size, align, glowCol) {
+  cx.save(); cx.font = '900 ' + size + 'px ' + FONT; cx.textAlign = align || 'left'; cx.textBaseline = 'middle';
+  if (glowCol) { cx.shadowColor = glowCol; cx.shadowBlur = size * 0.5; }
+  cx.fillStyle = lin(cx, 0, y - size / 2, 0, y + size / 2, [[0, '#ffffff'], [0.45, '#d8e2ea'], [0.52, '#7d8a94'], [1, '#f0f6fa']]); cx.fillText(s, x, y);
+  cx.shadowBlur = 0; cx.lineWidth = Math.max(1, size / 28); cx.strokeStyle = 'rgba(0,0,0,0.35)'; cx.strokeText(s, x, y); cx.restore();
+}
+function wrap(s, x, y, w, size, col, lh, weight) {
+  cx.font = (weight || 700) + ' ' + size + 'px ' + FONT; const words = s.split(' '); let line = '', yy = y;
+  for (const wd of words) { const t = line + wd + ' '; if (cx.measureText(t).width > w && line) { txt(line, x, yy, size, col, 'left', weight || 700); line = wd + ' '; yy += lh; } else line = t; }
+  txt(line, x, yy, size, col, 'left', weight || 700); return yy;
+}
+let dragId = null;
+cv.addEventListener('pointerdown', () => { dragId = null; ptr.justDown = true; }, true);
+// horizontal slider; returns new value while dragging
+function slider(id, x, y, w, val, min, max, step, col, onChange) {
+  const f = (val - min) / (max - min);
+  cx.fillStyle = 'rgba(255,255,255,0.08)'; rrect(cx, x, y - 3, w, 6, 3); cx.fill();
+  cx.fillStyle = lin(cx, x, 0, x + w, 0, [[0, rgba(col, 0.3)], [1, col]]); rrect(cx, x, y - 3, Math.max(6, w * f), 6, 3); cx.fill();
+  const kx = x + w * f; cx.save(); cx.shadowColor = col; cx.shadowBlur = dragId === id ? 16 : 8;
+  cx.fillStyle = radg(cx, kx - 2, y - 3, 0, kx, y, 9, [[0, '#fff'], [0.5, shade(col, 0.3)], [1, shade(col, -0.4)]]); cx.beginPath(); cx.arc(kx, y, 8, 0, 6.29); cx.fill(); cx.restore();
+  if (ptr.justDown && ptr.sx > x - 10 && ptr.sx < x + w + 10 && ptr.sy > y - 14 && ptr.sy < y + 14) { dragId = id; ptr.justDown = false; }
+  if (dragId === id && ptr.down) { let v = min + clamp((ptr.x - x) / w, 0, 1) * (max - min); v = Math.round(v / step) * step; if (v !== val) { onChange(v); sfx('tick'); } }
+}
+function stepper(id, x, y, label, val, min, max, col, onChange) {
+  txt(label, x, y - 16, 10, 'rgba(255,255,255,0.6)', 'left', 800, MONO);
+  button(id + '-', x, y - 6, 30, 28, '\u2212', { col, size: 16, disabled: val <= min, fn: () => onChange(val - 1) });
+  glass(x + 34, y - 6, 46, 28, col, 0.9, 6); txt(String(val), x + 57, y + 8, 15, '#fff', 'center', 900, MONO);
+  button(id + '+', x + 84, y - 6, 30, 28, '+', { col, size: 16, disabled: val >= max, fn: () => onChange(val + 1) });
+}
+const fmtIn = i => Math.round(i * 2.54) + ' cm / ' + Math.round(i) + ' in';
+const fmtF = f => f >= 1e6 ? (f / 1e6).toFixed(2) + ' MHz' : (f / 1e3).toFixed(0) + ' kHz';
+const SLOTCOL = { psu: '#ff9a1f', cap: '#5a9aff', gap: '#ffd23f', pri: '#e0904a', sec: '#ff7a3a', top: '#c8d4e4', gnd: '#3cff7a', prot: '#ff5a6a', tune: '#b48cff' };
+
+// ---------- BUILD SCREEN ----------
+const BS = { L: null, b: null, slot: 'psu', m: null, li: 0, scroll: 0 };
+function openBuild(L) {
+  BS.L = L; BS.li = LEVELS.indexOf(L);
+  const saved = save.builds[L.id];
+  BS.b = Object.assign(defaultBuild(), saved || (BS.li > 0 && save.builds[LEVELS[BS.li - 1].id]) || {});
+  // drop parts that are not unlocked here (older saves)
+  ['psu', 'gap', 'pri', 'sec', 'top', 'gnd', 'prot'].forEach(k => { if (!partUnlocked(partOf(k, BS.b[k]), L) || (L.ban || []).indexOf(BS.b[k]) >= 0) BS.b[k] = PARTS[k].find(p => partUnlocked(p, L) && (L.ban || []).indexOf(p.id) < 0).id; });
+  if (!partUnlocked(partOf('capm', BS.b.capm), L)) BS.b.capm = 'c15';
+  if (!saved && BS.li === 0) BS.b.tap = bestTap(BS.b);
+  BS.slot = saved ? 'tune' : 'psu'; game.state = 'build'; recalc(); MUS.target = 0.3; MUS.on = true;
+  announce('Build screen: ' + L.name + '. ' + L.brief);
+}
+function recalc() { const pr = partOf('pri', BS.b.pri); BS.b.tap = clamp(BS.b.tap, 0.5, pr.n); BS.m = coilModel(BS.b, levelEnv(BS.L)); BS.cost = buildCost(BS.b); }
+function setPart(k, id) { BS.b[k] = id; sfx('equip'); recalc(); }
+function slotSummary(k) {
+  const b = BS.b;
+  if (k === 'cap') { const cm = partOf('capm', b.capm); return [b.ns + 's x ' + b.np + 'p  ' + cm.name, cm.cost * b.ns * b.np]; }
+  if (k === 'tune') return ['tap ' + b.tap.toFixed(2) + ' t  \u00b7  height ' + b.hgt.toFixed(2) + '"', null];
+  const p = partOf(k, b[k]); return [p.name + (p.sub ? ' \u00b7 ' + p.sub : ''), p.cost];
+}
+function goalLine(L) {
+  return L.goals.filter(g => !g.link).map(g => g.kind === 'marker' ? 'Reach ' + fmtIn(g.d) + ' x' + g.n : g.kind === 'tube' ? 'Light tubes ' + g.n + ' s @ ' + fmtIn(g.d) : 'Strike ' + g.kind + ' @ ' + fmtIn(g.d) + ' x' + g.n).join('  \u00b7  ');
+}
+function drawBuild() {
+  const L = BS.L, b = BS.b, m = BS.m;
+  backdrop(0.55);
+  // header
+  glass(14, 10, W - 28, 50, '#b48cff', 0.88);
+  button('back', 22, 18, 64, 34, '\u2190 MAP', { col: '#7fe0e8', size: 12, fn: () => { game.state = 'map'; } });
+  txt(L.name.toUpperCase(), 98, 27, 17, '#fff', 'left', 900); txt(L.client + '  \u00b7  ' + L.mains[0] + ' V / ' + L.mains[1] + ' A circuit' + (L.rain ? '  \u00b7  RAIN' : ''), 98, 46, 10.5, 'rgba(255,255,255,0.6)', 'left', 700);
+  if (!L.sandbox) {
+    const over = BS.cost > L.budget, x0 = W - 330;
+    txt('BUDGET', x0, 25, 9.5, 'rgba(255,255,255,0.55)', 'left', 900, MONO);
+    txt('$' + BS.cost + ' / $' + L.budget, x0, 44, 17, over ? '#ff5a6a' : BS.cost <= L.par ? '#3cff7a' : '#ffd23f', 'left', 900, MONO);
+    txt('\u2605\u2605 at \u2264 $' + L.par, x0 + 172, 25, 10, '#ffd23f', 'left', 800, MONO);
+    txt('\u2605\u2605\u2605 + zero faults', x0 + 172, 44, 10, '#ffd23f', 'left', 800, MONO);
+  } else txt('$' + BS.cost + ' spent (sandbox)', W - 30, 35, 13, '#3cff7a', 'right', 900, MONO);
+  // brief strip
+  wrap(L.brief, 24, 76, 600, 11, 'rgba(255,255,255,0.78)', 14, 600);
+  // coil preview
+  const px = 14, py = 104, pw = 280, ph = 300;
+  glass(px, py, pw, ph, '#c8d4e4', 0.7);
+  const s = partOf('sec', b.sec), t = partOf('top', b.top), tall = BASE_IN + 2 + s.h + Math.max(1, t.d1) + 4, wide = Math.max(priInner(s) + partOf('pri', b.pri).n * 0.55 + 3, t.d2 / 2 + 2) * 2;
+  const S = Math.min(7, (ph - 40) / tall, (pw - 30) / wide), G = coilGeo(b, px + pw / 2, py + ph - 18, S);
+  cx.save(); rrect(cx, px, py, pw, ph, 12); cx.clip();
+  cx.fillStyle = 'rgba(255,255,255,0.03)'; cx.fillRect(px, G.floorY, pw, ph);
+  drawCoil(cx, b, G, { aim: -Math.PI / 4, glow: 0.4 + 0.3 * Math.sin(game.t * 3) });
+  // idle sparkle preview
+  if (m.spark > 0.5 && Math.random() < 0.5) { const a = -Math.PI / 2 + RND(-1.6, 1.6), p = topPoint(G, a); const pts = streamerPts(p.x, p.y, a, Math.min(120, m.spark * S * RND(0.2, 0.5))); drawBolt(cx, { pts, w: 1 }, 0.6); }
+  cx.restore();
+  txt(fmtF(m.fs) + ' secondary', px + 12, py + 16, 10, '#b48cff', 'left', 800, MONO);
+  txt(s.name + ' \u00b7 ' + m.N + ' turns', px + pw - 12, py + 16, 10, 'rgba(255,255,255,0.6)', 'right', 800, MONO);
+  // slot list
+  const lx = 304, ly = 104, rw = 262, rh = 33;
+  SLOTS.forEach((sl, i) => {
+    const y = ly + i * rh, sel = BS.slot === sl.k, col = SLOTCOL[sl.k], warn = m.warn.find(w => w.slot === sl.k && w.sev >= 2);
+    cx.save(); if (sel) { cx.shadowColor = col; cx.shadowBlur = 14; } glass(lx, y, rw, rh - 4, sel ? col : rgba(col, 0.35), sel ? 0.95 : 0.78, 8); cx.restore();
+    cx.fillStyle = col; rrect(cx, lx + 6, y + 6, 4, rh - 16, 2); cx.fill();
+    txt(sl.name, lx + 16, y + 10, 9, col, 'left', 900, MONO);
+    const [sum, cost] = slotSummary(sl.k);
+    cx.save(); rrect(cx, lx, y, rw - 50, rh, 0); cx.clip(); txt(sum, lx + 16, y + 22, 10.5, '#fff', 'left', 700); cx.restore();
+    if (cost != null) txt('$' + cost, lx + rw - 10, y + 15, 12, 'rgba(255,255,255,0.85)', 'right', 900, MONO);
+    if (warn) { cx.fillStyle = warn.sev >= 3 ? '#ff3b3b' : '#ffb03b'; cx.beginPath(); cx.arc(lx + rw - 58, y + 15, 5, 0, 6.29); cx.fill(); txt('!', lx + rw - 58, y + 15.5, 8, '#000', 'center', 900); }
+    UI.push({ id: 'slot' + i, x: lx, y, w: rw, h: rh - 4, fn: () => { BS.slot = sl.k; } });
+  });
+  // right panel
+  const rx = 574, ry = 104, rpw = W - rx - 14, rph = 300;
+  glass(rx, ry, rpw, rph, SLOTCOL[BS.slot], 0.88);
+  if (BS.slot === 'cap') drawCapPanel(rx, ry, rpw, rph);
+  else if (BS.slot === 'tune') drawTunePanel(rx, ry, rpw, rph);
+  else drawCatalog(rx, ry, rpw, rph);
+  drawBench(m);
+}
+function drawCatalog(x, y, w, h) {
+  const k = BS.slot, L = BS.L, list = PARTS[k];
+  txt(SLOTS.find(s => s.k === k).name, x + 14, y + 16, 11, SLOTCOL[k], 'left', 900, MONO);
+  const ch = Math.min(46, (h - 34) / list.length);
+  list.forEach((p, i) => {
+    const yy = y + 28 + i * ch, unl = partUnlocked(p, L), banned = (L.ban || []).indexOf(p.id) >= 0, sel = BS.b[k] === p.id, hv = hov(x + 8, yy, w - 16, ch - 4);
+    cx.fillStyle = sel ? rgba(SLOTCOL[k], 0.22) : hv && unl ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.03)'; rrect(cx, x + 8, yy, w - 16, ch - 4, 6); cx.fill();
+    if (sel) { cx.strokeStyle = SLOTCOL[k]; cx.lineWidth = 1.2; rrect(cx, x + 8.5, yy + 0.5, w - 17, ch - 5, 6); cx.stroke(); }
+    const a = unl && !banned ? 1 : 0.35;
+    txt(p.name, x + 18, yy + (ch > 40 ? 12 : 10), 11.5, 'rgba(255,255,255,' + a + ')', 'left', 900);
+    txt(p.sub || '', x + 18 + Math.min(150, cx.measureText(p.name).width + 8), yy + (ch > 40 ? 12 : 10), 10, rgba(SLOTCOL[k], 0.9 * a), 'left', 800, MONO);
+    cx.save(); rrect(cx, x + 8, yy, w - 70, ch - 4, 6); cx.clip();
+    let info = !unl ? 'Unlocks with contract ' + (p.lv + 1) + ': ' + LEVELS[p.lv].name : banned ? 'Banned at this venue' : partInfo(k, p);
+    txt(info, x + 18, yy + (ch > 40 ? 30 : 25), 9.5, 'rgba(255,255,255,' + 0.6 * a + ')', 'left', 600); cx.restore();
+    txt('$' + p.cost, x + w - 18, yy + 12, 12, 'rgba(255,255,255,' + a + ')', 'right', 900, MONO);
+    if (unl && !banned) UI.push({ id: 'p' + p.id, x: x + 8, y: yy, w: w - 16, h: ch - 4, fn: () => setPart(k, p.id) });
+  });
+}
+function partInfo(k, p) {
+  if (k === 'psu') return (p.V * p.I / 1000).toFixed(2) + ' kVA  \u00b7  ' + p.desc;
+  if (k === 'gap') return 'quench ' + Math.round(p.q * 100) + '%  heat x' + p.heat + '  \u00b7  ' + p.desc;
+  if (k === 'pri') return 'tap anywhere 0.5 to ' + p.n + ' turns. More turns = lower primary frequency.';
+  if (k === 'sec') { return secTurns(p) + ' turns  \u00b7  handles ~' + (p.pmax >= 1000 ? (p.pmax / 1000) + ' kW' : p.pmax + ' W') + '  \u00b7  max spark ~' + fmtIn(p.h * 5.5); }
+  if (k === 'top') return (p.desc ? p.desc + ' ' : '') + topC(p).toFixed(1) + ' pF  \u00b7  breakout ~' + topVb(p).toFixed(0) + ' kV';
+  if (k === 'gnd') return 'efficiency ' + Math.round(p.eff * 100) + '%' + (p.desc ? '  \u00b7  ' + p.desc : '');
+  if (k === 'prot') return p.desc;
+  return '';
+}
+function drawCapPanel(x, y, w, h) {
+  const b = BS.b, m = BS.m, L = BS.L, col = SLOTCOL.cap;
+  txt('TANK CAPACITOR  \u00b7  MMC BANK', x + 14, y + 16, 11, col, 'left', 900, MONO);
+  wrap('Build a Multi-Mini-Cap: unit caps in SERIES add voltage rating, parallel STRINGS add capacitance.', x + 14, y + 34, w - 28, 10, 'rgba(255,255,255,0.65)', 13);
+  PARTS.capm.forEach((c, i) => { const unl = partUnlocked(c, L), nC = PARTS.capm.length;
+    button('cm' + c.id, x + 12 + i * ((w - 24) / nC), y + 58, (w - 24) / nC - 6, 36, c.name, { col, size: 10.5, sub: unl ? '$' + c.cost + ' each' : 'locked', hot: b.capm === c.id, disabled: !unl, fn: () => { b.capm = c.id; sfx('equip'); recalc(); } }); });
+  stepper('ns', x + 16, y + 124, 'IN SERIES', b.ns, 1, 40, col, v => { b.ns = v; recalc(); });
+  stepper('np', x + 150, y + 124, 'STRINGS', b.np, 1, 12, col, v => { b.np = v; recalc(); });
+  // readouts
+  const cy = y + 170;
+  txt((m.C * 1e9).toFixed(1) + ' nF', x + 16, cy, 20, '#fff', 'left', 900, MONO);
+  txt('rated ' + (m.Vr / 1000).toFixed(0) + ' kV  \u00b7  sees ' + (m.Vc / 1000).toFixed(1) + ' kV', x + 16, cy + 20, 10.5, m.stress > 1 ? '#ff5a6a' : m.stress > 0.8 ? '#ffd23f' : 'rgba(255,255,255,0.7)', 'left', 800, MONO);
+  // LTR gauge
+  const gx = x + 16, gy = cy + 52, gw = w - 32;
+  txt('SIZE vs RESONANT (' + (m.Cres * 1e9).toFixed(1) + ' nF for this supply)', gx, gy - 12, 9.5, 'rgba(255,255,255,0.6)', 'left', 800, MONO);
+  const zones = [[0, 0.8, '#ffb03b', 'STR'], [0.8, 1.2, '#ff3b3b', 'RES!'], [1.2, 2.2, '#3cff7a', 'LTR'], [2.2, 3.2, '#ffb03b', 'BIG']];
+  zones.forEach(z => { cx.fillStyle = rgba(z[2], 0.3); cx.fillRect(gx + gw * z[0] / 3.2, gy, gw * (z[1] - z[0]) / 3.2 - 1, 14); txt(z[3], gx + gw * (z[0] + z[1]) / 6.4, gy + 7.5, 8.5, z[2], 'center', 900, MONO); });
+  const mk = gx + gw * clamp(m.ltr, 0, 3.2) / 3.2; cx.fillStyle = '#fff'; cx.beginPath(); cx.moveTo(mk, gy - 2); cx.lineTo(mk - 5, gy - 9); cx.lineTo(mk + 5, gy - 9); cx.fill(); cx.fillRect(mk - 1, gy, 2, 14);
+  txt(m.ltr.toFixed(2) + 'x', mk, gy + 24, 10, '#fff', 'center', 900, MONO);
+  // stress bar
+  txt('VOLTAGE STRESS', gx, gy + 46, 9.5, 'rgba(255,255,255,0.6)', 'left', 800, MONO);
+  bar(gx + 104, gy + 41, gw - 150, 10, m.stress / 1.3, m.stress > 1 ? '#ff3b3b' : m.stress > 0.8 ? '#ffd23f' : '#3cff7a');
+  txt(Math.round(m.stress * 100) + '%', gx + gw, gy + 46, 10, '#fff', 'right', 900, MONO);
+  txt('Keep under 80% for a cap that lives forever.', gx, gy + 66, 9.5, 'rgba(255,255,255,0.45)', 'left', 600);
+}
+function drawTunePanel(x, y, w, h) {
+  const b = BS.b, m = BS.m, pr = partOf('pri', b.pri), col = SLOTCOL.tune;
+  txt('TUNING  \u00b7  match the primary to the secondary', x + 14, y + 16, 11, col, 'left', 900, MONO);
+  // resonance scope
+  const sx = x + 12, sy = y + 30, sw = w - 24, sh = 110;
+  cx.fillStyle = 'rgba(0,10,6,0.85)'; rrect(cx, sx, sy, sw, sh, 8); cx.fill();
+  cx.strokeStyle = 'rgba(60,255,122,0.08)'; cx.lineWidth = 1; for (let i = 1; i < 8; i++) { cx.beginPath(); cx.moveTo(sx + sw * i / 8, sy); cx.lineTo(sx + sw * i / 8, sy + sh); cx.stroke(); } for (let i = 1; i < 4; i++) { cx.beginPath(); cx.moveTo(sx, sy + sh * i / 4); cx.lineTo(sx + sw, sy + sh * i / 4); cx.stroke(); }
+  const fmin = m.fs * 0.5, fmax = m.fs * 1.5, fx = f => sx + sw * (Math.log(f / fmin) / Math.log(fmax / fmin));
+  // secondary response peak (loaded = 0.93 fs)
+  cx.save(); cx.beginPath(); rrect(cx, sx, sy, sw, sh, 8); cx.clip();
+  cx.strokeStyle = 'rgba(180,140,255,0.9)'; cx.lineWidth = 2; cx.beginPath();
+  for (let i = 0; i <= sw; i += 2) { const f = fmin * Math.pow(fmax / fmin, i / sw), r = f / (m.fs * 0.93), amp = 1 / Math.sqrt(Math.pow(1 - r * r, 2) + Math.pow(r / 14, 2)); const yy = sy + sh - 8 - Math.min(1, amp / 14) * (sh - 24); i ? cx.lineTo(sx + i, yy) : cx.moveTo(sx + i, yy); }
+  cx.stroke();
+  // primary marker
+  const px = fx(m.fp), inb = m.fp > fmin && m.fp < fmax;
+  if (inb) { cx.strokeStyle = m.tuneEff > 0.85 ? '#3cff7a' : m.tuneEff > 0.5 ? '#ffd23f' : '#ff5a6a'; cx.lineWidth = 2; cx.setLineDash([4, 3]); cx.beginPath(); cx.moveTo(px, sy + 4); cx.lineTo(px, sy + sh - 4); cx.stroke(); cx.setLineDash([]); }
+  cx.restore();
+  txt('secondary ' + fmtF(m.fs) + ' (loaded ~' + fmtF(m.fs * 0.93) + ')', sx + 8, sy + 12, 9.5, '#b48cff', 'left', 800, MONO);
+  txt('primary ' + fmtF(m.fp) + (inb ? '' : m.fp < fmin ? '  \u25c0 off-scale' : '  off-scale \u25b6'), sx + sw - 8, sy + 26, 9.5, m.tuneEff > 0.85 ? '#3cff7a' : '#ffd23f', 'right', 800, MONO);
+  txt('TUNE ' + Math.round(m.tuneEff * 100) + '%', sx + sw - 8, sy + 12, 11, m.tuneEff > 0.85 ? '#3cff7a' : m.tuneEff > 0.5 ? '#ffd23f' : '#ff5a6a', 'right', 900, MONO);
+  // sliders
+  const ky = y + 168;
+  txt('PRIMARY TAP  ' + b.tap.toFixed(2) + ' / ' + pr.n + ' turns', x + 16, ky - 14, 10, '#fff', 'left', 800, MONO);
+  slider('tap', x + 18, ky + 4, w - 120, b.tap, 0.5, pr.n, 0.25, '#e0904a', v => { b.tap = v; recalc(); });
+  button('tap-', x + w - 90, ky - 8, 34, 24, '\u2212', { col: '#e0904a', size: 14, fn: () => { b.tap = Math.max(0.5, b.tap - 0.25); recalc(); } });
+  button('tap+', x + w - 52, ky - 8, 34, 24, '+', { col: '#e0904a', size: 14, fn: () => { b.tap = Math.min(pr.n, b.tap + 0.25); recalc(); } });
+  const hy = ky + 52;
+  txt('PRIMARY HEIGHT  ' + b.hgt.toFixed(2) + '"   \u00b7   coupling k = ' + m.k.toFixed(3), x + 16, hy - 14, 10, '#fff', 'left', 800, MONO);
+  slider('hgt', x + 18, hy + 4, w - 120, b.hgt, 0, 6, 0.25, '#b48cff', v => { b.hgt = v; recalc(); });
+  button('h-', x + w - 90, hy - 8, 34, 24, '\u2212', { col: '#b48cff', size: 14, fn: () => { b.hgt = Math.max(0, b.hgt - 0.25); recalc(); } });
+  button('h+', x + w - 52, hy - 8, 34, 24, '+', { col: '#b48cff', size: 14, fn: () => { b.hgt = Math.min(6, b.hgt + 0.25); recalc(); } });
+  const kz = m.k > 0.18 ? ['#ff5a6a', 'TOO TIGHT: racing arcs'] : m.k < 0.09 ? ['#ffd23f', 'LOOSE: weak energy transfer'] : ['#3cff7a', 'SWEET SPOT (0.09 - 0.18)'];
+  txt(kz[1], x + 16, hy + 24, 9.5, kz[0], 'left', 900, MONO);
+  button('sweep', x + w - 128, y + h - 40, 114, 30, 'AUTO-SWEEP', { col, size: 11, fn: () => { BS.b.tap = bestTap(BS.b); recalc(); sfx('equip'); } });
+  wrap('Tip: tune the primary ~7% BELOW the secondary. Streamers add capacitance while firing.', x + 16, y + h - 32, w - 160, 9.5, 'rgba(255,255,255,0.5)', 12, 600);
+}
+function drawBench(m) {
+  const L = BS.L, y = 414, h = H - y - 10;
+  glass(14, y, W - 28, h, '#7fe0e8', 0.9);
+  // projected spark
+  txt('PROJECTED SPARK', 28, y + 16, 9.5, 'rgba(255,255,255,0.55)', 'left', 900, MONO);
+  txtGlow(fmtIn(m.spark), 28, y + 42, 22, '#d8c8ff', 'left');
+  const need = Math.max(0, ...L.goals.filter(g => g.kind !== 'tube').map(g => g.d2 || g.d));
+  if (need) { const ok = m.spark >= need * 0.98; txt((ok ? '\u2714 ' : '\u2716 ') + 'goal ' + fmtIn(need), 28, y + 68, 11, ok ? '#3cff7a' : '#ff8a5a', 'left', 900, MONO); }
+  if (L.goals.some(g => g.kind === 'tube')) { txt('output ~' + Math.round(m.Vout) + ' kV', 28, y + 86, 10, 'rgba(200,180,255,0.85)', 'left', 800, MONO); }
+  else txt(Math.round(m.P) + ' W into the coil', 28, y + 86, 10, 'rgba(255,255,255,0.5)', 'left', 800, MONO);
+  // efficiency bars
+  const effs = [['TUNE', m.tuneEff, 'tune'], ['COUPLE', m.kEff, 'tune'], ['TOPLOAD', m.topEff, 'top'], ['GROUND', m.gndEff, 'gnd'], ['CHARGE', Math.min(1, m.chargeEff), 'cap'], ['GAP', m.gapQ, 'gap']];
+  effs.forEach((e, i) => { const x = 236 + (i % 3) * 120, yy = y + 22 + Math.floor(i / 3) * 26;
+    txt(e[0], x, yy, 9, 'rgba(255,255,255,0.6)', 'left', 900, MONO); bar(x, yy + 7, 104, 7, e[1], e[1] > 0.85 ? '#3cff7a' : e[1] > 0.55 ? '#ffd23f' : '#ff5a6a');
+    UI.push({ id: 'eff' + i, x: x - 4, y: yy - 8, w: 112, h: 24, fn: () => { BS.slot = e[2]; } }); });
+  // Doc's tip
+  const top = m.warn[0];
+  const tip = top ? top.t : m.spark > 0 ? 'Looks solid. Hit FIRE TEST, then hold to fire and drag to aim the breakout point.' : '';
+  cx.fillStyle = top ? (top.sev >= 3 ? 'rgba(255,59,59,0.14)' : top.sev >= 2 ? 'rgba(255,176,59,0.12)' : 'rgba(255,255,255,0.05)') : 'rgba(60,255,122,0.1)'; rrect(cx, 236, y + 72, 470, h - 80, 6); cx.fill();
+  txt('DOC OHM:', 244, y + 84, 9, '#ffd23f', 'left', 900, MONO);
+  wrap(tip, 302, y + 84, 396, 10, 'rgba(255,255,255,0.85)', 12, 700);
+  if (top && top.slot) UI.push({ id: 'tip', x: 236, y: y + 72, w: 470, h: h - 80, fn: () => { BS.slot = top.slot; } });
+  const over = !L.sandbox && BS.cost > L.budget;
+  button('fire', W - 236, y + 14, 208, h - 28, over ? 'OVER BUDGET' : 'FIRE TEST', { col: over ? '#ff5a6a' : '#b48cff', size: 20, sub: over ? 'cut $' + (BS.cost - L.budget) : 'Enter', hot: !over, disabled: over, fn: () => startFire() });
+}
+function updateBuild() {
+  if (pressed.start && (BS.L.sandbox || BS.cost <= BS.L.budget)) startFire();
+  if (pressed.pause) game.state = 'map';
+  if (pressed.cycle) { const i = SLOTS.findIndex(s => s.k === BS.slot); BS.slot = SLOTS[(i + 1) % SLOTS.length].k; }
+}
+
+// ---------- FIRE TEST ----------
+const F = {};
+const FLOOR = 470;
+function startFire() {
+  const L = BS.L, b = BS.b, m = coilModel(b, levelEnv(L));
+  save.builds[L.id] = Object.assign({}, b); persist();
+  const s = partOf('sec', b.sec), t = partOf('top', b.top), R2in = Math.max(0.5, t.d2 / 2), R1in = Math.max(0.5, t.d1 / 2);
+  // scale so every target + the coil fit
+  const all = L.goals.concat(L.avoid);
+  let right = 30, left = 30, up = 0;
+  all.forEach(g => { const a = g.a * Math.PI / 180, d = (g.d2 || g.d) + (g.kind === 'performer' ? 8 : g.kind === 'case' ? 14 : g.kind === 'volcano' ? 18 : 10);
+    const dx = Math.cos(a) * (d + R2in); if (dx > 0) right = Math.max(right, dx); else left = Math.max(left, -dx); up = Math.max(up, -Math.sin(a) * (d + R1in)); });
+  if (L.sandbox) { right = Math.max(60, m.spark * 1.15 + R2in); left = Math.max(30, partOf('pri', b.pri).n * 0.55 + priInner(s) + 20); }
+  const coilH = BASE_IN + 2 + s.h + R1in * 2 + 2;
+  const cxPos = W * L.cxf;
+  let S = Math.min(7, (W - cxPos - 30) / right, (cxPos - 30) / (left + 18), (FLOOR - 40) / (coilH + up + 4));
+  if (L.sandbox) S = Math.min(S, (W - 120) / (left + right + 24)); // coil sits a bit right in sandbox
+  const G = coilGeo(b, L.sandbox ? 40 + (left + 18) * S : cxPos, FLOOR, S);
+  Object.assign(F, { L, b, m, S, G, t: 0, time: L.time || 0, v: 0.35, aim: -0.15, firing: false, g: 0, heat: 0, hot: false, capHP: 1, psuHP: 1, secHP: 1, trip: 0, offT: 0,
+    faults: 0, bolts: [], parts: [], end: null, endT: 0, best: 0, lastLen: 0, strikes: 0, tubeT: 0, flash: 0, light: 0, hint: 4, shake: 0, R2in, R1in, sgT: 0 });
+  F.props = [];
+  const mk = (g, avoid) => { const P = Object.assign({ hits: 0, cd: 0, flash: 0, avoid, floorY: FLOOR, glow: 0, broken: false }, g); placeProp(P, 0); return P; };
+  L.goals.forEach(g => F.props.push(mk(g, false))); L.avoid.forEach(g => F.props.push(mk(g, true)));
+  F.bg = bakeScene(L.scene, FLOOR, S);
+  // equipment cart sits beside the coil base, on the side whose nearest prop is farther away
+  const big = partOf('psu', b.psu).I > 0.3 ? 1.6 : partOf('psu', b.psu).I > 0.1 ? 1.25 : 1, cw = 14 * S * 0.9 * big;
+  const nearL = Math.min(1e4, ...F.props.filter(P => P.x <= G.x).map(P => G.x - P.x)), nearR = Math.min(1e4, ...F.props.filter(P => P.x > G.x).map(P => P.x - G.x));
+  const off = (G.ro + 3) * S + cw * 0.65, clear = x => x > 40 && x < 800 && F.props.every(P => Math.abs(P.x - x) > cw * 0.75 + 7 * S);
+  const order = nearL >= nearR ? [-1, 1] : [1, -1];
+  let cxp = null; for (const sd of order) for (const k of [1, 1.6, 2.2]) if (cxp == null && clear(G.x + sd * off * k)) cxp = G.x + sd * off * k;
+  if (cxp == null) cxp = G.x - G.ro * S * 0.4; // tucked behind the coil table
+  F.cart = { x: cxp, floorY: FLOOR };
+  F.rain = L.rain ? Array.from({ length: 140 }, () => ({ x: RND(0, W), y: RND(0, H), v: RND(500, 800) })) : null;
+  game.state = 'fire'; game.paused = false; MUS.target = 0.15; sfx('power');
+  announce('Fire test. Hold mouse or Space to fire, drag or arrow keys to aim, up/down for variac.');
+}
+function placeProp(P, t) {
+  const G = F.G; let d = P.d;
+  if (P.kind === 'performer') { d = P.d + (P.d2 - P.d) * (0.5 - 0.5 * Math.cos(t * 0.55)); P.cur = d; }
+  P.cur = d; const a = P.a * Math.PI / 180, p = topPoint(G, a, d * G.S);
+  P.x = p.x; P.y = Math.min(FLOOR - 12, p.y); P.ang = Math.atan2(P.y - G.topY, P.x - G.x);
+  if (P.kind === 'performer') P.y = Math.min(P.y, FLOOR - 62 * G.S);
+}
+function propDist(P) { return P.kind === 'performer' ? P.cur : P.d; }
+function faultEv(msg, col) { F.faults++; toast(msg, col || '#ffb03b', 1.6); announce(msg); }
+function endFire(win, reason) {
+  if (F.end) return; F.end = { win, reason }; F.endT = 0; F.firing = false; buzzSet(0, 120, 0);
+  const L = F.L;
+  if (win) {
+    const cost = buildCost(F.b), st = 1 + (cost <= L.par ? 1 : 0) + (F.faults === 0 ? 1 : 0);
+    F.end.stars = st; F.end.cost = cost; const prev = save.stars[L.id] || 0; F.end.newBest = st > prev; save.stars[L.id] = Math.max(prev, st); persist();
+    sfx('win');
+  } else sfx(reason.indexOf('BOOM') >= 0 || reason.indexOf('exploded') >= 0 ? 'boom' : 'fail');
+}
+function updateFire(dt) {
+  const m = F.m, G = F.G, L = F.L;
+  F.t += dt; F.flash = Math.max(0, F.flash - dt * 4); F.shake = Math.max(0, F.shake - dt * 30);
+  F.props.forEach(P => { P.cd -= dt; P.flash = Math.max(0, P.flash - dt * 3); P.ring = Math.max(0, (P.ring || 0) - dt * 0.8); placeProp(P, F.t); });
+  F.bolts.forEach(B => B.life -= dt); F.bolts = F.bolts.filter(B => B.life > 0);
+  F.parts.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * dt; p.life -= dt; }); F.parts = F.parts.filter(p => p.life > 0);
+  if (F.rain) F.rain.forEach(r => { r.y += r.v * dt; r.x -= r.v * 0.15 * dt; if (r.y > H) { r.y = -10; r.x = RND(0, W + 100); } });
+  if (F.end) { F.endT += dt; return; }
+  if (!L.sandbox) { F.time -= dt; if (F.time <= 0) { F.time = 0; endFire(false, 'Out of time. The client went home.'); return; } }
+  // controls
+  if (held.up) F.v = Math.min(1, F.v + dt * 0.6); if (held.down) F.v = Math.max(0, F.v - dt * 0.6);
+  if (held.left) F.aim -= dt * 1.8; if (held.right) F.aim += dt * 1.8;
+  const scene = ptr.down && dragId == null && !ptr.consumed && ptr.x < 836 && ptr.y > 70;
+  if (scene) { F.aim = Math.atan2(ptr.y - G.topY, ptr.x - G.x); F.hint = 0; }
+  F.aim = wrapA(F.aim); F.aim = F.aim > 0.35 && F.aim < Math.PI / 2 ? 0.35 : F.aim >= Math.PI / 2 && F.aim < Math.PI - 0.35 ? Math.PI - 0.35 : F.aim;
+  const want = scene || held.hfire;
+  F.offT = Math.max(0, F.offT - dt);
+  const powered = want && F.offT <= 0;
+  if (powered && !F.firing) sfx('zap');
+  F.firing = powered;
+  const v = F.v;
+  // growth of the leader: sparks grow the longer you hold
+  F.g = powered ? Math.min(1, F.g + dt * 0.55) : Math.max(0, F.g - dt * 4);
+  // thermals
+  if (powered) F.heat += (m.heat * v * v * 0.11 - 0.03) * dt; else F.heat -= dt * 0.12;
+  F.heat = clamp(F.heat, 0, 1.15);
+  if (F.heat >= 1 && !F.hot) { F.hot = true; faultEv('Spark gap overheated: it stopped quenching!', '#ff9a1f'); sfx('warn'); }
+  if (F.hot && F.heat < 0.55) F.hot = false;
+  // breaker
+  const amps = m.mainsA * v * v;
+  F.amps = powered ? amps : 0;
+  if (powered && amps > m.breaker * 1.9) { F.trip = 1; }
+  else if (powered && amps > m.breaker) F.trip += (amps / m.breaker - 1) * dt * 1.6; else F.trip = Math.max(0, F.trip - dt * 0.35);
+  if (F.trip >= 1) { F.trip = 0; F.offT = 2.5; faultEv('BREAKER TRIPPED (' + amps.toFixed(0) + ' A on a ' + m.breaker + ' A circuit)', '#ff5a6a'); sfx('breaker'); later(() => sfx('reset'), 2.4); F.g = 0; game.flash = 0.2; game.flashCol = '#000'; }
+  // cap stress
+  F.stress = powered ? m.stress * v : 0;
+  if (powered && m.sg && F.stress > 1.15) {
+    F.sgT -= dt; if (F.sgT <= 0) { F.sgT = 0.9; faultEv('Safety gap fired! Too much voltage on the tank cap.', '#ffd23f'); sfx('sgap'); F.offT = Math.max(F.offT, 0.3); F.flash = 1; addSgBolt(); }
+    F.stress = 1.15;
+  }
+  if (powered && F.stress > 0.85) F.capHP -= Math.pow(F.stress - 0.85, 1.4) * 1.7 * dt;
+  if (powered && !m.sg && F.stress > 1.1) F.psuHP -= (F.stress - 1.05) * 1.2 * dt;
+  if (F.capHP <= 0) { boomAt(F.cart.x + 10, FLOOR - 20); endFire(false, 'BOOM. The tank capacitor exploded. Add more caps in series, or turn the variac down.'); return; }
+  if (F.psuHP <= 0) { boomAt(F.cart.x - 10, FLOOR - 20); endFire(false, 'The transformer died from flyback overvoltage. A safety gap would have saved it.'); return; }
+  // racing arcs
+  if (powered && Math.random() < m.race * v * v * 0.55 * F.g * dt) { F.secHP -= 0.22; faultEv('Racing arc down the secondary!', '#ff5a6a'); sfx('race'); addRaceBolt(); if (F.secHP <= 0) { endFire(false, 'Racing arcs burned through the secondary winding. Lower the coupling (raise the primary) or use a beefier secondary.'); return; } }
+  // spark physics
+  const hf = F.hot ? 0.55 : 1;
+  const Lnow = m.spark * v * F.g * hf; // inches
+  F.Lnow = Lnow;
+  buzzSet(powered ? 0.25 + 0.75 * v : 0, m.bps, v * F.g);
+  if (powered) { F.light = Math.min(1, F.light + dt * 8); } else F.light = Math.max(0, F.light - dt * 6);
+  // tubes: field lighting
+  let allTubes = true, anyTube = false;
+  F.props.forEach(P => { if (P.kind !== 'tube') return; anyTube = true;
+    const E = powered ? m.Vout * v * Math.max(0.3, F.g) * hf / (P.d + F.R2in) : 0; P.E = E; const lit = !P.broken && E >= P.field;
+    P.glow += ((lit ? 1 : E > P.field * 0.75 && !P.broken ? 0.25 * Math.random() : 0) - P.glow) * Math.min(1, dt * 12); P.wob = Math.sin(F.t * 1.3 + P.d) * 0.08;
+    if (!lit) allTubes = false; });
+  if (anyTube && allTubes) { F.tubeT += dt; }
+  if (powered && Lnow > 0.3) {
+    const n = 1 + (Math.random() < v * F.g ? 1 : 0) + (Math.random() < v * F.g * 0.8 ? 1 : 0) + (Math.random() < v * 0.6 ? 1 : 0);
+    for (let i = 0; i < n; i++) {
+      const gs = (Math.random() + Math.random() + Math.random() - 1.5) * 1.2;
+      const ang = F.aim + gs * m.spread, len = Lnow * (0.35 + 0.7 * Math.pow(Math.random(), 1.7));
+      F.lastLen = len; F.best = Math.max(F.best, len);
+      // strikes
+      let hit = null, hd = 1e9;
+      for (const P of F.props) { if (P.broken || P.cd > 0 || P.kind === 'marker') continue; const d = propDist(P), win = 0.2 + m.spread * 0.45 + 0.3 * Math.max(0, len / d - 1);
+        if (len >= d * 0.96 && Math.abs(wrapA(ang - P.ang)) < win && d < hd) { hit = P; hd = d; } }
+      if (hit) { strike(hit); continue; }
+      const p = topPoint(G, ang); const pts = streamerPts(p.x, p.y, ang, len * F.S);
+      F.bolts.push({ pts, forks: addForks(pts, 2 + Math.floor(len / 8), len * F.S), life: RND(0.04, 0.09), w: clamp(len * F.S / 70, 0.8, 2.2) });
+      // marker goal
+      for (const P of F.props) if (P.kind === 'marker' && P.cd <= 0 && len >= P.d) { P.cd = 0.9; P.hits++; P.flash = 1; sfx('hitok', Math.min(6, P.hits)); F.flash = 0.6; if (P.hits <= P.n) toast('Spark ' + Math.round(len * 2.54) + ' cm  (' + P.hits + '/' + P.n + ')', '#d8c8ff', 1); }
+    }
+    // corona fuzz
+    if (Math.random() < 0.7) { const a = RND(-Math.PI, 0), p = topPoint(G, a); F.bolts.push({ pts: streamerPts(p.x, p.y, a, RND(3, 9) * F.S * 0.6 + 4), life: 0.04, w: 0.6 }); }
+  }
+  // win check
+  if (!L.sandbox) {
+    const done = L.goals.every((g, i) => { const P = F.props[i]; if (g.link) return true; if (g.kind === 'tube') return F.tubeT >= g.n; return P.hits >= g.n; });
+    if (done) endFire(true);
+  }
+}
+function strike(P) {
+  const G = F.G, p = topPoint(G, P.ang);
+  const pts = boltPts(p.x, p.y, P.x, P.y, 0.32, 5);
+  F.bolts.push({ pts, forks: addForks(pts, 4, Math.hypot(P.x - p.x, P.y - p.y)), life: 0.16, w: 2.6, hot: true });
+  P.cd = 0.9; P.flash = 1; F.flash = 1; F.shake = 4; F.strikes++;
+  for (let i = 0; i < 10; i++) F.parts.push({ x: P.x, y: P.y, vx: RND(-160, 160), vy: RND(-220, 20), life: RND(0.2, 0.6), c: pick(['#fff', '#d8c8ff', '#ffd23f']) });
+  if (P.kind === 'tube') { P.broken = true; sfx('shatter'); sfx('strike'); endFire(false, 'You struck a fluorescent tube and it shattered. Aim the breakout point away from the tubes!'); return; }
+  if (P.avoid) { P.broken = true; sfx('strike'); sfx(P.kind === 'case' ? 'shatter' : 'boom'); endFire(false, P.kind === 'volcano' ? 'You zapped the volcano. It erupted all over the judges. Disqualified.' : 'The display case shattered. The museum would like a word.'); return; }
+  P.hits++; sfx('strike', P.hits); if (P.kind === 'bell') { P.ring = 1; const t = AC && AC.currentTime; if (AC && !muted) [1, 2.76, 5.4].forEach((h, i) => tone(392 * h, 1.6 - i * 0.4, 'sine', 0.08 / (i + 1), 0, t, 'e')); }
+  if (P.hits <= P.n) { toast((P.kind === 'performer' ? 'ZAP! ' : 'STRIKE! ') + P.hits + '/' + P.n, '#d8c8ff', 1); if (P.hits === P.n) sfx('hitok', 4); }
+}
+function addSgBolt() { const x = F.cart.x - 4, y = FLOOR - 40; F.bolts.push({ pts: boltPts(x, y, x + 10, y, 0.5, 2), life: 0.15, w: 2, hot: true, col: '255,200,120' }); }
+function addRaceBolt() { const G = F.G, x = G.x + (Math.random() < 0.5 ? -1 : 1) * G.rs; F.bolts.push({ pts: boltPts(x, G.secY1 + 4, x + RND(-4, 4), G.priY - 2, 0.25, 4), life: 0.25, w: 2.2, hot: true, col: '255,120,200' }); F.flash = 0.6; }
+function boomAt(x, y) { F.shake = 14; game.flash = 0.8; game.flashCol = '#ffb060'; for (let i = 0; i < 50; i++) F.parts.push({ x, y, vx: RND(-400, 400), vy: RND(-500, 50), life: RND(0.4, 1.4), c: pick(['#ffd23f', '#ff9a1f', '#fff', '#555']) }); }
+
+function drawFire() {
+  const G = F.G, m = F.m, L = F.L, S = F.S;
+  cx.save(); if (!RMOTION && F.shake) cx.translate(RND(-F.shake, F.shake) * 0.5, RND(-F.shake, F.shake) * 0.5);
+  cx.drawImage(F.bg, 0, 0, W, H);
+  // room darkens while firing; sparks light it
+  if (F.light > 0) { cx.fillStyle = 'rgba(2,2,8,' + 0.4 * F.light + ')'; cx.fillRect(0, 0, W, H); }
+  const glow = (F.firing ? 0.4 + F.v * F.g * 0.6 : 0) + F.flash * 0.5;
+  if (glow > 0.02) { cx.save(); cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = Math.min(1, glow) * 0.35; cx.drawImage(glowOf('#8a6aff'), G.x - 260, G.topY - 260, 520, 520); cx.restore(); }
+  // marker rings
+  F.props.forEach(P => { if (P.kind !== 'marker') return; cx.save(); cx.strokeStyle = P.flash > 0 ? '#fff' : 'rgba(216,200,255,0.55)'; cx.setLineDash([6, 6]); cx.lineWidth = 1.5;
+    const r1 = G.R1 + P.d * S, hx = G.R2 - G.R1; cx.beginPath(); rrect(cx, G.x - hx - r1, G.topY - r1, (hx + r1) * 2, r1 * 2, r1); cx.stroke(); cx.setLineDash([]);
+    txt(fmtIn(P.d), G.x, G.topY - r1 - 10, 11, '#d8c8ff', 'center', 900, MONO); cx.restore(); });
+  // sandbox ruler
+  if (L.sandbox) drawRuler();
+  const cp = drawCart(cx, F.b, F.cart.x, FLOOR, S * 0.9);
+  // cable cart -> primary
+  cx.strokeStyle = '#2a2a2a'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(cp.gapX, FLOOR - 4); cx.quadraticCurveTo((cp.gapX + G.x) / 2, FLOOR + 6, G.x - G.ro * S, G.priY + 2); cx.stroke();
+  F.props.forEach(P => { if (P.kind !== 'marker') drawProp(cx, P, S, F.t); });
+  drawCoil(cx, F.b, G, { aim: F.aim, glow: F.firing ? F.v : 0 });
+  F.bolts.forEach(B => drawBolt(cx, B, clamp(B.life / 0.06, 0.3, 1)));
+  cx.save(); cx.globalCompositeOperation = 'lighter'; F.parts.forEach(p => { cx.globalAlpha = clamp(p.life * 2, 0, 1); cx.fillStyle = p.c; cx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3); }); cx.restore();
+  if (F.rain) { cx.strokeStyle = 'rgba(160,190,230,0.35)'; cx.lineWidth = 1; cx.beginPath(); F.rain.forEach(r => { cx.moveTo(r.x, r.y); cx.lineTo(r.x - 3, r.y + 14); }); cx.stroke(); }
+  // aim guide
+  if (!F.end) { const p = topPoint(G, F.aim, 10), q = topPoint(G, F.aim, 10 + Math.max(30, F.Lnow * S || 30));
+    cx.strokeStyle = 'rgba(255,255,255,0.2)'; cx.setLineDash([3, 6]); cx.lineWidth = 1; cx.beginPath(); cx.moveTo(p.x, p.y); cx.lineTo(q.x, q.y); cx.stroke(); cx.setLineDash([]); }
+  cx.restore();
+  drawFireHUD();
+  if (F.end && F.endT > 0.9) drawResult();
+}
+function drawRuler() {
+  const G = F.G, S = F.S, y = FLOOR + 30, x0 = G.x + G.R2;
+  cx.strokeStyle = 'rgba(255,255,255,0.35)'; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(x0, y); cx.lineTo(W - 10, y); cx.stroke();
+  for (let i = 0; x0 + i * S * 12 < W - 10; i++) { const x = x0 + i * S * 12; cx.beginPath(); cx.moveTo(x, y - (i % 3 ? 4 : 8)); cx.lineTo(x, y); cx.stroke(); if (i % 3 === 0) txt(i + ' ft', x, y + 10, 9, 'rgba(255,255,255,0.5)', 'center', 800, MONO); }
+  const bx = x0 + F.best * S; cx.fillStyle = '#ffd23f'; cx.fillRect(bx - 1, y - 14, 2, 14); txt('BEST ' + fmtIn(Math.max(F.best, save.best)), Math.min(W - 70, bx), y - 22, 10, '#ffd23f', 'center', 900, MONO);
+  if (F.best > save.best) { save.best = F.best; persist(); }
+}
+function gauge(x, y, label, f, col, val, health) {
+  const bad = health ? f < 0.35 : f > 0.95, mid = health ? f < 0.7 : f > 0.75;
+  txt(label, x, y, 9, 'rgba(255,255,255,0.6)', 'left', 900, MONO); txt(val, x + 104, y, 9.5, bad ? '#ff5a6a' : '#fff', 'right', 900, MONO);
+  bar(x, y + 8, 104, 7, f, bad ? '#ff3b3b' : mid ? '#ffd23f' : col);
+}
+function drawFireHUD() {
+  const L = F.L, m = F.m;
+  // top-left: contract + goals
+  glass(12, 10, 330, 32 + L.goals.filter(g => !g.link).length * 18, '#b48cff', 0.82);
+  txt(L.name.toUpperCase(), 24, 25, 13, '#fff', 'left', 900);
+  let gy = 46;
+  L.goals.forEach((g, i) => { if (g.link) return; const P = F.props[i];
+    const prog = g.kind === 'tube' ? Math.min(g.n, F.tubeT).toFixed(1) + ' / ' + g.n + ' s' : Math.min(g.n, P.hits) + ' / ' + g.n, done = g.kind === 'tube' ? F.tubeT >= g.n : P.hits >= g.n;
+    const lab = g.kind === 'marker' ? 'Spark past ' + fmtIn(g.d) : g.kind === 'tube' ? 'All tubes lit' : 'Strike ' + g.kind + ' @ ' + fmtIn(g.d);
+    txt((done ? '\u2714 ' : '\u25cb ') + lab, 24, gy, 11, done ? '#3cff7a' : 'rgba(255,255,255,0.85)', 'left', 800); txt(prog, 330, gy, 11, '#d8c8ff', 'right', 900, MONO); gy += 18; });
+  if (!L.sandbox) { glass(W / 2 - 52, 10, 104, 36, F.time < 10 ? '#ff5a6a' : '#7fe0e8', 0.82); txtGlow(fmtT(F.time), W / 2, 29, 20, F.time < 10 ? '#ff5a6a' : '#fff', 'center'); }
+  // live spark
+  glass(12, H - 58, 230, 46, '#d8c8ff', 0.8);
+  txt('SPARK', 24, H - 44, 9, 'rgba(255,255,255,0.55)', 'left', 900, MONO); txtGlow(F.firing ? fmtIn(F.lastLen) : '--', 24, H - 26, 17, '#d8c8ff', 'left');
+  txt('max ' + fmtIn(m.spark * F.v), 232, H - 44, 9, 'rgba(255,255,255,0.55)', 'right', 800, MONO);
+  // right panel: variac + gauges
+  const px = 846, py = 56, pw = W - px - 10, ph = H - py - 66;
+  glass(px, py, pw, ph, '#7fe0e8', 0.86);
+  txt('VARIAC', px + pw / 2, py + 14, 10, '#7fe0e8', 'center', 900, MONO);
+  const vx = px + 22, vy0 = py + 30, vh = 170;
+  cx.fillStyle = 'rgba(255,255,255,0.08)'; rrect(cx, vx - 4, vy0, 8, vh, 4); cx.fill();
+  cx.fillStyle = lin(cx, 0, vy0 + vh, 0, vy0, [[0, '#3cff7a'], [0.7, '#ffd23f'], [1, '#ff5a6a']]); rrect(cx, vx - 4, vy0 + vh * (1 - F.v), 8, vh * F.v, 4); cx.fill();
+  const ky = vy0 + vh * (1 - F.v); cx.save(); cx.shadowColor = '#7fe0e8'; cx.shadowBlur = 10; cx.fillStyle = metalKnob(vx, ky); rrect(cx, vx - 15, ky - 8, 30, 16, 5); cx.fill(); cx.restore();
+  txt(Math.round(F.v * 100) + '%', px + pw - 10, vy0 + 10, 14, '#fff', 'right', 900, MONO);
+  const lim = Math.min(1, Math.sqrt(m.breaker / m.mainsA)); if (lim < 1) { const ly = vy0 + vh * (1 - lim); cx.fillStyle = '#ff5a6a'; cx.fillRect(vx + 8, ly - 1, 14, 2); txt(m.breaker + 'A', vx + 26, ly, 8.5, '#ff5a6a', 'left', 900, MONO); }
+  if (ptr.justDown && ptr.sx > px && ptr.sx < px + pw && ptr.sy > vy0 - 10 && ptr.sy < vy0 + vh + 10) { dragId = 'variac'; ptr.justDown = false; }
+  if (dragId === 'variac' && ptr.down) F.v = clamp(1 - (ptr.y - vy0) / vh, 0, 1);
+  button('v+', px + pw - 44, vy0 + 40, 34, 30, '\u25b2', { col: '#7fe0e8', size: 12, fn: () => { F.v = Math.min(1, F.v + 0.05); } });
+  button('v-', px + pw - 44, vy0 + 76, 34, 30, '\u25bc', { col: '#7fe0e8', size: 12, fn: () => { F.v = Math.max(0, F.v - 0.05); } });
+  let y = vy0 + vh + 22;
+  gauge(px + 8, y, 'CAP STRESS', (F.stress || 0) / 1.15, '#5a9aff', Math.round((F.stress || 0) * 100) + '%'); y += 26;
+  gauge(px + 8, y, 'CAP HEALTH', F.capHP, '#3cff7a', Math.round(F.capHP * 100) + '%', 1); y += 26;
+  gauge(px + 8, y, 'GAP TEMP', F.heat, F.hot ? '#ff3b3b' : '#ff9a1f', F.hot ? 'HOT!' : Math.round(F.heat * 100) + '%'); y += 26;
+  gauge(px + 8, y, 'BREAKER', F.offT > 0 ? 1 : Math.max(F.trip, (F.amps || 0) / m.breaker * 0.75), '#7fe0e8', F.offT > 0 ? 'TRIPPED' : (F.amps || 0).toFixed(0) + 'A'); y += 26;
+  gauge(px + 8, y, 'SECONDARY', F.secHP, '#3cff7a', Math.round(F.secHP * 100) + '%', 1);
+  // fire button for touch / clarity
+  const fy = H - 58;
+  button('abort', px, fy, pw, 46, F.end ? 'CONTINUE' : 'ABORT', { col: '#ff5a6a', size: 13, sub: F.faults ? F.faults + ' fault' + (F.faults > 1 ? 's' : '') : 'no faults', fn: () => { if (F.end) return; buzzSet(0, 120, 0); openBuild(F.L); } });
+  // hint
+  if (F.hint > 0 && !F.end) { F.hint -= 1 / 60; cx.globalAlpha = Math.min(1, F.hint); glass(W / 2 - 250, H - 110, 500, 40, '#ffd23f', 0.85);
+    txt((TOUCH ? 'HOLD on the scene to fire, drag to aim' : 'HOLD mouse on the scene (or Space) to fire, drag / \u2190\u2192 to aim') + ', \u2191\u2193 variac', W / 2, H - 90, 11.5, '#ffd23f', 'center', 800); cx.globalAlpha = 1; }
+  // toasts
+  toasts.forEach((tt, i) => { cx.globalAlpha = clamp(tt.t / 0.3, 0, 1); txtS(tt.s, W / 2 - 40, 78 + i * 24, 15, tt.col, 'center', 900); }); cx.globalAlpha = 1;
+}
+function metalKnob(x, y) { return lin(cx, 0, y - 8, 0, y + 8, [[0, '#f0f4f8'], [0.5, '#8a96a4'], [1, '#d0d8e0']]); }
+function drawResult() {
+  const e = F.end, L = F.L, a = clamp((F.endT - 0.9) * 3, 0, 1);
+  cx.globalAlpha = a; cx.fillStyle = 'rgba(2,3,8,0.6)'; cx.fillRect(0, 0, W, H);
+  const w = 460, h = 280, x = W / 2 - w / 2, y = 120;
+  glass(x, y, w, h, e.win ? '#3cff7a' : '#ff5a6a', 0.94, 16);
+  metalTxt(e.win ? 'CONTRACT COMPLETE' : 'TEST FAILED', W / 2, y + 36, 28, 'center', e.win ? 'rgba(60,255,122,0.5)' : 'rgba(255,90,106,0.5)');
+  if (e.win) {
+    for (let i = 0; i < 3; i++) { const on = i < e.stars && F.endT > 1.2 + i * 0.35; if (on && !e['s' + i]) { e['s' + i] = 1; sfx('star', i); } star(W / 2 + (i - 1) * 64, y + 92, 24, on); }
+    const rows = [['Objective', 'done', true], ['Cost $' + e.cost + ' (par $' + L.par + ')', e.cost <= L.par ? 'under par' : 'over par', e.cost <= L.par], ['Faults: ' + F.faults, F.faults ? 'trips / gaps / arcs' : 'clean run', F.faults === 0]];
+    rows.forEach((r, i) => { txt((r[2] ? '\u2605 ' : '\u2606 ') + r[0], x + 40, y + 140 + i * 22, 12, r[2] ? '#ffd23f' : 'rgba(255,255,255,0.5)', 'left', 800); txt(r[1], x + w - 40, y + 140 + i * 22, 11, 'rgba(255,255,255,0.6)', 'right', 700); });
+    if (e.newBest) txt('NEW BEST!', W / 2, y + 120, 11, '#3cff7a', 'center', 900, MONO);
+  } else wrap(e.reason, x + 30, y + 90, w - 60, 13, 'rgba(255,255,255,0.88)', 18, 700);
+  const by = y + h - 60, nxt = LEVELS[LEVELS.indexOf(L) + 1];
+  button('rebuild', x + 20, by, 130, 42, 'REBUILD', { col: '#b48cff', size: 14, sub: 'tweak the coil', fn: () => openBuild(L) });
+  button('retry', x + 160, by, 130, 42, 'RETRY', { col: '#7fe0e8', size: 14, sub: 'same build', fn: () => startFire() });
+  if (e.win && nxt) button('next', x + 300, by, 140, 42, 'NEXT \u25b6', { col: '#3cff7a', size: 14, sub: nxt.name, hot: true, fn: () => openBuild(nxt) });
+  else button('map', x + 300, by, 140, 42, 'MAP', { col: '#3cff7a', size: 14, sub: 'all contracts', fn: () => { game.state = 'map'; } });
+  cx.globalAlpha = 1;
+}
+
+// ---------- TITLE + MAP ----------
+let BG = null, TITLE = null;
+function backdrop(dim) {
+  if (!BG) BG = bakeScene('lab', 470, 3);
+  cx.drawImage(BG, 0, 0, W, H);
+  if (dim) { cx.fillStyle = 'rgba(2,3,8,' + dim + ')'; cx.fillRect(0, 0, W, H); }
+}
+function titleCoil() {
+  if (TITLE) return TITLE;
+  const b = { psu: 'pig', capm: 'c47', ns: 6, np: 3, gap: 'rsg', pri: 'p12', sec: 's6', top: 't6', gnd: 'plane', prot: 'terry', hgt: 1, tap: 8 };
+  TITLE = { b, G: coilGeo(b, 200, 470, 5.2), bolts: [] }; return TITLE;
+}
+function drawTitle() {
+  const T = titleCoil(), G = T.G, t = game.t;
+  if (!TITLE.bg) TITLE.bg = bakeScene('tower', 470, 5.2);
+  cx.drawImage(TITLE.bg, 0, 0, W, H);
+  cx.fillStyle = 'rgba(2,2,8,0.35)'; cx.fillRect(0, 0, W, H);
+  cx.save(); cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = 0.3 + 0.1 * Math.sin(t * 9); cx.drawImage(glowOf('#8a6aff'), G.x - 280, G.topY - 280, 560, 560); cx.restore();
+  drawCoil(cx, T.b, G, { aim: -0.6, glow: 0.8 });
+  T.bolts.forEach(B => B.life -= 1 / 60); T.bolts = T.bolts.filter(B => B.life > 0);
+  for (let i = 0; i < 3; i++) { const a = -Math.PI / 2 + RND(-1.7, 1.7), p = topPoint(G, a), len = RND(40, 190); const pts = streamerPts(p.x, p.y, a, len); T.bolts.push({ pts, forks: addForks(pts, 3, len), life: RND(0.03, 0.08), w: 1.6 }); }
+  if (Math.random() < 0.05) { const p = topPoint(G, -0.3), pts = boltPts(p.x, p.y, W * 0.44, 150 + RND(-20, 20), 0.3, 5); T.bolts.push({ pts, forks: addForks(pts, 5, 200), life: 0.14, w: 2.6, hot: true }); if (AC) sfx('zap'); }
+  T.bolts.forEach(B => drawBolt(cx, B, 1));
+  const x0 = 590;
+  cloverLogo(x0 - 200, 112, 34);
+  const sh = Math.sin(t * 37) > 0.96 && !RMOTION ? RND(-2, 2) : 0;
+  metalTxt('TESLA FORGE', x0 + 50 + sh, 112, 56, 'center', 'rgba(150,120,255,0.75)');
+  txt('C O I L   B U I L D E R', x0 + 50, 158, 15, '#b48cff', 'center', 900, MONO);
+  wrap('Wind the secondary. Size the cap bank. Tune the primary. Then throw lightning at things your clients point at.', x0 - 170, 196, 400, 12.5, 'rgba(255,255,255,0.78)', 17, 600);
+  const done = LEVELS.filter(l => save.stars[l.id]).length;
+  button('play', x0 - 110, 262, 280, 56, done ? 'CONTINUE' : 'START BUILDING', { col: '#b48cff', size: 20, sub: done + ' / ' + LEVELS.length + ' contracts  \u00b7  ' + totalStars() + ' \u2605  \u00b7  Enter', hot: true, fn: () => { game.state = 'map'; } });
+  button('mute', x0 - 110, 332, 136, 30, muted ? 'Sound off' : 'Sound on', { col: '#7fe0e8', size: 11, fn: () => setMute(!muted) });
+  button('mus', x0 + 34, 332, 136, 30, musicOn ? 'Music on' : 'Music off', { col: '#7fe0e8', size: 11, fn: () => setMusic(!musicOn) });
+  const facts = ['Real formulas inside: Wheeler inductance, Medhurst capacitance, LC resonance, resonant charging, Freau spark length.', 'Every sprite and sound in this game is generated in code. No assets.'];
+  wrap(facts[0], x0 - 170, 392, 400, 10.5, 'rgba(255,255,255,0.5)', 14, 600);
+  txt('Original game by Viktor for MyClover.Tech  \u00b7  ' + facts[1], W / 2 + 120, H - 20, 9.5, 'rgba(255,255,255,0.35)', 'center', 700);
+  txt('Tesla coils are lethal in real life. Please build this one in your browser.', W / 2 + 120, H - 38, 9.5, 'rgba(255,200,120,0.45)', 'center', 700);
+  MUS.on = true; MUS.target = 0.5;
+  buzzSet(0.12, 120, 0.4);
+}
+const MAPI = { focus: 0 };
+function drawMap() {
+  buzzSet(0, 120, 0);
+  backdrop(0.5);
+  metalTxt('CONTRACTS', 30, 38, 30, 'left', 'rgba(150,120,255,0.5)');
+  txt(totalStars() + ' / ' + LEVELS.length * 3 + ' \u2605', 230, 40, 16, '#ffd23f', 'left', 900, MONO);
+  button('home', W - 120, 20, 96, 32, '\u2190 TITLE', { col: '#7fe0e8', size: 12, fn: () => { game.state = 'title'; } });
+  const cw = 222, ch = 112, gx = 22, gy = 70;
+  LEVELS.forEach((L, i) => {
+    const x = gx + (i % 4) * (cw + 8), y = gy + Math.floor(i / 4) * (ch + 8), open = levelOpen(i), st = save.stars[L.id] || 0, hv = open && hov(x, y, cw, ch), foc = MAPI.focus === i;
+    cx.save(); if (hv || foc) { cx.shadowColor = '#b48cff'; cx.shadowBlur = 16; } glass(x, y, cw, ch, open ? (hv || foc ? '#b48cff' : 'rgba(180,140,255,0.4)') : 'rgba(255,255,255,0.15)', open ? 0.88 : 0.6); cx.restore();
+    txt(String(i + 1).padStart(2, '0'), x + 12, y + 18, 13, open ? '#b48cff' : 'rgba(255,255,255,0.3)', 'left', 900, MONO);
+    txt(L.name, x + 40, y + 18, 13, open ? '#fff' : 'rgba(255,255,255,0.35)', 'left', 900);
+    txt(L.client, x + 12, y + 38, 10, open ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.25)', 'left', 700);
+    if (open) {
+      const g = L.goals[0]; txt((g.kind === 'tube' ? 'Field: tubes @ ' : g.kind === 'marker' ? 'Spark ' : 'Strike @ ') + fmtIn(g.d), x + 12, y + 58, 10, '#d8c8ff', 'left', 800, MONO);
+      txt('$' + L.budget + ' budget  \u00b7  ' + L.mains[0] + 'V/' + L.mains[1] + 'A', x + 12, y + 76, 9.5, 'rgba(255,255,255,0.5)', 'left', 800, MONO);
+      for (let k = 0; k < 3; k++) star(x + cw - 66 + k * 22, y + ch - 18, 9, k < st);
+      UI.push({ id: 'lv' + i, x, y, w: cw, h: ch, fn: () => openBuild(L) });
+    } else txt('LOCKED', x + cw / 2, y + 72, 12, 'rgba(255,255,255,0.3)', 'center', 900, MONO);
+  });
+  const sbOpen = levelOpen(3), y = gy + 3 * (ch + 8);
+  button('sandbox', gx, y, W - gx * 2, 52, 'SANDBOX LAB', { col: '#ffd23f', size: 17, sub: sbOpen ? 'every part unlocked, no budget, no clock  \u00b7  best spark ' + fmtIn(save.best) : 'clear contract 3 to unlock', disabled: !sbOpen, fn: () => openBuild(SANDBOX) });
+}
+function updateMap() {
+  if (pressed.pause) game.state = 'title';
+  if (pressed.cycle) MAPI.focus = (MAPI.focus + 1) % LEVELS.length;
+  if (pressed.start && levelOpen(MAPI.focus)) openBuild(LEVELS[MAPI.focus]);
+}
+function drawPause() {
+  cx.fillStyle = 'rgba(2,3,8,0.6)'; cx.fillRect(0, 0, W, H);
+  metalTxt('PAUSED', W / 2, H / 2 - 40, 40, 'center');
+  button('resume', W / 2 - 100, H / 2, 200, 44, 'RESUME', { col: '#3cff7a', size: 16, fn: () => { game.paused = false; } });
+  button('quit', W / 2 - 100, H / 2 + 54, 200, 36, 'BACK TO BUILD', { col: '#ff5a6a', size: 12, fn: () => { game.paused = false; openBuild(F.L); } });
+}
+
+// ---------- MAIN LOOP ----------
+function update(dt) {
+  game.t += dt;
+  for (const tm of game.timers) { tm.t -= dt; if (tm.t <= 0 && !tm.fired) { tm.fired = true; tm.fn(); } } game.timers = game.timers.filter(q => !q.fired);
+  for (const m of toasts) m.t -= dt; toasts = toasts.filter(m => m.t > 0);
+  if (pressed.mute) setMute(!muted);
+  musicTick();
+  if (game.state === 'title') { if (pressed.start || pressed.fire) game.state = 'map'; }
+  else if (game.state === 'map') updateMap();
+  else if (game.state === 'build') updateBuild();
+  else if (game.state === 'fire') {
+    if (pressed.pause && !F.end) { game.paused = !game.paused; if (game.paused) buzzSet(0, 120, 0); }
+    if (F.end && F.endT > 1.2 && pressed.start) { const nx = LEVELS[LEVELS.indexOf(F.L) + 1]; if (F.end.win && nx) openBuild(nx); else openBuild(F.L); return; }
+    if (game.paused) return;
+    updateFire(dt);
+  }
+  game.flash = Math.max(0, game.flash - dt * 2.5);
+}
+function render() {
+  UI = [];
+  cx.setTransform(SC, 0, 0, SC, 0, 0);
+  cx.clearRect(0, 0, W, H);
+  if (game.state === 'title') drawTitle();
+  else if (game.state === 'map') drawMap();
+  else if (game.state === 'build') drawBuild();
+  else if (game.state === 'fire') { drawFire(); if (game.paused) drawPause(); }
+  if (game.state !== 'fire') toasts.forEach((tt, i) => { cx.globalAlpha = clamp(tt.t / 0.3, 0, 1); txtS(tt.s, W / 2, 90 + i * 24, 15, tt.col, 'center', 900); });
+  cx.globalAlpha = 1;
+  if (game.flash > 0) { cx.save(); cx.globalAlpha = game.flash * 0.5; cx.fillStyle = game.flashCol; cx.fillRect(0, 0, W, H); cx.restore(); }
+  vignette();
+  UIprev = UI; ptr.justDown = false;
+  cv.style.cursor = game.state === 'fire' && !F.end && ptr.x < 836 ? 'crosshair' : 'default';
+}
+cv.addEventListener('pointerdown', () => { ptr.consumed = false; }, true);
+function frame(dt) {
+  if (pressed.click && processClicks()) { ptr.consumed = true; }
+  update(dt);
+  for (const k in pressed) pressed[k] = false;
+}
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  frame(dt); render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+window.__TF = { game, F, BS, LEVELS, SANDBOX, PARTS, coilModel, bestTap, buildCost, openBuild, startFire, save, held, ptr, step: (n, dt) => { for (let i = 0; i < n; i++) frame(dt || 1 / 60); }, render };
+
+})();
+</script>
+</body>
+</html>
