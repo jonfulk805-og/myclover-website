@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05040c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%230a0603%22/%3E%3Ccircle cx=%2222%22 cy=%2222%22 r=%2212%22 fill=%22%23ff3b3b%22/%3E%3Ccircle cx=%2242%22 cy=%2222%22 r=%2212%22 fill=%22%233cff7a%22/%3E%3Ccircle cx=%2222%22 cy=%2242%22 r=%2212%22 fill=%22%23ff9a1f%22/%3E%3Ccircle cx=%2242%22 cy=%2242%22 r=%2212%22 fill=%22%23ffd23f%22/%3E%3C/svg%3E">
+<title>CLOVER BLAST: Demolition &amp; Mining Academy | MyClover.Tech</title>
+<meta name="description" content="CLOVER BLAST - a demolition and mining blasting simulator. Choose charges, place them, time the delays and bring down chimneys, garages, hotels and quarry benches without hitting the neighbours. Learn how real blasters work. Free browser game from MyClover.Tech.">
+<style>
+html,body{margin:0;height:100%;background:#05040c;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+body{display:flex;align-items:center;justify-content:center}
+canvas{display:block;box-shadow:0 0 60px rgba(255,140,40,.12);outline:none}
+#rot{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#05040c;color:#fff;font:800 18px system-ui,sans-serif;text-align:center;z-index:9;padding:24px}
+#rot .ph{width:46px;height:78px;border:3px solid #ffd23f;border-radius:9px;animation:rt 1.6s ease-in-out infinite}
+@keyframes rt{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (orientation:portrait) and (max-width:820px){#rot{display:flex}}
+html,body{cursor:default}
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="0" role="img" aria-label="CLOVER BLAST blasting simulator. Click charge points to load them, set delays, run the safety checklist and fire. Enter to fire, H for handbook, P to pause, arrows adjust delay."></canvas>
+<div id="live" class="sr" aria-live="polite"></div>
+<div id="rot"><div class="ph"></div><div>Rotate your phone to landscape</div><div style="font-weight:600;font-size:13px;opacity:.65">CLOVER BLAST needs the wide view</div></div>
+<script>
+(function(){
+'use strict';
+// ===== CLOVER BLAST: Demolition & Mining Academy =====
+// Original code + procedurally drawn art by Viktor for MyClover.Tech. No external assets.
+const W = 960, H = 540;
+const cv = document.getElementById('c');
+const cx = cv.getContext('2d');
+const TOUCH = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1 || /Mobi|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent);
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
+let RMOTION = LS.get('cb_rm', null) != null ? LS.get('mg_rm') === '1' : !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+let SC = 1, CRect = null;
+function fit() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  const cw = Math.max(1, Math.floor(W * s)), ch = Math.max(1, Math.floor(H * s));
+  cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  SC = Math.max(1, Math.min(2, cw * (window.devicePixelRatio || 1) / W));
+  cv.width = Math.round(W * SC); cv.height = Math.round(H * SC);
+  CRect = null;
+}
+addEventListener('resize', fit); fit();
+
+// ---------- utils ----------
+const RND = (a, b) => a + Math.random() * (b - a);
+const RI = (a, b) => Math.floor(RND(a, b + 1));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const angTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+const wrapA = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
+const turnTo = (a, t, m) => { const d = wrapA(t - a); return a + clamp(d, -m, m); };
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const MONO = 'ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace';
+
+// ---------- GFX: noise, glow sprites, painted arenas ----------
+function layer(w, h, s) {
+  s = s || Math.min(2, SC);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w * s)); c.height = Math.max(1, Math.ceil(h * s));
+  const g = c.getContext('2d'); g.scale(s, s); return [c, g];
+}
+let seed = 1337;
+const srand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const sr = (a, b) => a + srand() * (b - a);
+function hash(x, y) { let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y, o) { o = o || 4; let s = 0, a = 0.5, f = 1, n = 0; for (let i = 0; i < o; i++) { s += a * vnoise(x * f, y * f); n += a; f *= 2; a *= 0.5; } return s / n; }
+const RGBC = {};
+function hexRgb(c) {
+  if (RGBC[c]) return RGBC[c];
+  let r = 255, g = 255, b = 255;
+  if (c[0] === '#') { let h = c.slice(1); if (h.length === 3) h = h.split('').map(q => q + q).join(''); const n = parseInt(h, 16); r = (n >> 16) & 255; g = (n >> 8) & 255; b = n & 255; }
+  else { const m = c.match(/\d+/g); if (m) { r = +m[0]; g = +m[1]; b = +m[2]; } }
+  return (RGBC[c] = [r, g, b]);
+}
+const SHC = {};
+function shade(c, k) { const key = c + k; if (SHC[key]) return SHC[key]; const f = v => Math.max(0, Math.min(255, Math.round(k > 0 ? v + (255 - v) * k : v * (1 + k)))); const [r, g, b] = hexRgb(c); return (SHC[key] = 'rgb(' + f(r) + ',' + f(g) + ',' + f(b) + ')'); }
+const rgba = (c, a) => { const [r, g, b] = hexRgb(c); return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'; };
+function glowSprite(rgb, size) {
+  size = size || 128; const [c, g] = layer(size, size, 1);
+  const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gr.addColorStop(0, 'rgba(' + rgb + ',1)'); gr.addColorStop(0.22, 'rgba(' + rgb + ',0.5)'); gr.addColorStop(0.55, 'rgba(' + rgb + ',0.13)'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+  g.fillStyle = gr; g.fillRect(0, 0, size, size); return c;
+}
+const GLOWC = {};
+function glowOf(c) { return GLOWC[c] || (GLOWC[c] = glowSprite(hexRgb(c).join(','), 64)); }
+function glowAt(x, y, r, c, a, g) {
+  g = g || cx; g.globalCompositeOperation = 'lighter'; g.globalAlpha = a == null ? 1 : a;
+  g.drawImage(glowOf(c), x - r, y - r, r * 2, r * 2); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+}
+const SMOKE = [0, 1, 2].map(i => { seed = 50 + i; const size = 96, [c, g] = layer(size, size, 1);
+  for (let k = 0; k < 14; k++) { const a = srand() * 6.28, d = srand() * 22, r = 14 + srand() * 20, x = 48 + Math.cos(a) * d, y = 48 + Math.sin(a) * d, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(70,66,74,0.36)'); gr.addColorStop(1, 'rgba(70,66,74,0)'); g.fillStyle = gr; g.fillRect(0, 0, size, size); }
+  return c; });
+const FIRE = (() => { const [c, g] = layer(64, 64, 1), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,250,225,1)'); gr.addColorStop(0.25, 'rgba(255,200,90,0.9)'); gr.addColorStop(0.55, 'rgba(230,90,20,0.45)'); gr.addColorStop(1, 'rgba(120,20,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
+function pnoise(x, y, p) { // periodic value noise (period p cells) so grain tiles seamlessly
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), m = q => ((q % p) + p) % p;
+  const a = hash(m(xi), m(yi)), b = hash(m(xi + 1), m(yi)), c = hash(m(xi), m(yi + 1)), d = hash(m(xi + 1), m(yi + 1));
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+const NOISE = (() => { const N = 256, [c, g] = layer(N, N, 1), id = g.createImageData(N, N), d = id.data;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let n = 0, a = 0.5, f = 8, s = 0; for (let o = 0; o < 4; o++) { n += a * pnoise(x / N * f, y / N * f, f); s += a; a *= 0.5; f *= 2; }
+    n = n / s * 0.6 + hash(x * 7 + 1, y * 13 + 5) * 0.4; const v = clamp(128 + (n - 0.5) * 220, 0, 255), i = (y * N + x) * 4; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  g.putImageData(id, 0, 0); return c; })();
+let VIG = null;
+function vignette() {
+  if (!VIG) { const [c, g] = layer(W, H, 1), vg = g.createRadialGradient(W / 2, H * 0.52, H * 0.35, W / 2, H / 2, W * 0.66);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(0.7, 'rgba(4,3,10,0.25)'); vg.addColorStop(1, 'rgba(2,1,6,0.7)'); g.fillStyle = vg; g.fillRect(0, 0, W, H); VIG = c; }
+  cx.drawImage(VIG, 0, 0, W, H);
+}
+const lin = (g, x0, y0, x1, y1, stops) => { const gr = g.createLinearGradient(x0, y0, x1, y1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+const radg = (g, x0, y0, r0, x1, y1, r1, stops) => { const gr = g.createRadialGradient(x0, y0, r0, x1, y1, r1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function grain(g, x, y, w, h, alpha, mode) {
+  g.save(); g.globalAlpha = alpha; g.globalCompositeOperation = mode || 'overlay';
+  for (let yy = y; yy < y + h; yy += 256) for (let xx = x; xx < x + w; xx += 256) g.drawImage(NOISE, xx, yy);
+  g.restore();
+}
+
+
+// ---------- UI kit ----------
+let UI = [], UIprev = [];
+function txt(s, x, y, size, col, align, weight, font) {
+  cx.font = (weight || 800) + ' ' + size + 'px ' + (font || FONT); cx.textAlign = align || 'left'; cx.textBaseline = 'middle';
+  cx.fillStyle = col || '#fff'; cx.fillText(s, x, y);
+}
+function txtS(s, x, y, size, col, align, weight) { cx.save(); cx.shadowColor = 'rgba(0,0,0,0.85)'; cx.shadowBlur = 8; cx.shadowOffsetY = 2; txt(s, x, y, size, col, align, weight); cx.restore(); }
+function glass(x, y, w, h, accent, a, r) {
+  r = r || 12; cx.save();
+  cx.fillStyle = 'rgba(6,12,14,' + (a == null ? 0.8 : a) + ')'; rrect(cx, x, y, w, h, r); cx.fill();
+  cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, 'rgba(255,255,255,0.08)'], [0.15, 'rgba(255,255,255,0.02)'], [1, 'rgba(255,255,255,0)']]); rrect(cx, x, y, w, h, r); cx.fill();
+  cx.strokeStyle = rgba(accent || '#7fe0e8', 0.35); cx.lineWidth = 1.2; rrect(cx, x + 0.5, y + 0.5, w - 1, h - 1, r); cx.stroke();
+  cx.restore();
+}
+function hov(x, y, w, h) { return ptr.seen && ptr.type === 'mouse' && ptr.x > x && ptr.x < x + w && ptr.y > y && ptr.y < y + h; }
+function button(id, x, y, w, h, label, opt) {
+  opt = opt || {}; const hv = hov(x, y, w, h), col = opt.col || '#3cff7a', dis = opt.disabled;
+  cx.save();
+  if (!dis && (hv || opt.hot)) { cx.shadowColor = col; cx.shadowBlur = 18; }
+  cx.fillStyle = dis ? 'rgba(40,44,50,0.75)' : lin(cx, 0, y, 0, y + h, [[0, rgba(col, hv ? 0.5 : 0.32)], [1, rgba(shade(col, -0.65), hv ? 0.8 : 0.6)]]);
+  rrect(cx, x, y, w, h, Math.min(10, h / 2)); cx.fill(); cx.shadowBlur = 0;
+  cx.strokeStyle = dis ? 'rgba(255,255,255,0.15)' : rgba(col, 0.9); cx.lineWidth = 1.4; cx.stroke();
+  cx.fillStyle = 'rgba(255,255,255,0.1)'; rrect(cx, x + 3, y + 2, w - 6, h * 0.42, Math.min(8, h / 3)); cx.fill();
+  if (opt.sub) { txt(label, x + w / 2, y + h * 0.36, opt.size || 14, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900); txt(opt.sub, x + w / 2, y + h * 0.72, 10.5, dis ? 'rgba(255,255,255,0.35)' : rgba(shade(col, 0.5), 0.95), 'center', 700); }
+  else txt(label, x + w / 2, y + h / 2 + 1, opt.size || 15, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900);
+  if (opt.key) { cx.fillStyle = 'rgba(0,0,0,0.45)'; rrect(cx, x + w - 22, y + 5, 17, 15, 4); cx.fill(); txt(opt.key, x + w - 13.5, y + 13, 9.5, 'rgba(255,255,255,0.7)', 'center', 900); }
+  if (opt.fill != null) { cx.fillStyle = rgba(col, 0.35); rrect(cx, x, y + h - 4, w * clamp(opt.fill, 0, 1), 4, 2); cx.fill(); }
+  cx.restore();
+  UI.push({ id, x, y, w, h, fn: opt.fn, dis });
+}
+function processClicks() {
+  if (!pressed.click) return false;
+  for (let i = UIprev.length - 1; i >= 0; i--) { const b = UIprev[i];
+    if (ptr.x > b.x && ptr.x < b.x + b.w && ptr.y > b.y && ptr.y < b.y + b.h) { if (b.dis) sfx('deny'); else if (b.fn) { sfx('select'); b.fn(); } pressed.click = false; pressed.down = false; return true; } }
+  return false;
+}
+let toasts = [];
+function toast(s, col, dur) {
+  if (toasts.length && toasts[toasts.length - 1].s === s) { toasts[toasts.length - 1].t = dur || 1.8; return; }
+  toasts.push({ s, col: col || '#fff', t: dur || 1.8, max: dur || 1.8 }); if (toasts.length > 3) toasts.shift();
+}
+const liveEl = document.getElementById('live');
+function announce(s) { if (liveEl) liveEl.textContent = s; }
+function cloverLogo(x, y, r) {
+  const cols = ['#ff3b3b', '#3cff7a', '#ff9a1f', '#ffd23f'];
+  for (let i = 0; i < 4; i++) { const a = -2.356 + i * 1.5708, lx = x + Math.cos(a) * r * 0.5, ly = y + Math.sin(a) * r * 0.5;
+    cx.fillStyle = radg(cx, lx - r * 0.15, ly - r * 0.15, 0, lx, ly, r * 0.55, [[0, '#fffbe8'], [0.3, cols[i]], [1, shade(cols[i], -0.65)]]); cx.beginPath(); cx.arc(lx, ly, r * 0.48, 0, 6.29); cx.fill();
+    cx.strokeStyle = 'rgba(255,235,170,0.8)'; cx.lineWidth = 1; cx.stroke(); }
+}
+function star(x, y, r, on) {
+  cx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; cx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } cx.closePath();
+  cx.fillStyle = on ? lin(cx, x, y - r, x, y + r, [[0, '#fff3b0'], [0.5, '#ffd23f'], [1, '#c07a10']]) : 'rgba(255,255,255,0.12)'; cx.fill();
+  cx.strokeStyle = on ? '#fff0a0' : 'rgba(255,255,255,0.25)'; cx.lineWidth = 1; cx.stroke();
+}
+function fmtT(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function txtGlow(s, x, y, size, col, align) { cx.save(); cx.shadowColor = col; cx.shadowBlur = 12; txt(s, x, y, size, col, align || 'right', 700, MONO); cx.restore(); }
+function bar(x, y, w, h, f, col) {
+  cx.fillStyle = 'rgba(255,255,255,0.08)'; rrect(cx, x, y, w, h, h / 2); cx.fill();
+  if (f > 0) { cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, shade(col, 0.4)], [0.5, col], [1, shade(col, -0.35)]]); rrect(cx, x, y, Math.max(h, w * clamp(f, 0, 1)), h, h / 2); cx.fill(); }
+}
+
+// ---------- global game state ----------
+const game = { state: 'title', t: 0, paused: false, timers: [], shake: 0, flash: 0, flashCol: '#fff', fox: 0, foy: 0 };
+function later(fn, d) { game.timers.push({ fn, t: d }); }
+
+// ---------- input: pointer + keyboard ----------
+const ptr = { x: W / 2, y: H / 2, down: false, type: 'mouse', seen: false, sx: 0, sy: 0, moved: 0 };
+const pressed = {}, held = {};
+function toLogical(e) {
+  if (!CRect) CRect = cv.getBoundingClientRect();
+  return { x: (e.clientX - CRect.left) / CRect.width * W, y: (e.clientY - CRect.top) / CRect.height * H };
+}
+addEventListener('scroll', () => CRect = null);
+cv.addEventListener('pointerdown', e => {
+  ensureAudio(); const p = toLogical(e); ptr.x = p.x; ptr.y = p.y; ptr.sx = p.x; ptr.sy = p.y; ptr.moved = 0;
+  ptr.down = true; ptr.type = e.pointerType; ptr.seen = true;
+  ptr.btn = e.button; if (e.button === 2) { pressed.rclick = true; ptr.rdown = true; } else { pressed.click = true; pressed.down = true; ptr.ldown = true; }
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', e => { const p = toLogical(e); ptr.moved += Math.hypot(p.x - ptr.x, p.y - ptr.y); ptr.x = p.x; ptr.y = p.y; ptr.type = e.pointerType; ptr.seen = true; });
+const up = e => { if (ptr.down) pressed.up = true; ptr.down = false; ptr.ldown = false; ptr.rdown = false; };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); addEventListener('pointerup', up);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+const KM = { Space: 'start', Escape: 'pause', KeyP: 'pause', Enter: 'start', KeyM: 'mute', KeyR: 'restart', KeyH: 'book', ArrowLeft: 'dl', ArrowRight: 'dr' };
+const HK = { ShiftLeft: 'shift', ShiftRight: 'shift' };
+addEventListener('keydown', e => {
+  ensureAudio(); const a = KM[e.code], h = HK[e.code];
+  if (a && !e.repeat) { pressed[a] = true; e.preventDefault(); }
+  if (h) { held[h] = true; ptr.kb = true; e.preventDefault(); }
+});
+addEventListener('keyup', e => { const h = HK[e.code]; if (h) held[h] = false; });
+addEventListener('blur', () => { ptr.down = false; for (const k in held) held[k] = false; if (game.state === 'plan' && P.phase === 'blast') game.paused = true; });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (game.state === 'plan' && P.phase === 'blast') game.paused = true; if (AC && AC.state === 'running') AC.suspend(); }
+  else if (AC && AC.state === 'suspended') AC.resume();
+});
+
+// ---------- AUDIO ENGINE (100% synthesized, no samples) ----------
+let AC = null, master = null, comp = null, musicBus = null, sfxBus = null, distBus = null, delay = null, noiseBuf = null;
+let muted = LS.get('cb_mute', '0') === '1', musicOn = LS.get('cb_music', '1') === '1';
+const VOL = 0.5;
+function ensureAudio() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    comp = AC.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.18;
+    master = AC.createGain(); master.gain.value = muted ? 0 : VOL; master.connect(comp); comp.connect(AC.destination);
+    sfxBus = AC.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
+    musicBus = AC.createGain(); musicBus.gain.value = musicOn ? 0.55 : 0; musicBus.connect(master);
+    // distortion bus for explosions / big hits
+    distBus = AC.createWaveShaper(); const n = 1024, cu = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; cu[i] = Math.tanh(x * 4.5); } distBus.curve = cu; distBus.oversample = '2x';
+    const dg = AC.createGain(); dg.gain.value = 0.7; distBus.connect(dg); dg.connect(sfxBus);
+    // ping-pong-ish delay for arps and zaps
+    delay = AC.createDelay(1); delay.delayTime.value = 60 / 96 * 0.75; const fb = AC.createGain(); fb.gain.value = 0.34;
+    const dl = AC.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 2600;
+    delay.connect(dl); dl.connect(fb); fb.connect(delay); const dOut = AC.createGain(); dOut.gain.value = 0.5; dl.connect(dOut); dOut.connect(master);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (err) { AC = null; }
+}
+function out(bus) { return bus === 'd' ? distBus : bus === 'm' ? musicBus : bus === 'e' ? delay : sfxBus; }
+function tone(f, d, type, v, slide, when, bus, attack) {
+  if (!AC || muted) return null;
+  const t = when || AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square'; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, f + slide), t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v || 0.1, t + (attack || 0.004)); g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+  o.connect(g); g.connect(out(bus)); if (bus === 'e') g.connect(sfxBus);
+  o.start(t); o.stop(t + d + 0.03); return o;
+}
+function noise(d, v, freq, slide, type, when, q, bus) {
+  if (!AC || muted) return;
+  const t = when || AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf; f.type = type || 'lowpass'; f.frequency.setValueAtTime(freq || 1200, t); if (q) f.Q.value = q;
+  if (slide) f.frequency.exponentialRampToValueAtTime(Math.max(40, (freq || 1200) + slide), t + d);
+  g.gain.setValueAtTime(v || 0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  s.connect(f); f.connect(g); g.connect(out(bus)); s.start(t, Math.random() * 1.2); s.stop(t + d + 0.02);
+}
+// buzzy electrical tone: carrier with fast FM wobble (mains hum / arc)
+function arc(f, d, v, when, bus, modf) {
+  if (!AC || muted) return;
+  const t = when || AC.currentTime, o = AC.createOscillator(), m = AC.createOscillator(), mg = AC.createGain(), g = AC.createGain();
+  o.type = 'sawtooth'; o.frequency.value = f; m.type = 'square'; m.frequency.value = modf || 60; mg.gain.value = f * 0.6;
+  m.connect(mg); mg.connect(o.frequency);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.005); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  o.connect(g); g.connect(out(bus)); o.start(t); m.start(t); o.stop(t + d + 0.02); m.stop(t + d + 0.02);
+}
+function duck(amt, dur) { if (!AC || !musicBus || !musicOn) return; const t = AC.currentTime, g = musicBus.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0.55 * (1 - amt), t + 0.02); g.linearRampToValueAtTime(0.55, t + dur); }
+
+// ---------- SOUND: synthesized blasts, sirens, UI ----------
+const sfxLast = {};
+const SFX = {
+  tick: () => tone(1400, 0.03, 'square', 0.03),
+  select: () => { tone(660, 0.05, 'triangle', 0.06); tone(990, 0.07, 'triangle', 0.05, 0, AC.currentTime + 0.04); },
+  deny: () => tone(160, 0.18, 'sawtooth', 0.06, -60),
+  beep: n => tone(n === 4 ? 1320 : 880, 0.16, 'square', 0.07),
+  siren: () => { const t = AC.currentTime; const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(420, t); o.frequency.linearRampToValueAtTime(980, t + 0.45); o.frequency.linearRampToValueAtTime(420, t + 0.9);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.06, t + 0.05); g.gain.setValueAtTime(0.06, t + 0.8); g.gain.exponentialRampToValueAtTime(0.001, t + 0.95);
+    const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2200; o.connect(f); f.connect(g); g.connect(sfxBus); o.start(t); o.stop(t + 1); },
+  fire: () => { noise(0.08, 0.15, 3000, 0, 'highpass'); },
+  boom: s => { s = s || 1; const t = AC.currentTime;
+    noise(0.9 + s * 0.4, 0.45 + s * 0.12, 900 + s * 300, -800, 'lowpass', t, 0, 'd');
+    tone(70, 0.7 + s * 0.3, 'sine', 0.5, -40, t, 'd');
+    noise(0.25, 0.3, 4000, -3000, 'bandpass', t, 0.7);
+    for (let i = 0; i < 3; i++) noise(0.4, 0.06, 1800, -1200, 'lowpass', t + 0.25 + i * 0.18 + Math.random() * 0.1); // debris patter
+    duck(0.6, 1.2); },
+  crack: () => { noise(0.12, 0.22, 2200, -1500, 'bandpass', 0, 2); tone(140, 0.25, 'sawtooth', 0.06, -80); },
+  rumble: () => noise(2.2, 0.35, 300, -200, 'lowpass', 0, 0, 'd'),
+  win: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.3, 'triangle', 0.08, 0, AC.currentTime + i * 0.1, 'e')); },
+  lose: () => { [392, 330, 262].forEach((f, i) => tone(f, 0.35, 'sawtooth', 0.05, -20, AC.currentTime + i * 0.16)); }
+};
+function sfx(nm, k) {
+  if (!AC || muted || !SFX[nm]) return;
+  const t = performance.now(); if (sfxLast[nm] && t - sfxLast[nm] < (nm === 'boom' ? 60 : 30)) return;
+  sfxLast[nm] = t; SFX[nm](k);
+}
+function setMute(v) { muted = v; LS.set('cb_mute', v ? '1' : '0'); if (master) master.gain.value = muted ? 0 : VOL; }
+// low wind ambience while planning
+let ambT = 0;
+function musicTick() {
+  if (!AC || muted) return; const t = AC.currentTime;
+  if (t > ambT) { ambT = t + 3.5; noise(4, 0.012, 380, 0, 'lowpass', t); }
+}
+
+// ---------- DATA: ordnance, lessons, careers, contracts ----------
+// NOTE: deliberately simplified, game-scale models. Concepts (free face, burden, delays,
+// scaled distance, felling notch, pre-weakening, smooth blasting) are standard industry
+// teaching material; numbers are tuned for play, not for field use.
+const ORD = {
+  // structure work
+  lsc:   { name: 'Linear Cutting Charge', short: 'CUTTER', col: '#ff9a1f', kind: 'struct', cost: 260, unconf: 1, w: 1.0,
+           desc: 'Copper-lined strip charge that slices steel. Wrapped against the column.' },
+  drill: { name: 'Drilled Cartridges', short: 'DRILLED', col: '#3cff7a', kind: 'struct', cost: 180, unconf: 0.25, w: 1.2,
+           desc: 'Holes drilled into concrete or brick, loaded and stemmed. Shatters the core.' },
+  kick:  { name: 'Kicker Charge', short: 'KICKER', col: '#ff3b3b', kind: 'struct', cost: 320, unconf: 1, w: 1.3,
+           desc: 'Cuts AND shoves the column sideways to steer which way it falls.' },
+  // rock work
+  anfo:  { name: 'ANFO (bulk)', short: 'ANFO', col: '#ffd23f', kind: 'rock', cost: 14, reach: 3.4, kgm: 8.5, wet: false,
+           desc: 'Cheap, powerful bulk agent poured into dry holes. Water ruins it.' },
+  emul:  { name: 'Emulsion', short: 'EMULSION', col: '#5aa0ff', kind: 'rock', cost: 26, reach: 3.8, kgm: 11, wet: true,
+           desc: 'Water-resistant, a bit denser and stronger. Costs more.' },
+  trim:  { name: 'Trim / Perimeter', short: 'TRIM', col: '#c78bff', kind: 'rock', cost: 18, reach: 1.5, kgm: 1.2, wet: true,
+           desc: 'Light, decoupled load for clean final walls. Low vibration, little overbreak.' },
+  none:  { name: 'Leave empty', short: 'EMPTY', col: '#7d8a94', kind: 'any', cost: 0, reach: 0, kgm: 0, wet: true, desc: 'No charge in this hole.' }
+};
+const SIZES = [null, { n: 'S', name: 'Small', mult: 1 }, { n: 'M', name: 'Medium', mult: 2 }, { n: 'L', name: 'Large', mult: 3.4 }];
+const STEMS = [{ n: 'SHORT', m: 1.2 }, { n: 'NORMAL', m: 2.6 }, { n: 'LONG', m: 4.2 }];
+
+const CHECKLIST = [
+  { id: 'survey', name: 'Pre-blast survey of nearby structures', why: 'Photos and notes on neighbors\' existing cracks. Without it, every crack becomes "your" crack.' },
+  { id: 'seis', name: 'Seismograph + mic set at nearest structure', why: 'Every blast is recorded. No record = a violation, even if the blast was perfect.' },
+  { id: 'circuit', name: 'Firing circuit tested', why: 'Test the hook-up before anyone is exposed. Untested circuits cause misfires.' },
+  { id: 'guards', name: 'Blast area cleared, guards on every access', why: 'Nobody inside the blast area. Guards block every road and trail until all-clear.' },
+  { id: 'signals', name: 'Warning signals sounded', why: 'Audible warning before the blast and an all-clear after - so everyone knows.' },
+  { id: 'weather', name: 'Weather checked - no lightning nearby', why: 'Lightning can set off charges. Loading stops and the area clears when storms approach.' }
+];
+
+const LESSONS = [
+  { id: 'cut', t: 'Match the charge to the material', b: [
+    'Steel columns are severed with linear shaped (cutting) charges wrapped on the flange. Concrete and masonry columns are drilled and loaded instead.',
+    'Undersize a charge and the column survives. Oversize it and you pay in flyrock, airblast and cost.',
+    'Real crews test-shoot sample columns before the main blast to confirm the design.'] },
+  { id: 'face', t: 'Burden and the free face', b: [
+    'Rock breaks toward the nearest free face (open air). The distance from a hole to that face is called the BURDEN.',
+    'Burden too big: the hole "chokes" - rock cracks but doesn\'t move, makes boulders and shakes the ground. Too small: rock is over-driven into flyrock.',
+    'Stemming (crushed stone packed on top of the charge) keeps gas in the hole. Too little and it blows out the top.'] },
+  { id: 'delay', t: 'Delays: milliseconds matter', b: [
+    'Detonators fire holes milliseconds apart. Each hole gets a fresh free face from the one before it, and less explosive goes off at the same instant.',
+    'Rule of thumb used in vibration control: charges firing within ~8 ms of each other count as one. Spread them out and the ground shakes less.',
+    'Give rock time to move - fire the next row before the last one clears and it chokes.'] },
+  { id: 'fell', t: 'Felling: notch and hinge', b: [
+    'Chimneys and stacks are felled like trees: remove a wedge (notch) on the side you want it to fall, leave a hinge on the back.',
+    'The hinge steers the fall. Cut it too and the stack drops straight down and can go anywhere.',
+    'You need a fall lane at least as long as the stack is tall, plus margin.'] },
+  { id: 'water', t: 'Water in the hole', b: [
+    'ANFO has almost no water resistance - in a wet hole it dissolves and can fail to fire.',
+    'Wet holes get water-resistant products like emulsion, or get dewatered and lined. Always dip your holes before loading.',
+    'An unfired hole is a MISFIRE: the most dangerous thing on site.'] },
+  { id: 'implode', t: 'Implosion: fall into its own footprint', b: [
+    'Take interior columns first so the middle drops; the exterior walls then get pulled inward instead of falling onto the neighbors.',
+    'Pre-weakening: weeks of work removing non-structural walls and cutting shear walls so the building can actually come down.',
+    'Columns are wrapped in geotextile and chain-link fence to hold back debris.'] },
+  { id: 'ppv', t: 'Vibration & scaled distance', b: [
+    'Ground vibration is measured as peak particle velocity (PPV) in inches/second by a seismograph at the nearest structure.',
+    'Predicted with scaled distance: distance divided by the square root of the charge weight per delay. More distance or less charge per delay = less shaking.',
+    'US limits for homes are typically about 0.5 - 2 in/s depending on vibration frequency (USBM RI 8507 / OSM rules); permits set the actual number.'] },
+  { id: 'tunnel', t: 'Underground: the cut comes first', b: [
+    'A tunnel face has no side free face, so rounds start with a CUT - charged holes around big empty relief holes - to open a void.',
+    'Then easers expand the void ring by ring, perimeter holes trim the profile, and lifters on the floor fire last to heave the muck out.',
+    'Perimeter holes use light "smooth blasting" loads to limit overbreak - every extra inch of rock you break has to be hauled and supported.'] },
+  { id: 'air', t: 'Airblast & close-quarters blasting', b: [
+    'Airblast is the pressure pulse in the air, measured in decibels (linear). US surface-mining rules cap it around 133 - 134 dB(L), depending on the microphone.',
+    'Unconfined charges (cutters on columns, blown-out stemming) make the most airblast.',
+    'In town, blasts are covered with heavy blasting mats (woven tires or steel cable) to trap flyrock.'] },
+  { id: 'misfire', t: 'Safety culture: misfires & signals', b: [
+    'If a charge doesn\'t fire, nobody approaches until the required waiting time has passed. Then only the blaster in charge handles it, per regulations and the manufacturer.',
+    'Warning signal before, all-clear after. Guards on every access. Count everyone back in.',
+    'Most blasting accidents come from people in the blast area and flyrock - not from the explosives being "unstable".'] }
+];
+const CAREERS = [
+  ['Licensed Blaster', 'Most US states license blasters: documented experience under a licensed blaster, then a written exam. Requirements vary by state.'],
+  ['Mine & quarry blasting', 'MSHA training (Part 46/48) for mine sites; explosive rules in 30 CFR Parts 56/57 (metal/non-metal) and 77 (coal).'],
+  ['Construction & demolition', 'OSHA 29 CFR 1926 Subpart U covers construction blasting. Demolition blasters usually start as laborers or drillers on specialist crews.'],
+  ['Federal clearance', 'Anyone who handles explosives for a licensed company must be cleared by ATF as an "employee possessor" (Safe Explosives Act).'],
+  ['Engineering paths', 'Mining engineering degrees; Missouri S&T is known for its explosives engineering program. Drill & blast engineers design patterns and run vibration studies.'],
+  ['Industry bodies', 'ISEE (International Society of Explosives Engineers) publishes the Blasters\' Handbook and runs training; IME publishes safety libraries.'],
+  ['Related jobs', 'Seismograph technician, driller/blaster, explosives sales & technical service, blast vibration consultant, magazine keeper.']
+];
+const RANKS = [[0, 'Laborer'], [4, 'Driller\'s Helper'], [9, 'Blaster\'s Helper'], [15, 'Licensed Blaster'], [21, 'Blaster in Charge'], [27, 'Explosives Engineer']];
+
+// ---------- structure builders (meters -> pixels at build time) ----------
+const GY = 446; // ground line in structure scenes
+function frameBuild(o) {
+  // o: {x0 (px), ppm, bays[], floors[], mat, thick (col thickness 1-3 or fn(ci,fi)), core:{bay, floors:[a,b], thick}, slotFloors:[0], roofY}
+  const ppm = o.ppm, nodes = [], mem = [], panels = [], cols = o.bays.length + 1, rows = o.floors.length + 1;
+  const xs = [o.x0]; o.bays.forEach(b => xs.push(xs[xs.length - 1] + b * ppm));
+  const ys = [GY]; o.floors.forEach(f => ys.push(ys[ys.length - 1] - f * ppm));
+  const id = (c, r) => r * cols + c;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) nodes.push({ x: xs[c], y: ys[r], px: xs[c], py: ys[r], pin: r === 0, m: 1, c, r });
+  const add = (a, b, kind, mat, thick, extra) => { const A = nodes[a], B = nodes[b]; const m = Object.assign({ a, b, len: Math.hypot(A.x - B.x, A.y - B.y), kind, mat, thick, alive: true }, extra || {}); mem.push(m); return mem.length - 1; };
+  const slots = [], pre = [];
+  for (let r = 0; r < rows - 1; r++) for (let c = 0; c < cols; c++) {
+    const th = typeof o.thick === 'function' ? o.thick(c, r) : o.thick;
+    const mi = add(id(c, r), id(c, r + 1), 'col', o.mat, th, { ci: c, fi: r });
+    if ((o.slotFloors || [0]).includes(r)) slots.push(mi);
+  }
+  for (let r = 1; r < rows; r++) for (let c = 0; c < cols - 1; c++) add(id(c, r), id(c + 1, r), 'beam', o.mat, 2, { bi: c, fi: r });
+  for (let r = 0; r < rows - 1; r++) for (let c = 0; c < cols - 1; c++) {
+    const core = o.core && o.core.bays.includes(c) && r >= o.core.floors[0] && r <= o.core.floors[1];
+    const kind = core ? 'wall' : 'joint', th = core ? o.core.thick : 1;
+    const d1 = add(id(c, r), id(c + 1, r + 1), kind, o.mat, th, { bi: c, fi: r });
+    const d2 = add(id(c + 1, r), id(c, r + 1), kind, o.mat, th, { bi: c, fi: r });
+    if (core) { pre.push(d1); mem[d1].pair = d2; mem[d2].pair = d1; mem[d2].hidden = true; }
+    panels.push({ n: [id(c, r), id(c + 1, r), id(c + 1, r + 1), id(c, r + 1)], fi: r, bi: c, core, seed: c * 7 + r * 13 });
+  }
+  return { nodes, mem, panels, slots, pre, H0: GY - ys[rows - 1], x0: xs[0], x1: xs[cols - 1], type: 'frame', mat: o.mat, ppm };
+}
+function stackBuild(o) {
+  // brick chimney: two node columns, rungs + X braces; slots: base right / base notch / base left
+  const ppm = o.ppm, nodes = [], mem = [], n = o.segs, h = o.h * ppm / n;
+  for (let i = 0; i <= n; i++) { const t = i / n, w = (o.wb + (o.wt - o.wb) * t) * ppm / 2;
+    nodes.push({ x: o.x - w, y: GY - i * h, px: o.x - w, py: GY - i * h, pin: i === 0, m: 1, r: i });
+    nodes.push({ x: o.x + w, y: GY - i * h, px: o.x + w, py: GY - i * h, pin: i === 0, m: 1, r: i }); }
+  const add = (a, b, kind, extra) => { const A = nodes[a], B = nodes[b]; mem.push(Object.assign({ a, b, len: Math.hypot(A.x - B.x, A.y - B.y), kind, mat: 'brick', thick: 2, alive: true }, extra || {})); return mem.length - 1; };
+  const slots = [];
+  for (let i = 0; i < n; i++) {
+    const L = add(i * 2, i * 2 + 2, 'col', { side: 'L', seg: i }), R = add(i * 2 + 1, i * 2 + 3, 'col', { side: 'R', seg: i });
+    add(i * 2 + 2, i * 2 + 3, 'beam', { seg: i });
+    const d1 = add(i * 2, i * 2 + 3, 'joint', { seg: i, stackBrace: 1 }), d2 = add(i * 2 + 1, i * 2 + 2, 'joint', { seg: i, stackBrace: 1 });
+    if (i === 0) { slots.push(L); slots.push(R); mem[d1].thick = 2; mem[d2].thick = 2; mem[d1].kind = 'notch'; mem[d2].kind = 'notch'; mem[d1].pair = d2; mem[d2].hidden = true; slots.splice(1, 0, d1); }
+  }
+  return { nodes, mem, panels: [], slots, pre: [], H0: o.h * ppm, x0: o.x - o.wb * ppm / 2, x1: o.x + o.wb * ppm / 2, type: 'stack', mat: 'brick', ppm };
+}
+
+// ---------- contracts ----------
+// struct contract fields: zone [x0,x1] px allowed debris, nbrs [{x,w,h,name}], mon {x, dist m}, ppvLim, dbLim
+// rock contract fields: view 'side'|'front', ppm, cell, rockType, holes[], design zone, houses (off-screen distances)
+const CONTRACTS = [
+  { id: 'shed', name: 'Rusty Shed', client: 'Hartley Farms', kind: 'struct', site: 'farm', lesson: 'cut', fee: 4200, budget: 3000,
+    brief: 'An old steel equipment shed has to come down. Steel columns, nothing close by. Learn your tools.',
+    tip: 'Steel columns need CUTTERS. Click each column base, pick a charge, then FIRE.',
+    build: () => frameBuild({ x0: 330, ppm: 14, bays: [6, 6, 6], floors: [5], mat: 'steel', thick: 1, slotFloors: [0] }),
+    zone: [300, 620], nbrs: [{ x: 760, w: 110, h: 64, name: 'Farmhouse', kind: 'house' }], mon: { x: 760, dist: 40 }, ppvLim: 2.0, dbLim: 133, storm: 0 },
+  { id: 'bench1', name: 'First Bench', client: 'Gray Hollow Quarry', kind: 'rock', site: 'quarry', lesson: 'face', fee: 5200, budget: 2600,
+    brief: 'One row of holes along a 10 m limestone bench. Break it to the floor without wrecking the wall behind.',
+    tip: 'Each hole in the side view is a whole ROW of holes going into the screen. Load it, set stemming, keep the hole-to-hole delay so they don\'t all go at once.',
+    view: 'side', ppm: 12, cell: 5, rock: 'limestone', crest: 310, top: 290, floor: 410, face: -1,
+    holes: [{ x: 2.8, depth: 11, n: 6, label: 'Row 1' }], design: { x0: 0, x1: 3.4 }, house: { d: 130, name: 'Ridge Rd houses' }, road: null,
+    ppvLim: 1.0, dbLim: 133, h2h: [0, 9, 17, 25, 42], storm: 0 },
+  { id: 'stack', name: 'Old Mill Chimney', client: 'Riverside Redevelopment', kind: 'struct', site: 'mill', lesson: 'fell', fee: 7800, budget: 2600,
+    brief: 'A 45 m brick stack. The mill office is on the left, an open lane runs to the right. Drop it in the lane.',
+    tip: 'Felling = notch on the side it should fall + a hinge on the other side. Don\'t cut both sides.',
+    build: () => stackBuild({ x: 250, ppm: 6.4, h: 45, segs: 12, wb: 5, wt: 3 }),
+    zone: [180, 640], nbrs: [{ x: 40, w: 150, h: 96, name: 'Mill office', kind: 'brick' }, { x: 735, w: 130, h: 70, name: 'Pump house', kind: 'shed' }], mon: { x: 100, dist: 35 }, ppvLim: 1.5, dbLim: 133, storm: 0 },
+  { id: 'wet', name: 'Wet Holes', client: 'Gray Hollow Quarry', kind: 'rock', site: 'quarry', lesson: 'water', fee: 6400, budget: 3400,
+    brief: 'Two rows after a week of rain. The front row has standing water. Houses 120 m away are watching their walls.',
+    tip: 'Dip the holes: blue = water. Pick a product that survives water there. Rows need time between them.',
+    view: 'side', ppm: 12, cell: 5, rock: 'limestone', crest: 300, top: 285, floor: 405, face: -1,
+    holes: [{ x: 3.2, depth: 11, n: 5, label: 'Row 1', wet: 6 }, { x: 6.2, depth: 11, n: 5, label: 'Row 2' }], design: { x0: 0, x1: 6.8 }, house: { d: 120, name: 'Mill Creek homes' }, road: null,
+    ppvLim: 1.0, dbLim: 133, h2h: [0, 9, 17, 25, 42], storm: 0 },
+  { id: 'garage', name: 'Parking Garage', client: 'City of Port Vale', kind: 'struct', site: 'city', lesson: 'implode', implode: 1, fee: 11500, budget: 4200,
+    brief: 'Three-level concrete garage with an office building tight on each side. It has to fall straight into its own footprint.',
+    tip: 'Interior columns first, outside columns a beat later - the middle drops and drags the walls inward.',
+    build: () => frameBuild({ x0: 300, ppm: 9, bays: [8, 8, 8, 8], floors: [3.4, 3.2, 3.2], mat: 'concrete', thick: (c) => c === 0 || c === 4 ? 1 : 2, slotFloors: [0] }),
+    zone: [282, 606], nbrs: [{ x: 140, w: 130, h: 150, name: 'Vale Insurance', kind: 'office' }, { x: 618, w: 140, h: 120, name: 'Harbor Dental', kind: 'office' }], mon: { x: 620, dist: 12 }, ppvLim: 2.0, dbLim: 133, storm: 0 },
+  { id: 'drift', name: 'Drift Round', client: 'Copper Butte Mine', kind: 'rock', site: 'tunnel', lesson: 'tunnel', fee: 9000, budget: 2900,
+    brief: 'Advance a 5 m x 5 m drift one round. The face has only four empty relief holes. Keep the walls clean.',
+    tip: 'Fire the CUT around the relief holes first, then each ring outward. Perimeter = TRIM. Lifters last. Holes with no void next to them FREEZE.',
+    view: 'front', ppm: 58, cell: 5, rock: 'granite', storm: 0, ppvLim: 9, dbLim: 999, house: null, h2h: null,
+    holes: null /* generated */ },
+  { id: 'quarry3', name: 'Highway Bench', client: 'Summit Aggregates', kind: 'rock', site: 'quarry', lesson: 'ppv', fee: 9800, budget: 5200,
+    brief: 'Three rows of granite next to a highway (flyrock!) with a subdivision 135 m off. Tight vibration limit.',
+    tip: 'Backbreak from the last shot undercut the face near the top - the front row has LESS burden up there. Watch stemming there and keep one hole per delay.',
+    view: 'side', ppm: 12, cell: 5, rock: 'granite', crest: 300, top: 280, floor: 410, face: -1, bulge: 1,
+    holes: [{ x: 2.9, depth: 12, n: 6, label: 'Row 1' }, { x: 5.6, depth: 12, n: 6, label: 'Row 2' }, { x: 8.3, depth: 12, n: 6, label: 'Row 3' }], design: { x0: 0, x1: 8.8 },
+    house: { d: 135, name: 'Summit Ridge subdivision' }, road: { d: 95, name: 'Highway 9' }, ppvLim: 0.75, dbLim: 133, h2h: [0, 9, 17, 25, 42], storm: 1 },
+  { id: 'hotel', name: 'Grand Lido Hotel', client: 'Lido Partners', kind: 'struct', site: 'city', lesson: 'air', implode: 1, fee: 16000, budget: 7800,
+    brief: 'Eight floors of concrete with a stiff shear-wall core. Neighbors on both sides. Thousands watching from the beach.',
+    tip: 'That core will hold the building up. Pre-weaken it (click the core walls) and cut columns on two floors.',
+    build: () => frameBuild({ x0: 350, ppm: 8.6, bays: [7, 7, 7, 7], floors: [4, 3.2, 3.2, 3.2, 3.2, 3.2, 3.2, 3.2], mat: 'concrete', thick: (c, r) => r < 2 ? (c === 0 || c === 4 ? 2 : 3) : 2, core: { bays: [1, 2], floors: [0, 7], thick: 3 }, slotFloors: [0, 2] }),
+    zone: [326, 614], nbrs: [{ x: 180, w: 140, h: 120, name: 'Surf Shop', kind: 'office' }, { x: 640, w: 130, h: 180, name: 'Lido Towers', kind: 'office' }], mon: { x: 640, dist: 15 }, ppvLim: 2.0, dbLim: 133, storm: 0 },
+  { id: 'trench', name: 'Gas Line Trench', client: 'Northfield Utility', kind: 'rock', site: 'street', lesson: 'air', fee: 8800, budget: 2200,
+    brief: 'A 2 m trench through rock in a residential street. A live gas main sits just right of the trench. Homes 25 m away.',
+    tip: 'No side free face: the center hole opens the trench, the sides break into it. Mats over every collar. Keep the right wall clean.',
+    view: 'side', ppm: 70, cell: 5, rock: 'shale', soil: 1.0, trench: { x0: 5.4, x1: 7.6, depth: 2.6 }, face: 0, top: 230,
+    holes: [{ x: 5.7, depth: 3.0, n: 8, label: 'Left' }, { x: 6.5, depth: 3.0, n: 8, label: 'Center' }, { x: 7.3, depth: 3.0, n: 8, label: 'Right' }],
+    pipe: { x: 8.7, y: 1.6, r: 0.28 }, house: { d: 25, name: 'Elm St homes' }, road: null, small: 1, ppvLim: 1.0, dbLim: 133, h2h: [0, 9, 17, 25, 42], storm: 0, mats: 1 },
+  { id: 'tower', name: 'Meridian Tower', client: 'Meridian Holdings', kind: 'struct', site: 'city2', lesson: 'misfire', fee: 21000, budget: 9800,
+    brief: 'A 12-storey steel office tower. The only open ground is the lot to the RIGHT. Fell it into the lot like a tree.',
+    tip: 'Cut the right side first on several floors, kick it right, and leave the left side as a hinge - or cut it last.',
+    build: () => frameBuild({ x0: 178, ppm: 7, bays: [8, 8, 8], floors: [4.2, 3.6, 3.6, 3.6, 3.6, 3.6, 3.6, 3.6, 3.6, 3.6, 3.6, 3.6], mat: 'steel', thick: (c, r) => r < 3 ? 2 : 1, slotFloors: [0, 1, 2] }),
+    zone: [140, 760], nbrs: [{ x: 18, w: 112, h: 210, name: 'Bank Plaza', kind: 'office' }, { x: 790, w: 150, h: 110, name: 'Transit depot', kind: 'office' }], mon: { x: 120, dist: 14 }, ppvLim: 2.0, dbLim: 133, storm: 1 }
+];
+const SAND_NOTE = 'Practice mode: unlimited budget, no stars.';
+// drift round hole layout (front view, meters relative to tunnel floor center)
+function driftHoles() {
+  const H = [], cy = 2.0, add = (x, y, g) => H.push({ fx: +x.toFixed(2), fy: +y.toFixed(2), group: g, label: g });
+  const prof = (x, y, sh) => { if (y < 0) return false; if (y <= 3.2) return Math.abs(x) <= 2.5 - sh; return Math.hypot(x / (2.5 - sh), (y - 3.2) / (1.8 - sh)) <= 1; };
+  const rel = [[-0.11, cy - 0.11], [0.11, cy - 0.11], [-0.11, cy + 0.11], [0.11, cy + 0.11]];
+  [[-0.42, cy], [0.42, cy], [0, cy - 0.42], [0, cy + 0.42]].forEach(p => add(p[0], p[1], 'CUT'));
+  const rings = [[1.0, 'EASER 1', 0.39], [1.65, 'EASER 2', 0], [2.3, 'EASER 3', 0.2]];
+  for (const [r, g, ph] of rings) { const n = Math.round(6.283 * r / 0.78);
+    for (let k = 0; k < n; k++) { const a = ph + k / n * 6.283, x = Math.cos(a) * r, y = cy + Math.sin(a) * r;
+      if (prof(x, y, 0.55) && y > 0.8) add(x, y, g); } }
+  // perimeter: walk the profile 0.3 m inside
+  const pts = []; for (let y = 0.9; y <= 3.2; y += 0.68) { pts.push([-2.2, y]); pts.push([2.2, y]); }
+  for (let k = 1; k < 8; k++) { const a = k / 8 * Math.PI; pts.push([Math.cos(a) * 2.2, 3.2 + Math.sin(a) * 1.5]); }
+  pts.forEach(p => add(p[0], p[1], 'PERIMETER'));
+  for (let k = 0; k < 7; k++) add(-2.2 + k * (4.4 / 6), 0.3, 'LIFTERS');
+  return { holes: H, relief: rel };
+}
+
+// ---------- STRUCTURE PHYSICS: verlet frame with breakable members, rubble heightmap ----------
+// Members: col / beam / joint (hidden rigidity) / wall (shear core) / notch (stack base braces)
+const SP = { g: 520, iters: 16, damp: 0.995 };
+const BRK = { col: 0.10, beam: 0.12, joint: 0.035, wall: 0.06, notch: 0.06 };
+let S = null; // structure sim state
+function structInit(con) {
+  const B = con.build();
+  S = Object.assign(B, { con, t: 0, pile: new Float32Array(Math.ceil(W / 4) + 2), impactE: 0, impactLog: [], nbrHits: con.nbrs.map(() => 0), settled: 0, energy: 0, fired: 0, maxH: B.H0 });
+  for (const m of S.mem) { m.str = 1; }
+  for (const n of S.nodes) n.y0 = n.y;
+  S.adj = S.nodes.map(() => []); S.mem.forEach((m, i) => { S.adj[m.a].push(i); S.adj[m.b].push(i); });
+  return S;
+}
+function pileAt(x) { const i = clamp(Math.floor(x / 4), 0, S.pile.length - 1); return S.pile[i]; }
+function pileAdd(x, w, amt) {
+  // add volume spread as a soft mound
+  const c = Math.floor(x / 4), r = Math.max(2, Math.floor(w / 8));
+  for (let i = -r; i <= r; i++) { const k = c + i; if (k < 0 || k >= S.pile.length) continue; S.pile[k] += amt * (1 - Math.abs(i) / (r + 1)); }
+  // relax slopes
+  for (let it = 0; it < 3; it++) for (let k = 1; k < S.pile.length; k++) { const d = S.pile[k] - S.pile[k - 1]; if (Math.abs(d) > 3) { const t = (Math.abs(d) - 3) * 0.25 * Math.sign(d); S.pile[k] -= t; S.pile[k - 1] += t; } }
+}
+function nbrRect(n) { return { x0: n.x, x1: n.x + n.w, y0: GY - n.h, y1: GY }; }
+function structStep(dt) {
+  const g = SP.g;
+  S.t += dt;
+  const N = S.nodes;
+  for (const n of N) {
+    if (n.pin) continue;
+    const vx = (n.x - n.px) * SP.damp, vy = (n.y - n.py) * SP.damp;
+    n.px = n.x; n.py = n.y; n.x += vx; n.y += vy + g * dt * dt;
+  }
+  for (let it = 0; it < SP.iters; it++) {
+    for (const m of S.mem) {
+      if (!m.alive) continue;
+      const A = N[m.a], B = N[m.b]; let dx = B.x - A.x, dy = B.y - A.y; const d = Math.hypot(dx, dy) || 0.001;
+      const diff = (d - m.len) / d;
+      const wa = A.pin ? 0 : 1, wb = B.pin ? 0 : 1, ws = wa + wb; if (!ws) continue;
+      const k = m.kind === 'joint' ? 0.6 : 1;
+      A.x += dx * diff * k * wa / ws; A.y += dy * diff * k * wa / ws;
+      B.x -= dx * diff * k * wb / ws; B.y -= dy * diff * k * wb / ws;
+    }
+    // ground + rubble + neighbour collisions
+    for (const n of N) {
+      if (n.pin) continue;
+      const gy = GY - pileAt(n.x) * 0.85;
+      if (n.y > gy) { n.y = gy; n.px = n.x - (n.x - n.px) * 0.6; }
+      for (let i = 0; i < S.con.nbrs.length; i++) { const r = nbrRect(S.con.nbrs[i]);
+        if (n.x > r.x0 && n.x < r.x1 && n.y > r.y0) {
+          const v = Math.hypot(n.x - n.px, n.y - n.py) / dt;
+          if (v > 30 && it === 0) S.nbrHits[i] += Math.min(6, v / 60);
+          // push out the cheapest way
+          const dl = n.x - r.x0, dr = r.x1 - n.x, du = n.y - r.y0;
+          if (du < dl && du < dr) { n.y = r.y0; } else if (dl < dr) n.x = r.x0; else n.x = r.x1;
+          n.px = n.x - (n.x - n.px) * 0.3; n.py = n.y - (n.y - n.py) * 0.3;
+        } }
+    }
+  }
+  // strain + breaks
+  for (const m of S.mem) {
+    if (!m.alive) continue;
+    const A = N[m.a], B = N[m.b], d = Math.hypot(B.x - A.x, B.y - A.y), st = Math.abs(d - m.len) / m.len;
+    const lim = (BRK[m.kind] || 0.1) * (m.kind === 'wall' ? m.thick / 2 : 1) * m.str * (S.t < 0.25 ? 3 : 1);
+    if (st > lim) breakMember(m, 'strain');
+  }
+  // ground impacts -> rubble, dust, vibration energy
+  let e = 0;
+  for (let ni = 0; ni < N.length; ni++) { const n = N[ni];
+    if (n.pin) continue;
+    const vy = (n.y - n.py) / dt, vx = (n.x - n.px) / dt, gy = GY - pileAt(n.x) * 0.85;
+    if (n.y >= gy - 0.5 && n.lastVy > 90) {
+      e += n.lastVy * n.lastVy * 0.00002;
+      const dmg = (n.lastVy - 60) / 120;
+      for (const mi of S.adj[ni]) { const m = S.mem[mi]; if (!m.alive) continue; m.str -= dmg * (m.kind === 'wall' ? 0.5 / m.thick : 1) * RND(0.6, 1.4); if (m.str < 0.25) breakMember(m, 'impact'); }
+      if (!n.hitOnce || n.lastVy > 220) { n.hitOnce = 1; spawnDust(n.x, gy, n.lastVy / 260, S.mat); if (Math.random() < 0.5) pileAdd(n.x, 26, 0.9 * (S.mat === 'steel' ? 0.6 : 1)); }
+    }
+    if (S.con.implode && n.y - n.y0 > 14) { for (const mi of S.adj[ni]) { const m = S.mem[mi]; if (m.alive && m.kind !== 'beam') { m.str -= dt * 2.2; if (m.str < 0.25) breakMember(m, 'crush'); } } }
+    n.lastVy = vy; S.energy += (vx * vx + vy * vy) * 0.000001;
+  }
+  S.impactE += e;
+}
+function breakMember(m, why) {
+  if (!m.alive) return; m.alive = false; m.why = why;
+  const A = S.nodes[m.a], B = S.nodes[m.b], mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+  if (m.kind === 'col' || m.kind === 'wall' || m.kind === 'beam' || m.kind === 'notch') {
+    const n = m.kind === 'beam' ? 2 : 4;
+    for (let i = 0; i < n; i++) spawnChunk(mx + RND(-6, 6), my + RND(-6, 6), RND(-60, 60), RND(-80, 10), m.mat, RND(2, 5));
+    if (why === 'strain' && Math.random() < 0.4) sfx('crack');
+  }
+  if (m.pair != null) { const p = S.mem[m.pair]; if (p.alive) breakMember(p, why); }
+}
+// detonate a struct charge: returns {cut:bool, note}
+function structCharge(slotIdx, ch) {
+  const m = S.mem[S.slots[slotIdx]], o = ORD[ch.ord], A = S.nodes[m.a], B = S.nodes[m.b];
+  const x = (A.x + B.x) / 2, y = m.kind === 'col' ? Math.max(A.y, B.y) - 10 : (A.y + B.y) / 2;
+  const need = m.thick; let eff = ch.size, note = '';
+  if (m.mat === 'steel') { if (ch.ord === 'drill') { eff = 0; note = 'You can\'t drill-and-load a steel column'; } }
+  else { if (ch.ord === 'lsc') { eff = ch.size - 1; note = 'Cutters are weak on concrete/brick'; } }
+  if (ch.ord === 'kick') eff = ch.size - (m.mat === 'steel' ? 0 : 0.5);
+  const cut = eff >= need;
+  explode(x, y, ch.size, o.col, ch.wrap, m.mat);
+  if (cut) {
+    breakMember(m, 'charge');
+    if (m.kind === 'col' && S.type === 'frame') for (const j of S.mem) if (j.alive && j.kind === 'joint' && j.fi === m.fi && (j.bi === m.ci || j.bi === m.ci - 1)) breakMember(j, 'charge');
+    if (S.type === 'stack' && m.kind === 'notch') { /* pair handled */ }
+    if (m.kind === 'col' && S.type === 'frame') {
+      S.cutT = S.cutT || {}; S.cutT[m.ci + ':' + m.fi] = S.t;
+      const top = A.y < B.y ? A : B, mid = (S.x0 + S.x1) / 2, dir = Math.sign(top.x - mid), edge = Math.abs(top.x - mid) / ((S.x1 - S.x0) / 2);
+      if (edge > 0.9 && S.con.implode) {
+        const inner = S.cutT[(m.ci - dir) + ':' + m.fi], inward = inner != null && S.t - inner >= 0.15;
+        const kick = inward ? -2.4 : 3.5;
+        if (!inward) { // facade peels outward: spill debris toward the neighbours
+          S.spill = (S.spill || 0) + 1;
+          for (let i = 0; i < 26; i++) { const hy = RND(0.1, 1) * S.H0; later(() => { if (!S) return; spawnChunk(top.x + dir * 4, GY - hy, dir * RND(60, 210) * (0.5 + hy / S.H0), RND(-60, 20), S.mat, RND(2, 4.5), true); }, 0.25 + RND(0, 0.5)); } } S.kicks = S.kicks || []; S.kicks.push({ ci: m.ci, inward });
+        for (const n of S.nodes) if (Math.abs(n.x - top.x) < 2 && n.y < top.y + 1) n.px -= dir * kick * (0.4 + (top.y - n.y) / S.H0);
+      } }
+    if (ch.ord === 'kick') { const top = A.y < B.y ? A : B, dir = ch.dir || 1; top.px -= dir * 3.2 * ch.size; }
+  } else {
+    m.str = Math.max(0.35, m.str - 0.3 * Math.max(0, eff) / need); if (!note) note = 'Charge too small for that column';
+  }
+  return { cut, note, x, y };
+}
+function structTopHeight() {
+  let top = 0; for (const n of S.nodes) top = Math.max(top, GY - n.y); return top;
+}
+function structDebrisOutside(zone) {
+  let out = 0, L = 0, R = 0;
+  for (const n of S.nodes) { if (n.x < zone[0]) { out++; L++; } else if (n.x > zone[1]) { out++; R++; } }
+  for (let k = 0; k < S.pile.length; k++) { const x = k * 4; if (S.pile[k] > 3 && (x < zone[0] - 8 || x > zone[1] + 8)) out += S.pile[k] * 0.05; }
+  return { out, L, R };
+}
+
+// ---------- ROCK PHYSICS: cell grid, burden/free-face breakage, debris + muck ----------
+// cell types: 0 air, 1 rock, 2 cracked rock, 3 soil, 4 muck, 5 pending (broken, still moving), 6 pipe
+const RK = { MOVE_MS_PER_M: 4, G: 9.8 };
+const ROCKS = { limestone: { f: 1.0, col: ['#b9ad96', '#8f826c', '#6e6352'], name: 'Limestone' }, granite: { f: 0.86, col: ['#a9a4a8', '#7c7680', '#575260'], name: 'Granite' }, shale: { f: 1.1, col: ['#7d7268', '#5e554e', '#433c37'], name: 'Shale' } };
+let G = null; // rock grid state
+function rockInit(con) {
+  const cs = con.cell, gw = Math.ceil(W / cs), gh = Math.ceil(H / cs), N = gw * gh;
+  G = { con, cs, gw, gh, c: new Uint8Array(N), des: new Uint8Array(N), prof: new Uint8Array(N), brk: new Uint8Array(N), clearAt: new Float32Array(N), parts: [], muckActive: 0, ppm: con.ppm, t: 0,
+        holes: [], log: [], dirty: [], stats: null, flyrock: [], relief: [] };
+  const ppm = con.ppm, at = (x, y) => y * gw + x;
+  if (con.view === 'side' && !con.trench) {
+    const bulgeAt = py => con.bulge ? Math.max(0, 1 - (py - con.top) / ((con.floor - con.top) * 0.5)) * 2.4 * ppm : 0;
+    for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+      const px = x * cs + cs / 2, py = y * cs + cs / 2; let t = 0;
+      if (py >= con.floor) t = 1;
+      else if (py >= con.top && px >= con.crest + bulgeAt(py)) t = 1;
+      G.c[at(x, y)] = t;
+      if (t && py < con.floor && px <= con.crest + con.design.x1 * ppm) G.des[at(x, y)] = 1;
+    }
+    G.holes = con.holes.map((h, i) => ({ i, x: con.crest + h.x * ppm, top: con.top, bot: con.top + h.depth * ppm, n: h.n, label: h.label, wet: h.wet ? con.top + (h.depth - h.wet) * ppm : 1e9, def: h }));
+  } else if (con.trench) {
+    const top = con.top, soilB = top + con.soil * ppm, T = con.trench, p = con.pipe;
+    for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+      const px = x * cs + cs / 2, py = y * cs + cs / 2; let t = 0;
+      if (py >= top) t = py < soilB ? 3 : 1;
+      if (p && Math.hypot(px - p.x * ppm, py - (top + p.y * ppm)) < p.r * ppm) t = 6;
+      G.c[at(x, y)] = t;
+      if (t && px >= T.x0 * ppm && px <= T.x1 * ppm && py <= top + T.depth * ppm) G.des[at(x, y)] = 1;
+    }
+    G.holes = con.holes.map((h, i) => ({ i, x: h.x * ppm, top, bot: top + h.depth * ppm, n: h.n, label: h.label, wet: 1e9, def: h }));
+  } else { // front view tunnel face
+    const cxp = W / 2, fy = 470; G.fx = cxp; G.fy = fy;
+    const inProf = (mx, my) => { if (my < 0) return false; if (my <= 3.2) return Math.abs(mx) <= 2.5; const r = Math.hypot(mx / 2.5, (my - 3.2) / 1.8); return r <= 1; };
+    G.inProf = inProf;
+    for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) {
+      const px = x * cs + cs / 2, py = y * cs + cs / 2, mx = (px - cxp) / ppm, my = (fy - py) / ppm;
+      G.c[at(x, y)] = 1;
+      if (inProf(mx, my)) { G.prof[at(x, y)] = 1; G.des[at(x, y)] = 1; }
+      else if (my < 0) G.c[at(x, y)] = 1;
+    }
+    const D = driftHoles();
+    G.holes = D.holes.map((h, i) => ({ i, x: cxp + h.fx * ppm, y: fy - h.fy * ppm, top: 0, bot: 0, n: 1, label: h.group, group: h.group, wet: 1e9, def: h, front: 1 }));
+    G.relief = D.relief.map(r => ({ x: cxp + r[0] * ppm, y: fy - r[1] * ppm, r: 0.06 * ppm }));
+    for (const r of G.relief) for (let y = 0; y < gh; y++) for (let x = 0; x < gw; x++) { const px = x * cs + cs / 2, py = y * cs + cs / 2; if (Math.hypot(px - r.x, py - r.y) <= r.r + cs * 0.7) G.c[at(x, y)] = 0; }
+  }
+  return G;
+}
+const solid = t => t === 1 || t === 2 || t === 3 || t === 5 || t === 6;
+function cellAt(px, py) { const x = Math.floor(px / G.cs), y = Math.floor(py / G.cs); if (x < 0 || y < 0 || x >= G.gw || y >= G.gh) return -1; return y * G.gw + x; }
+// charge column for a hole given plan (px coords)
+function holeColumn(h, pl) {
+  if (h.front) return { x: h.x, y0: h.y, y1: h.y };
+  const stem = STEMS[pl.stem].m * (G.con.small ? 0.32 : 1) * G.ppm;
+  return { x: h.x, y0: h.top + stem, y1: h.bot };
+}
+// march from charge to nearest free cell; returns {B (px), dir:[x,y]}
+function burdenOf(h, pl, tms) {
+  const col = holeColumn(h, pl), cs = G.cs, step = cs * 0.8;
+  const dirs = h.front ? Array.from({ length: 24 }, (_, i) => [Math.cos(i / 24 * 6.283), Math.sin(i / 24 * 6.283)]) : [[-1, 0], [1, 0], [0, -1]];
+  let best = 1e9, bdir = [0, -1], up = 1e9;
+  const ys = []; for (let y = col.y0; y <= col.y1 + 0.01; y += Math.max(cs, (col.y1 - col.y0) / 12 || cs)) ys.push(y);
+  if (!ys.length) ys.push(col.y0);
+  const freeAt = (px, py) => { const i = cellAt(px, py); if (i < 0) return py < 0; const t = G.c[i]; if (t === 5) return G.clearAt[i] <= tms; return !solid(t); };
+  for (const y0 of ys) for (const d of dirs) {
+    for (let s = step; s < 14 * G.ppm; s += step) {
+      const px = col.x + d[0] * s, py = y0 + d[1] * s;
+      const isUp = !h.front && d[1] === -1;
+      if (freeAt(px, py)) { if (isUp) up = Math.min(up, s); else if (s < best) { best = s; bdir = d; } break; }
+      if (!isUp && s > best) break;
+    }
+  }
+  if (!h.front && best > 12 * G.ppm && up < 1e9) { best = up; bdir = [0, -1]; } // no side face: crater to surface
+  return { B: best, dir: bdir, up, col };
+}
+function rockReach(pl) { const o = ORD[pl.ord]; let r = o.reach * ROCKS[G.con.rock].f; if (G.con.view === 'front') r *= 0.3; if (G.con.small) r *= 0.27; return r * G.ppm; }
+// fire one hole (one visible row / hole). returns event summary
+function rockFire(h, pl, tms) {
+  const o = ORD[pl.ord], res = { hole: h, t: tms, ok: true, choke: false, eject: false, freeze: false, kg: 0, note: '' };
+  if (pl.ord === 'none') { res.ok = false; res.empty = true; return res; }
+  const col = holeColumn(h, pl);
+  if (!o.wet && h.wet < col.y1) { res.ok = false; res.wetfail = true; res.note = 'ANFO in a wet hole failed to fire - MISFIRE'; return res; }
+  const len = h.front ? 3.2 : Math.max(0.3, (col.y1 - col.y0) / G.ppm);
+  res.kg = len * o.kgm * (G.con.small ? 0.04 : G.con.view === 'front' ? 0.14 : 1);
+  const R = rockReach(pl), bd = burdenOf(h, pl, tms), B = bd.B;
+  res.B = B / G.ppm; res.R = R / G.ppm;
+  const cs = G.cs, gw = G.gw;
+  const vx0 = col.x, ya = col.y0, yb = col.y1;
+  const k = R / Math.max(B, cs);
+  const matted = pl.mat;
+  if (B > R) {
+    // choke / freeze: crack within reach, nothing moves
+    res.choke = true; if (h.front) res.freeze = true;
+    const rr = R * 0.7;
+    forCells(vx0, ya, yb, rr, (i, d) => { if (G.c[i] === 1 || G.c[i] === 3) { G.c[i] = 2; G.dirty.push(i); } });
+    return res;
+  }
+  // crater direction available through the top?
+  const topFree = !h.front && bd.up <= R * 1.15;
+  const stemM = h.front ? 9 : (col.y0 - h.top) / G.ppm;
+  const stemRatio = stemM / Math.max(0.3, res.B);
+  if (!h.front && stemRatio < 0.55 && !matted) res.eject = true;
+  const fdir = bd.dir, back = pl.ord === 'trim' ? 0.75 : 0.35;
+  const moveAt = tms + RK.MOVE_MS_PER_M * res.B + 4;
+  const fine = k > 1.6, over = k > 1.9 && !h.front;
+  let nb = 0;
+  forCells(vx0, ya - (topFree ? R * 1.2 : 0), yb, R * 1.35, (i, d, dx, dy) => {
+    const t = G.c[i]; if (!(t === 1 || t === 2 || t === 3 || t === 6)) return;
+    const L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    let c = ux * fdir[0] + uy * fdir[1];
+    if (topFree) { const u = Math.max(0, -uy); c = Math.max(c, u * u * u * 0.95, (ux * fdir[0] + u) / 1.25); }
+    const lim = R * (back + (1.3 - back) * Math.max(0, c));
+    if (d > lim) { if (d < lim * 1.25 && t !== 6) { if (t === 1 || t === 3) { G.c[i] = 2; G.dirty.push(i); } } return; }
+    if (t === 6) { res.pipeHit = true; }
+    G.c[i] = 5; G.clearAt[i] = moveAt; G.brk[i] = t === 2 ? 2 : fine ? 3 : 1; G.dirty.push(i); nb++;
+    G.pend = G.pend || []; G.pend.push({ i, ux: fdir[0] * 0.7 + ux * 0.3, uy: fdir[1] * 0.7 + uy * 0.3 + (topFree ? -0.25 : 0), k, over, mat: matted, soil: t === 3 });
+  });
+  res.broken = nb; res.k = k; res.fine = fine; res.over = over && !matted;
+  return res;
+}
+function forCells(x, ya, yb, r, fn) {
+  const cs = G.cs, gw = G.gw;
+  const x0 = Math.max(0, Math.floor((x - r) / cs)), x1 = Math.min(gw - 1, Math.floor((x + r) / cs));
+  const y0 = Math.max(0, Math.floor((ya - r) / cs)), y1 = Math.min(G.gh - 1, Math.floor((yb + r) / cs));
+  for (let gy = y0; gy <= y1; gy++) for (let gx = x0; gx <= x1; gx++) {
+    const px = gx * cs + cs / 2, py = gy * cs + cs / 2, ny = clamp(py, ya, yb), dx = px - x, dy = py - ny, d = Math.hypot(dx, dy);
+    if (d <= r) fn(gy * gw + gx, d, dx, dy);
+  }
+}
+// convert pending cells whose time has come into flying debris
+function rockRelease(tms) {
+  if (!G.pend || !G.pend.length) return;
+  const keep = [], cs = G.cs, ppm = G.ppm, front = G.con.view === 'front';
+  for (const p of G.pend) {
+    if (G.clearAt[p.i] > tms) { keep.push(p); continue; }
+    if (G.c[p.i] !== 5) continue;
+    G.c[p.i] = 0; G.dirty.push(p.i);
+    const gx = p.i % G.gw, gy = Math.floor(p.i / G.gw);
+    if (Math.random() < (front ? 0.55 : 0.75)) {
+      let v = (7 + 7 * Math.pow(Math.min(p.k, 3), 1.4)) * RND(0.6, 1.25);
+      if (p.over && Math.random() < 0.09) v *= RND(2.2, 3.4);
+      if (p.mat) v *= 0.22;
+      const big = G.brk[p.i] === 2 ? 1 : 0;
+      G.parts.push({ x: gx * cs + cs / 2, y: gy * cs + cs / 2, vx: (p.ux + RND(-0.3, 0.3)) * v * ppm, vy: (p.uy + RND(-0.35, 0.2)) * v * ppm, r: cs * (big ? RND(0.9, 1.3) : G.brk[p.i] === 3 ? RND(0.35, 0.6) : RND(0.55, 0.9)), rot: RND(0, 6), vr: RND(-9, 9), z: front ? RND(0.2, 1) : 0, vz: front ? RND(1, 2.5) : 0, soil: p.soil, big, v0: v, ux: p.ux, uy: p.uy, life: 0 });
+    } else {
+      // fills straight in as muck later (keeps volume without too many particles)
+      G.parts.push({ x: gx * cs + cs / 2, y: gy * cs + cs / 2, vx: p.ux * 20 * RND(0.5, 1), vy: -10, r: 0, ghost: 1, soil: p.soil, life: 0 });
+    }
+  }
+  G.pend = keep;
+}
+function rockStep(dt) {
+  const g = RK.G * G.ppm, cs = G.cs;
+  for (const p of G.parts) {
+    p.life += dt; p.vy += g * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.rot += (p.vr || 0) * dt;
+    if (p.z) { p.z += p.vz * dt; p.vz -= 3.4 * dt; if (p.z < 0) { p.z = 0; p.vz = 0; } }
+    if (p.x < -40 || p.x > W + 40 || p.y > H + 20) { p.dead = 1; continue; }
+    if (p.y < 0) continue;
+    const i = cellAt(p.x, p.y);
+    if (G.con.view === 'front' && i >= 0 && !G.prof[i] && !(p.z > 0.15) && p.y < G.fy - 4) { p.x -= p.vx * dt; p.vx *= -0.4; continue; }
+    if (i >= 0 && (solid(G.c[i]) || G.c[i] === 4) && !(p.z > 0.15)) {
+      // settle into the cell above
+      let gx = Math.floor(p.x / cs), gy = Math.floor(p.y / cs) - 1;
+      while (gy > 0 && G.c[gy * G.gw + gx] !== 0) gy--;
+      if (gy > 0) { const k = gy * G.gw + gx; G.c[k] = 4; G.muckCol = G.muckCol || new Uint8Array(G.c.length); G.muckCol[k] = p.soil ? 2 : p.big ? 3 : 1; G.muckActive = 90; }
+      p.dead = 1;
+      if (!p.ghost && Math.abs(p.vy) > 220 && Math.random() < 0.15) spawnDust(p.x, p.y, 0.4, 'rock');
+    }
+  }
+  G.parts = G.parts.filter(p => !p.dead);
+  if (G.muckActive > 0) { G.muckActive--; muckSettle(); }
+}
+function muckSettle() {
+  const c = G.c, gw = G.gw, mc = G.muckCol;
+  for (let y = G.gh - 2; y >= 0; y--) {
+    const dirL = (y & 1) ? 1 : -1;
+    for (let xx = 0; xx < gw; xx++) {
+      const x = dirL > 0 ? xx : gw - 1 - xx, i = y * gw + x; if (c[i] !== 4) continue;
+      const b = i + gw;
+      if (c[b] === 0) { c[b] = 4; c[i] = 0; mc[b] = mc[i]; G.muckActive = 60; continue; }
+      const s = Math.random() < 0.5 ? 1 : -1;
+      for (const d of [s, -s]) { const nx = x + d; if (nx < 0 || nx >= gw) continue; const bd = b + d, sd = i + d;
+        if (c[bd] === 0 && c[sd] === 0 && Math.random() < 0.6) { c[bd] = 4; c[i] = 0; mc[bd] = mc[i]; G.muckActive = 60; break; } }
+    }
+  }
+}
+// final scoring for rock jobs
+function rockScore() {
+  let des = 0, brokeD = 0, crackD = 0, over = 0, toe = 0, overProf = 0, pipe = 0;
+  const con = G.con, cs = G.cs, ppm = G.ppm;
+  for (let i = 0; i < G.c.length; i++) {
+    const gx = i % G.gw, gy = Math.floor(i / G.gw), px = gx * cs + cs / 2, py = gy * cs + cs / 2;
+    if (G.des[i]) { des++; if (G.brk[i]) brokeD++; else if (G.c[i] === 2) crackD++; else if (con.view === 'side' && !con.trench && py > con.floor - 1.5 * ppm) toe++; }
+    else if (G.brk[i]) {
+      if (con.view === 'front') { const mx = (px - G.fx) / ppm, my = (G.fy - py) / ppm; if (!G.inProf(mx * 0.96, my * 0.97 - 0.03)) overProf++; }
+      else if (con.trench) { if (py > con.top + con.soil * ppm && (px < (con.trench.x0 - 0.05) * ppm || px > (con.trench.x1 + 0.05) * ppm)) { over++; if (px > con.trench.x1 * ppm) G.overR = (G.overR || 0) + 1; } }
+      else if (py < con.floor && px > con.crest + (con.design.x1 + 0.6) * ppm) over++;
+    }
+  }
+  return { des, brokeD, crackD, over, toe, overProf, pct: brokeD / Math.max(1, des), crackPct: crackD / Math.max(1, des), overPct: over / Math.max(1, des), profPct: overProf / Math.max(1, des) };
+}
+
+// ---------- FX: flashes, fireballs, shock rings, chunks, dust & smoke ----------
+const FX = { chunks: [], smoke: [], flashes: [], rings: [], sparks: [], light: 0, fly: [] };
+const MATCOL = { steel: ['#8d9aa6', '#5b6670'], concrete: ['#b8b2a6', '#857f74'], brick: ['#a5553a', '#73362a'], rock: ['#9a8f7c', '#6e6352'], soil: ['#6e5236', '#4a3824'] };
+function fxReset() { FX.chunks = []; FX.smoke = []; FX.flashes = []; FX.rings = []; FX.sparks = []; FX.light = 0; FX.fly = []; }
+function explode(x, y, size, col, wrap, mat, opt) {
+  opt = opt || {};
+  const s = size || 1;
+  FX.flashes.push({ x, y, r: 26 + s * 16, t: 0, life: 0.22 + s * 0.05, col: col || '#ffd23f' });
+  FX.rings.push({ x, y, r: 4, v: 520 + s * 120, t: 0, life: 0.45 });
+  FX.light = Math.min(1, FX.light + 0.35 + s * 0.12);
+  for (let i = 0; i < 10 + s * 8; i++) { const a = RND(0, 6.283), v = RND(120, 420) * (0.6 + s * 0.3);
+    FX.sparks.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, t: 0, life: RND(0.2, 0.55) }); }
+  // debris (flyrock candidates) - wrap traps most of it
+  if (!opt.noChunks) { const n = Math.round((wrap ? 2 : 6) + s * (wrap ? 1 : 4));
+    for (let i = 0; i < n; i++) { const a = RND(-Math.PI, 0), v = RND(80, 260) * (0.7 + s * 0.35) * (wrap ? 0.35 : 1);
+      spawnChunk(x, y, Math.cos(a) * v, Math.sin(a) * v, mat || 'concrete', RND(1.5, 3.5), !wrap && v > 260); } }
+  for (let i = 0; i < 4 + s * 2; i++) FX.smoke.push({ x: x + RND(-8, 8), y: y + RND(-8, 8), vx: RND(-30, 30), vy: RND(-50, -10), r: RND(10, 18) + s * 4, gr: RND(18, 36), t: 0, life: RND(2.4, 4.2), a: 0.55, k: Math.floor(RND(0, 3)), col: 'smoke' });
+  game.shake = Math.min(14, game.shake + 3 + s * 2.2);
+  sfx('boom', s);
+}
+function spawnChunk(x, y, vx, vy, mat, r, fly) {
+  const c = MATCOL[mat] || MATCOL.concrete;
+  FX.chunks.push({ x, y, vx, vy, r, rot: RND(0, 6.28), vr: RND(-12, 12), col: pick(c), t: 0, fly: !!fly, ox: x });
+}
+function spawnDust(x, y, s, mat) {
+  if (FX.smoke.length > 420) return;
+  const n = Math.round(2 + s * 3);
+  for (let i = 0; i < n; i++) FX.smoke.push({ x: x + RND(-14, 14), y: y - RND(0, 8), vx: RND(-70, 70) * s, vy: RND(-36, -6), r: RND(10, 20) * (0.6 + s * 0.5), gr: RND(14, 34), t: 0, life: RND(3, 6.5), a: clamp(0.3 + s * 0.2, 0.2, 0.7), k: Math.floor(RND(0, 3)), col: mat === 'steel' ? 'smoke' : 'dust' });
+}
+function fxStep(dt, groundFn) {
+  for (const f of FX.flashes) f.t += dt; FX.flashes = FX.flashes.filter(f => f.t < f.life);
+  for (const r of FX.rings) { r.t += dt; r.r += r.v * dt; } FX.rings = FX.rings.filter(r => r.t < r.life);
+  for (const s of FX.sparks) { s.t += dt; s.vy += 500 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vx *= 0.98; } FX.sparks = FX.sparks.filter(s => s.t < s.life);
+  for (const c of FX.chunks) {
+    c.t += dt; if (c.rest) continue;
+    c.vy += 520 * dt; c.x += c.vx * dt; c.y += c.vy * dt; c.rot += c.vr * dt;
+    const gy = groundFn ? groundFn(c.x) : GY;
+    if (c.y > gy) { c.y = gy; if (Math.abs(c.vy) > 90) { c.vy *= -0.3; c.vx *= 0.6; } else { c.rest = 1; c.vy = 0; } if (c.fly && !c.landed) { c.landed = 1; FX.fly.push(c); } }
+  }
+  if (FX.chunks.length > 700) FX.chunks.splice(0, FX.chunks.length - 700);
+  for (const s of FX.smoke) { s.t += dt; s.x += s.vx * dt + Math.sin(s.t * 0.7 + s.k) * 6 * dt; s.y += s.vy * dt; s.vx *= 0.985; s.vy *= 0.99; s.r += s.gr * dt * (1 / (1 + s.t * 0.4)); }
+  FX.smoke = FX.smoke.filter(s => s.t < s.life);
+  FX.light = Math.max(0, FX.light - dt * 2.2);
+}
+function drawFXBack() {
+  // dust/smoke behind the HUD but over the world
+  for (const s of FX.smoke) {
+    const a = s.a * Math.min(1, s.t * 4) * (1 - s.t / s.life);
+    cx.globalAlpha = a; const img = SMOKE[s.k];
+    if (s.col === 'dust') { cx.filter = 'none'; }
+    cx.drawImage(img, s.x - s.r, s.y - s.r, s.r * 2, s.r * 2);
+    if (s.col === 'dust') { cx.globalCompositeOperation = 'source-atop'; }
+    cx.globalCompositeOperation = 'source-over';
+  }
+  cx.globalAlpha = 1;
+}
+function drawDustTint() {
+  // warm tint over dust clouds: draw a second pass with tinted glow
+  for (const s of FX.smoke) { if (s.col !== 'dust') continue; const a = s.a * 0.35 * Math.min(1, s.t * 4) * (1 - s.t / s.life);
+    cx.globalAlpha = a; cx.fillStyle = '#c9b48f'; cx.beginPath(); cx.arc(s.x, s.y, s.r * 0.62, 0, 6.283); cx.fill(); }
+  cx.globalAlpha = 1;
+}
+function drawChunks() {
+  for (const c of FX.chunks) {
+    cx.save(); cx.translate(c.x, c.y); cx.rotate(c.rot); cx.fillStyle = c.col;
+    cx.beginPath(); cx.moveTo(-c.r, -c.r * 0.6); cx.lineTo(c.r * 0.8, -c.r); cx.lineTo(c.r, c.r * 0.5); cx.lineTo(-c.r * 0.4, c.r); cx.closePath(); cx.fill();
+    cx.fillStyle = 'rgba(255,255,255,0.18)'; cx.fillRect(-c.r * 0.6, -c.r * 0.6, c.r * 0.6, c.r * 0.4); cx.restore();
+  }
+}
+function drawFXFront() {
+  cx.globalCompositeOperation = 'lighter';
+  for (const f of FX.flashes) { const k = 1 - f.t / f.life; cx.globalAlpha = k; cx.drawImage(FIRE, f.x - f.r * (1.4 - k * 0.4), f.y - f.r * (1.4 - k * 0.4), f.r * (2.8 - k * 0.8), f.r * (2.8 - k * 0.8)); glowAt(f.x, f.y, f.r * 2.4, f.col, k * 0.8); }
+  for (const s of FX.sparks) { const k = 1 - s.t / s.life; cx.globalAlpha = k; cx.strokeStyle = '#ffd890'; cx.lineWidth = 1.6; cx.beginPath(); cx.moveTo(s.x, s.y); cx.lineTo(s.x - s.vx * 0.02, s.y - s.vy * 0.02); cx.stroke(); }
+  cx.globalAlpha = 1; cx.globalCompositeOperation = 'source-over';
+  for (const r of FX.rings) { const k = 1 - r.t / r.life; cx.strokeStyle = 'rgba(255,240,220,' + (k * 0.35) + ')'; cx.lineWidth = 2 + k * 3; cx.beginPath(); cx.arc(r.x, r.y, r.r, 0, 6.283); cx.stroke(); }
+}
+
+// ---------- SCENES: painted backdrops, rock texture, buildings, neighbours ----------
+let BG = null, ROCKCV = null, ROCKG = null, MUCKSPR = null;
+function skyGrad(g, top, bot, h) { g.fillStyle = lin(g, 0, 0, 0, h, [[0, top], [1, bot]]); g.fillRect(0, 0, W, h); }
+function hills(g, y, amp, col, sc, sd) { g.fillStyle = col; g.beginPath(); g.moveTo(0, H); for (let x = 0; x <= W; x += 6) g.lineTo(x, y - fbm(x * sc + sd, sd, 4) * amp); g.lineTo(W, H); g.fill(); }
+function skyline(g, base, col, hmin, hmax, sd, win) {
+  seed = sd; let x = -10;
+  while (x < W) { const w = sr(26, 70), h = sr(hmin, hmax); g.fillStyle = col; g.fillRect(x, base - h, w, h);
+    if (win) { g.fillStyle = win; for (let yy = base - h + 6; yy < base - 6; yy += 9) for (let xx = x + 4; xx < x + w - 4; xx += 8) if (srand() < 0.35) g.fillRect(xx, yy, 3, 4); }
+    x += w + sr(2, 10); }
+}
+function bakeBackdrop(con) {
+  const [c, g] = layer(W, H, Math.min(2, SC)); seed = 77;
+  const site = con.site;
+  if (site === 'tunnel') {
+    g.fillStyle = '#07080b'; g.fillRect(0, 0, W, H);
+  } else if (site === 'quarry') {
+    skyGrad(g, '#5d7ea6', '#f2c48d', H * 0.7);
+    glowAt(780, 120, 160, '#fff1c4', 0.5, g);
+    hills(g, 210, 70, '#8a9bb0', 0.004, 3); hills(g, 240, 40, '#9a8f84', 0.006, 9);
+    // distant benches
+    g.fillStyle = '#a3927c'; for (let i = 0; i < 4; i++) { g.fillRect(0, 238 + i * 14, W, 14); g.fillStyle = shade('#a3927c', -0.08 * (i + 1)); }
+    g.fillStyle = 'rgba(255,230,190,0.25)'; g.fillRect(0, 230, W, 80);
+    // far pit wall + floor (visible through open air in front of the bench)
+    for (let y = 292; y < H; y += 2) { for (let x = 0; x < W; x += 4) { const n = fbm(x * 0.02, y * 0.03, 3), k = (y - 292) / (H - 292); g.fillStyle = 'rgb(' + Math.round(120 - k * 40 + n * 30) + ',' + Math.round(108 - k * 38 + n * 26) + ',' + Math.round(92 - k * 34 + n * 22) + ')'; g.fillRect(x, y, 4, 2); } }
+    g.fillStyle = 'rgba(30,24,18,0.18)'; for (let i = 0; i < 5; i++) g.fillRect(0, 300 + i * 24, W, 2);
+  } else if (site === 'street') {
+    skyGrad(g, '#6f9bd1', '#dfe9f2', H * 0.5);
+    hills(g, 150, 30, '#8fb08a', 0.006, 4);
+    // houses across the street
+    seed = 12; for (let i = 0; i < 5; i++) { const x = 20 + i * 200, w = 150, h = 80, y = 228 - h; g.fillStyle = pick(['#d9cdb8', '#b8c9d9', '#e0c3b0']); g.fillRect(x, y, w, h);
+      g.fillStyle = '#6b4a3a'; g.beginPath(); g.moveTo(x - 10, y); g.lineTo(x + w / 2, y - 40); g.lineTo(x + w + 10, y); g.fill();
+      g.fillStyle = '#3c5a78'; g.fillRect(x + 20, y + 20, 26, 24); g.fillRect(x + w - 46, y + 20, 26, 24); g.fillStyle = '#5a3a2a'; g.fillRect(x + w / 2 - 12, y + 34, 24, 46); }
+    g.fillStyle = '#4a4d52'; g.fillRect(0, 222, W, 8);
+  } else {
+    const dusk = site === 'farm' || site === 'mill';
+    skyGrad(g, dusk ? '#33507a' : '#3e6aa0', dusk ? '#f0a86a' : '#cfe0ee', GY);
+    glowAt(dusk ? 820 : 160, dusk ? 330 : 110, 220, dusk ? '#ffcf8a' : '#ffffff', 0.45, g);
+    for (let i = 0; i < 6; i++) { g.globalAlpha = 0.25; g.drawImage(SMOKE[i % 3], sr(0, W), sr(40, 200), sr(120, 260), sr(40, 70)); } g.globalAlpha = 1;
+    if (site === 'farm') { hills(g, 380, 70, '#5f7a63', 0.004, 2); hills(g, 410, 40, '#6d8a4e', 0.006, 6); }
+    else if (site === 'mill') { hills(g, 360, 60, '#5d6b78', 0.004, 5); skyline(g, 420, '#4a5160', 30, 90, 4); g.fillStyle = '#3d6a86'; g.fillRect(0, 420, W, 26); }
+    else { skyline(g, GY, '#6d7d92', 80, 260, 21, 'rgba(255,240,200,0.25)'); skyline(g, GY, '#4f5c6e', 40, 150, 22, 'rgba(255,230,170,0.35)'); }
+    // ground
+    g.fillStyle = lin(g, 0, GY, 0, H, [[0, site === 'farm' ? '#5a4a33' : '#4b4844'], [1, '#2a2622']]); g.fillRect(0, GY, W, H - GY);
+    grain(g, 0, GY, W, H - GY, 0.25);
+    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, GY, W, 2);
+    if (site === 'city' || site === 'city2') { // spectators far behind the exclusion line
+      g.fillStyle = 'rgba(20,24,30,0.55)'; for (let x = 0; x < W; x += 3) g.fillRect(x, GY + 40 + Math.sin(x) * 2, 2, 6 + (x * 7 % 5));
+      g.fillStyle = '#ffd23f'; g.fillRect(0, GY + 34, W, 2); }
+  }
+  return c;
+}
+function bakeRock(con) {
+  const [c, g] = layer(W, H, 1), id = g.createImageData(W, H), d = id.data, pal = ROCKS[con.rock].col.map(hexRgb), soil = ['#6e5236', '#4a3824'].map(hexRgb);
+  const cs = G.cs;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = Math.floor(y / cs) * G.gw + Math.floor(x / cs), t = G.c[i]; if (!t) continue;
+    let r, gg, b;
+    if (t === 6) { r = 200; gg = 200; b = 60; }
+    else if (t === 3) { const n = fbm(x * 0.05, y * 0.05, 3); const a = soil[0], bb = soil[1]; r = lerp(bb[0], a[0], n); gg = lerp(bb[1], a[1], n); b = lerp(bb[2], a[2], n); }
+    else {
+      const strata = Math.sin(y * 0.11 + fbm(x * 0.01, y * 0.02, 3) * 6) * 0.5 + 0.5, n = fbm(x * 0.04, y * 0.04, 4), k = clamp(n * 0.7 + strata * 0.3, 0, 1);
+      const A = pal[0], B = pal[1], C = pal[2]; if (k > 0.5) { const q = (k - 0.5) * 2; r = lerp(B[0], A[0], q); gg = lerp(B[1], A[1], q); b = lerp(B[2], A[2], q); } else { const q = k * 2; r = lerp(C[0], B[0], q); gg = lerp(C[1], B[1], q); b = lerp(C[2], B[2], q); }
+      if (con.view === 'front' && !G.prof[i]) { r *= 0.42; gg *= 0.42; b *= 0.45; }
+      const h = hash(x, y) * 18 - 9; r += h; gg += h; b += h;
+    }
+    const p = (y * W + x) * 4; d[p] = r; d[p + 1] = gg; d[p + 2] = b; d[p + 3] = 255;
+  }
+  g.putImageData(id, 0, 0);
+  // joints / cracks for character
+  seed = 9; g.strokeStyle = 'rgba(30,24,20,0.35)'; g.lineWidth = 1;
+  for (let k = 0; k < 60; k++) { let x = sr(0, W), y = sr(0, H); const i = cellAt(x, y); if (i < 0 || G.c[i] !== 1) continue; g.beginPath(); g.moveTo(x, y); for (let s = 0; s < 6; s++) { x += sr(-10, 10); y += sr(4, 14); g.lineTo(x, y); } g.stroke(); }
+  if (con.view === 'front') { // tunnel lamp lighting and profile paint line
+    const [lc, lg] = layer(W, H, 1); lg.fillStyle = radg(lg, G.fx, G.fy - 2.4 * G.ppm, 20, G.fx, G.fy - 2.4 * G.ppm, 420, [[0, 'rgba(0,0,0,0)'], [0.6, 'rgba(0,0,0,0.25)'], [1, 'rgba(0,0,0,0.85)']]); lg.fillRect(0, 0, W, H); g.drawImage(lc, 0, 0);
+  }
+  ROCKCV = c; ROCKG = g;
+  // muck sprites
+  MUCKSPR = [0, 1, 2, 3].map(k => { const s = 12, [mc, mg] = layer(s, s, 2), base = k === 2 ? '#5a4330' : ROCKS[con.rock].col[k === 3 ? 2 : 1];
+    seed = 300 + k; for (let j = 0; j < (k === 3 ? 2 : 4); j++) { const x = sr(2, 10), y = sr(3, 10), r = k === 3 ? sr(4, 5.5) : sr(2, 3.6); mg.fillStyle = radg(mg, x - r * 0.3, y - r * 0.4, 0, x, y, r, [[0, shade(base, 0.25)], [1, shade(base, -0.35)]]);
+      mg.beginPath(); for (let a = 0; a < 6.28; a += 1.05) mg.lineTo(x + Math.cos(a) * r * sr(0.7, 1.1), y + Math.sin(a) * r * sr(0.7, 1.1)); mg.fill(); }
+    return mc; });
+}
+function rockSyncDirty() {
+  if (!G || !G.dirty.length) return;
+  const cs = G.cs;
+  for (const i of G.dirty) { const x = (i % G.gw) * cs, y = Math.floor(i / G.gw) * cs, t = G.c[i];
+    if (t === 0 || t === 4 || t === 5) ROCKG.clearRect(x, y, cs, cs);
+    else if (t === 2) { ROCKG.strokeStyle = 'rgba(20,14,10,0.55)'; ROCKG.lineWidth = 1; ROCKG.beginPath(); ROCKG.moveTo(x + RND(0, cs), y); ROCKG.lineTo(x + RND(0, cs), y + cs); ROCKG.stroke(); } }
+  G.dirty.length = 0;
+}
+function drawRockWorld() {
+  cx.drawImage(ROCKCV, 0, 0, W, H);
+  // muck
+  const cs = G.cs, mc = G.muckCol;
+  if (mc) for (let i = 0; i < G.c.length; i++) if (G.c[i] === 4) { const k = mc[i] === 2 ? 2 : mc[i] === 3 ? 3 : (i * 7) % 2; cx.drawImage(MUCKSPR[k], (i % G.gw) * cs - 3.5, Math.floor(i / G.gw) * cs - 3.5, cs + 7, cs + 7); }
+  // flying debris
+  const pal = ROCKS[G.con.rock].col;
+  for (const p of G.parts) { if (p.ghost) continue; const s = 1 + (p.z || 0) * 0.7; cx.save(); cx.translate(p.x, p.y); cx.rotate(p.rot); cx.fillStyle = p.soil ? '#5a4330' : p.big ? pal[2] : pal[1];
+    const r = p.r * s; cx.beginPath(); cx.moveTo(-r, -r * 0.5); cx.lineTo(r * 0.6, -r); cx.lineTo(r, r * 0.6); cx.lineTo(-r * 0.5, r); cx.closePath(); cx.fill(); cx.fillStyle = 'rgba(255,255,255,0.15)'; cx.fillRect(-r * 0.5, -r * 0.6, r * 0.6, r * 0.35); cx.restore(); }
+}
+// ---- buildings ----
+const FACADE = { steel: ['#7f8f9c', '#5d6a76'], concrete: ['#c9c1b2', '#9a9286'], brick: ['#a8563b', '#7a3a28'] };
+function quadPt(P, u, v) { // bilinear inside quad [bl, br, tr, tl]
+  const a = P[0], b = P[1], c = P[2], d = P[3];
+  return [lerp(lerp(a.x, b.x, u), lerp(d.x, c.x, u), v), lerp(lerp(a.y, b.y, u), lerp(d.y, c.y, u), v)];
+}
+function drawStructure(plan) {
+  if (!S) return;
+  const N = S.nodes, mat = S.mat, fc = FACADE[mat];
+  if (S.type === 'frame') {
+    for (const p of S.panels) {
+      const P = p.n.map(i => N[i]);
+      // only draw panels whose edges still mostly exist
+      const span = Math.max(Math.hypot(P[0].x - P[2].x, P[0].y - P[2].y), Math.hypot(P[1].x - P[3].x, P[1].y - P[3].y));
+      if (span > 260) continue;
+      cx.fillStyle = p.core ? (mat === 'steel' ? '#55606b' : '#8f877b') : lin(cx, P[3].x, P[3].y, P[0].x, P[0].y, [[0, fc[0]], [1, fc[1]]]);
+      cx.beginPath(); cx.moveTo(P[0].x, P[0].y); for (let k = 1; k < 4; k++) cx.lineTo(P[k].x, P[k].y); cx.closePath(); cx.fill();
+      if (S.con.id === 'shed') { cx.strokeStyle = 'rgba(0,0,0,0.18)'; cx.lineWidth = 1; for (let u = 0.08; u < 1; u += 0.08) { const a = quadPt(P, u, 0), b = quadPt(P, u, 1); cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); } continue; }
+      // windows (2 per bay), lit randomly
+      const lit = hash(p.seed, 3) > 0.6;
+      for (let w = 0; w < 2; w++) { const u0 = 0.14 + w * 0.42, u1 = u0 + 0.3, v0 = 0.3, v1 = 0.78;
+        const q = [quadPt(P, u0, v0), quadPt(P, u1, v0), quadPt(P, u1, v1), quadPt(P, u0, v1)];
+        cx.fillStyle = p.core ? 'rgba(40,40,44,0.6)' : lit && !plan ? '#ffd98a' : lit ? '#e8c27a' : '#2c3a48';
+        cx.beginPath(); cx.moveTo(q[0][0], q[0][1]); for (let k = 1; k < 4; k++) cx.lineTo(q[k][0], q[k][1]); cx.closePath(); cx.fill(); }
+    }
+  } else { // brick stack as segments
+    const n = N.length / 2 - 1;
+    for (let i = 0; i < n; i++) { const a = N[i * 2], b = N[i * 2 + 1], c = N[i * 2 + 3], d = N[i * 2 + 2];
+      cx.fillStyle = lin(cx, a.x, 0, b.x, 0, [[0, '#7a3a28'], [0.35, '#b8603f'], [1, '#6a3022']]);
+      cx.beginPath(); cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.lineTo(c.x, c.y); cx.lineTo(d.x, d.y); cx.closePath(); cx.fill();
+      cx.strokeStyle = 'rgba(40,20,14,0.35)'; cx.lineWidth = 1; for (let v = 0.25; v < 1; v += 0.25) { const l = [lerp(a.x, d.x, v), lerp(a.y, d.y, v)], r = [lerp(b.x, c.x, v), lerp(b.y, c.y, v)]; cx.beginPath(); cx.moveTo(l[0], l[1]); cx.lineTo(r[0], r[1]); cx.stroke(); } }
+    const t1 = N[N.length - 2], t2 = N[N.length - 1]; cx.fillStyle = '#3a2620'; cx.fillRect(Math.min(t1.x, t2.x) - 3, Math.min(t1.y, t2.y) - 6, Math.abs(t2.x - t1.x) + 6, 7);
+  }
+  // members
+  for (const m of S.mem) {
+    if (!m.alive || m.hidden) continue; const A = N[m.a], B = N[m.b];
+    if (m.kind === 'joint' || (S.type === 'stack' && m.kind !== 'notch')) continue;
+    if (m.kind === 'wall') { if (!plan) continue; cx.strokeStyle = 'rgba(255,90,60,0.55)'; cx.lineWidth = 2; cx.setLineDash([4, 3]); cx.beginPath(); cx.moveTo(A.x, A.y); cx.lineTo(B.x, B.y); const p = S.mem[m.pair]; if (p) { cx.moveTo(N[p.a].x, N[p.a].y); cx.lineTo(N[p.b].x, N[p.b].y); } cx.stroke(); cx.setLineDash([]); continue; }
+    if (m.kind === 'notch') { if (!plan) continue; cx.strokeStyle = 'rgba(255,210,63,0.4)'; cx.lineWidth = 1.5; cx.setLineDash([3, 3]); cx.beginPath(); cx.moveTo(A.x, A.y); cx.lineTo(B.x, B.y); const p = S.mem[m.pair]; cx.moveTo(N[p.a].x, N[p.a].y); cx.lineTo(N[p.b].x, N[p.b].y); cx.stroke(); cx.setLineDash([]); continue; }
+    const w = m.kind === 'col' ? 2 + m.thick * 1.6 : 3;
+    cx.strokeStyle = mat === 'steel' ? (m.kind === 'col' ? '#4b5966' : '#5e6c78') : m.kind === 'col' ? '#7d766b' : '#a39b8e'; cx.lineWidth = w; cx.lineCap = 'butt';
+    cx.beginPath(); cx.moveTo(A.x, A.y); cx.lineTo(B.x, B.y); cx.stroke();
+    if (m.str < 0.99 && m.kind === 'col') { cx.strokeStyle = 'rgba(255,80,40,0.7)'; cx.lineWidth = 1; cx.stroke(); }
+  }
+}
+function drawRubble() {
+  if (!S) return;
+  const pile = S.pile; let any = false; for (let k = 0; k < pile.length; k++) if (pile[k] > 0.5) { any = true; break; } if (!any) return;
+  const col = S.mat === 'steel' ? ['#77838d', '#4a535b'] : S.mat === 'brick' ? ['#9a4f36', '#5e2d20'] : ['#b0a898', '#6d675d'];
+  cx.fillStyle = lin(cx, 0, GY - 60, 0, GY, [[0, col[0]], [1, col[1]]]);
+  cx.beginPath(); cx.moveTo(0, GY); for (let k = 0; k < pile.length; k++) cx.lineTo(k * 4, GY - pile[k] * 0.85 + (pile[k] > 0.5 ? (hash(k, 1) - 0.5) * 3 : 0)); cx.lineTo(W, GY); cx.closePath(); cx.fill();
+  cx.fillStyle = 'rgba(0,0,0,0.25)'; for (let k = 0; k < pile.length; k += 2) if (pile[k] > 3) cx.fillRect(k * 4, GY - pile[k] * 0.85 * hash(k, 2), 3, 2);
+}
+function drawNeighbours(con, hits) {
+  con.nbrs.forEach((n, i) => {
+    const x = n.x, y = GY - n.h, w = n.w, h = n.h, dmg = hits ? clamp(hits[i] / 10, 0, 1) : 0;
+    const base = n.kind === 'house' ? '#d8c7a6' : n.kind === 'brick' ? '#9a5038' : n.kind === 'shed' ? '#7c8a94' : '#8d9bab';
+    cx.fillStyle = lin(cx, x, y, x + w, y + h, [[0, shade(base, 0.12)], [1, shade(base, -0.25)]]); cx.fillRect(x, y, w, h);
+    if (n.kind === 'house') { cx.fillStyle = '#5c3b2c'; cx.beginPath(); cx.moveTo(x - 8, y); cx.lineTo(x + w / 2, y - 34); cx.lineTo(x + w + 8, y); cx.fill(); }
+    cx.fillStyle = 'rgba(0,0,0,0.15)'; cx.fillRect(x, y, w, 4);
+    seed = i * 31 + 5;
+    for (let yy = y + 10; yy < GY - 14; yy += 18) for (let xx = x + 8; xx < x + w - 14; xx += 18) {
+      const broken = dmg > 0 && srand() < dmg * 1.4; cx.fillStyle = broken ? '#1a1a1a' : srand() < 0.4 ? '#ffe2a0' : '#33475a'; cx.fillRect(xx, yy, 10, 11);
+      if (broken) { cx.strokeStyle = '#bbb'; cx.lineWidth = 0.7; cx.beginPath(); cx.moveTo(xx, yy); cx.lineTo(xx + 10, yy + 11); cx.stroke(); } }
+    if (dmg > 0) { cx.strokeStyle = 'rgba(20,10,5,0.8)'; cx.lineWidth = 1.4; seed = i * 3 + 1; for (let k = 0; k < dmg * 8; k++) { let px = x + sr(0, w), py = y + sr(0, h * 0.4); cx.beginPath(); cx.moveTo(px, py); for (let s = 0; s < 5; s++) { px += sr(-8, 8); py += sr(5, 14); cx.lineTo(px, py); } cx.stroke(); } }
+    txt(n.name, x + w / 2, y - (n.kind === 'house' ? 42 : 10), 9.5, 'rgba(255,255,255,0.75)', 'center', 800);
+  });
+}
+
+// ---------- PLANNING: load charges, delays, pre-weakening, predictions ----------
+const P = { con: null, phase: 'plan', plan: [], sel: [], pre: {}, h2h: 2, checks: {}, practice: false, hover: -1, tipT: 0, res: null, attempt: 0 };
+const SIZE_COST = [0, 1, 1.6, 2.3];
+const CHECK_COST = { survey: 300, seis: 150, guards: 200, circuit: 0, signals: 0, weather: 0 };
+function isRock() { return P.con && P.con.kind === 'rock'; }
+function openContract(con, practice) {
+  P.con = con; P.practice = !!practice; P.phase = 'plan'; P.sel = []; P.pre = {}; P.res = null; P.checks = {}; P.attempt++; P.tipT = 0; P.h2h = 0;
+  fxReset(); game.shake = 0; S = null; G = null;
+  if (con.kind === 'struct') { structInit(con); P.plan = S.slots.map(() => ({ ord: null, size: 1, delay: 0, wrap: false, dir: 1 })); }
+  else { rockInit(con); P.plan = G.holes.map(() => ({ ord: 'none', stem: 1, delay: 0, mat: false })); bakeRock(con); }
+  BG = bakeBackdrop(con);
+  game.state = 'plan'; game.paused = false;
+  announce(con.name + '. ' + con.brief);
+}
+function resetSim() { // rebuild physics but keep the plan
+  fxReset(); if (P.con.kind === 'struct') structInit(P.con); else { rockInit(P.con); bakeRock(P.con); }
+}
+// ---- costs ----
+function chargeLenM(h, pl) { if (h.front) return 3.2; const c = holeColumn(h, pl); return Math.max(0.3, (c.y1 - c.y0) / G.ppm); }
+function planCost() {
+  let c = 0; const con = P.con;
+  if (con.kind === 'struct') {
+    P.plan.forEach(p => { if (p.ord) c += ORD[p.ord].cost * SIZE_COST[p.size] + (p.wrap ? 60 : 0); });
+    for (const k in P.pre) if (P.pre[k]) c += 180;
+  } else {
+    P.plan.forEach((p, i) => { if (p.ord === 'none') return; const h = G.holes[i]; const per = chargeLenM(h, p) * ORD[p.ord].cost * (h.front ? 0.35 : con.small ? 0.3 : 1) + (h.front ? 8 : 20);
+      c += per * h.n + (p.mat ? 90 : 0); });
+  }
+  for (const k in P.checks) if (P.checks[k]) c += CHECK_COST[k] || 0;
+  return Math.round(c);
+}
+function budget() { return P.practice ? 999999 : P.con.budget; }
+// ---- predictions (same model as the evaluation) ----
+function detList() {
+  const con = P.con, out = [];
+  if (con.kind === 'struct') {
+    P.plan.forEach((p, i) => { if (!p.ord) return; const o = ORD[p.ord]; out.push({ t: p.delay, w: SIZE_COST[p.size] * o.w * 4, unc: o.unconf * (p.wrap ? 0.6 : 1), i }); });
+  } else {
+    const h2h = con.h2h ? con.h2h[P.h2h] : 0;
+    P.plan.forEach((p, i) => { if (p.ord === 'none') return; const h = G.holes[i], o = ORD[p.ord]; const kg = chargeLenM(h, p) * o.kgm * (con.small ? 0.04 : h.front ? 0.14 : 1);
+      for (let j = 0; j < h.n; j++) out.push({ t: p.delay + j * h2h, w: kg, i, unc: 1, mat: p.mat }); });
+  }
+  return out.sort((a, b) => a.t - b.t);
+}
+function maxPerDelay(dets, fn) {
+  let best = 0, bw = 0;
+  for (let a = 0; a < dets.length; a++) { let w = 0, u = 0; for (let b = a; b < dets.length && dets[b].t < dets[a].t + 8; b++) { const k = fn ? fn(dets[b]) : 1; w += dets[b].w * k; u += dets[b].w * dets[b].unc * k; } if (w > bw) bw = w; if (u > best) best = u; }
+  return { w: bw, u: best };
+}
+function ppvFrom(D, W, K) { if (W <= 0) return 0; return (K || 45) * Math.pow(D / Math.sqrt(W), -1.6); }
+function dbFrom(D, W, A) { if (W <= 0) return 0; const p = A * Math.pow(D / Math.cbrt(W), -1.2); return 20 * Math.log10(Math.max(1e-6, p) / 2e-5); }
+function monDist() { const c = P.con; return c.kind === 'struct' ? c.mon.dist : c.house ? c.house.d : 0; }
+function predict() {
+  const con = P.con, dets = detList(), D = monDist(), m = maxPerDelay(dets);
+  if (con.kind === 'struct') return { kg: m.w, ppv: ppvFrom(D, m.w, 8), db: dbFrom(D, m.u, 900) };
+  if (!D) return { kg: m.w, ppv: 0, db: 0 };
+  return { kg: m.w, ppv: ppvFrom(D, m.w), db: dbFrom(D, m.w, 900 * (con.trench ? 3 : 1) * (dets.length && dets.every(d => d.mat) ? 0.3 : 1)) };
+}
+// ---- markers ----
+function slotPos(i) {
+  if (P.con.kind === 'struct') { const m = S.mem[S.slots[i]], A = S.nodes[m.a], B = S.nodes[m.b];
+    if (m.kind === 'notch') return { x: (A.x + B.x) / 2, y: GY - 16 };
+    const lo = A.y > B.y ? A : B, hi = A.y > B.y ? B : A; return { x: lerp(lo.x, hi.x, 0.3), y: lerp(lo.y, hi.y, 0.3) }; }
+  const h = G.holes[i]; return h.front ? { x: h.x, y: h.y } : { x: h.x, y: h.top - 14 };
+}
+function prePos(mi) { const m = S.mem[mi], A = S.nodes[m.a], B = S.nodes[m.b]; return { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 }; }
+function slotLabel(i) {
+  if (P.con.kind === 'struct') { const m = S.mem[S.slots[i]]; if (S.type === 'stack') return m.kind === 'notch' ? 'Notch (center)' : m.side === 'L' ? 'Left side' : 'Right side';
+    return 'Column ' + String.fromCharCode(65 + m.ci) + (m.fi ? ' / floor ' + (m.fi + 1) : ' / ground') + '  \u00b7  ' + (m.mat === 'steel' ? 'steel' : 'concrete') + ' ' + ['', 'light', 'medium', 'heavy'][m.thick]; }
+  const h = G.holes[i]; return h.front ? h.group + ' hole' : h.label + ' (' + h.n + ' holes, ' + (h.def.depth) + ' m deep' + (h.def.wet ? ', ' + h.def.wet + ' m WATER' : '') + ')';
+}
+function hitSlot(x, y) {
+  let best = -1, bd = 1e9; const front = isRock() && P.con.view === 'front';
+  for (let i = 0; i < P.plan.length; i++) { const p = slotPos(i); let d = Math.hypot(p.x - x, p.y - y);
+    if (isRock() && !front) { const h = G.holes[i]; if (Math.abs(x - h.x) < 12 && y > h.top - 26 && y < h.bot) d = Math.min(d, Math.abs(x - h.x)); }
+    if (d < bd) { bd = d; best = i; } }
+  return bd < (front ? 11 : 16) ? best : -1;
+}
+function hitPre(x, y) { if (!S || !S.pre.length) return -1; for (const mi of S.pre) { const p = prePos(mi); if (Math.hypot(p.x - x, p.y - y) < 10) return mi; } return -1; }
+// ---- plan screen update ----
+function updatePlan(dt) {
+  P.tipT += dt;
+  if (P.phase !== 'plan') return;
+  if (pressed.click) {
+    const s = hitSlot(ptr.x, ptr.y);
+    if (s >= 0) { if (held.shift || ptr.btn === 1) { const k = P.sel.indexOf(s); if (k >= 0) P.sel.splice(k, 1); else P.sel.push(s); } else P.sel = [s]; sfx('tick'); }
+    else { const pw = hitPre(ptr.x, ptr.y); if (pw >= 0) { P.pre[pw] = !P.pre[pw]; sfx('tick'); } else if (!P.sel.length || ptr.y < selPanelY() || ptr.y > selPanelY() + 120 || ptr.x > W - 260) P.sel = []; }
+  }
+  if (pressed.start && P.sel.length === 0) openChecklist();
+  if (pressed.pause) { if (P.sel.length) P.sel = []; else game.paused = true; }
+}
+const PANEL_Y = 452;
+function curSel() { return P.sel.length ? P.plan[P.sel[0]] : null; }
+function setSel(fn) { for (const i of P.sel) fn(P.plan[i], i); sfx('tick'); }
+function delayStep() { return P.con.kind === 'struct' ? 100 : P.con.view === 'front' ? 100 : 25; }
+function delayMax() { return P.con.kind === 'struct' ? 4000 : P.con.view === 'front' ? 1500 : 500; }
+function drawPlanWorld() {
+  const con = P.con;
+  cx.drawImage(BG, 0, 0, W, H);
+  if (con.kind === 'struct') {
+    // footprint / lane zone
+    cx.save(); cx.fillStyle = 'rgba(60,255,122,0.06)'; cx.fillRect(con.zone[0], GY - 4, con.zone[1] - con.zone[0], 10); cx.strokeStyle = 'rgba(60,255,122,0.5)'; cx.setLineDash([6, 4]); cx.beginPath(); cx.moveTo(con.zone[0], GY + 8); cx.lineTo(con.zone[0], GY - 30); cx.moveTo(con.zone[1], GY + 8); cx.lineTo(con.zone[1], GY - 30); cx.stroke(); cx.restore();
+    txt(con.id === 'stack' || con.id === 'tower' ? 'FALL LANE' : 'DEBRIS FOOTPRINT', (con.zone[0] + con.zone[1]) / 2, GY + 18, 9, 'rgba(60,255,122,0.7)', 'center', 900, MONO);
+    drawNeighbours(con, S.nbrHits); drawRubble(); drawStructure(P.phase === 'plan'); drawChunks();
+    // seismograph post
+    const mx = con.mon.x; cx.fillStyle = '#ffd23f'; cx.fillRect(mx - 3, GY - 10, 6, 10); txt('SEIS', mx, GY - 16, 8, '#ffd23f', 'center', 900, MONO);
+  } else {
+    if (con.view === 'front') drawTunnelFrame();
+    drawRockWorld();
+    if (con.view === 'side') drawSideExtras();
+  }
+}
+function drawSideExtras() {
+  const con = P.con, ppm = G.ppm;
+  if (!con.trench) { // design line + crest label
+    const x1 = con.crest + con.design.x1 * ppm; cx.save(); cx.strokeStyle = 'rgba(60,255,122,0.55)'; cx.setLineDash([5, 4]); cx.beginPath(); cx.moveTo(x1, con.top - 20); cx.lineTo(x1, con.floor); cx.stroke(); cx.restore();
+    txt('DESIGN LIMIT', x1 + 4, con.floor - 10, 8.5, 'rgba(60,255,122,0.8)', 'left', 900, MONO);
+    txt('FREE FACE \u2190', con.crest - 8, con.top + 30, 9, 'rgba(255,255,255,0.7)', 'right', 900, MONO);
+    if (con.road) { glass(12, con.floor - 40, 150, 26, '#ff3b3b', 0.6, 8); txt('\u2190 ' + con.road.name + ' ' + con.road.d + ' m', 20, con.floor - 27, 10, '#ffb0a0', 'left', 900, MONO); }
+    if (con.house) { glass(W - 230, 196, 218, 26, '#ffd23f', 0.6, 8); txt(con.house.name + ' ' + con.house.d + ' m \u2192', W - 222, 209, 10, '#ffe9a0', 'left', 900, MONO); }
+  } else {
+    const T = con.trench; cx.save(); cx.strokeStyle = 'rgba(60,255,122,0.6)'; cx.setLineDash([5, 4]); cx.strokeRect(T.x0 * ppm, con.top, (T.x1 - T.x0) * ppm, T.depth * ppm); cx.restore();
+    txt('TRENCH DESIGN', (T.x0 + T.x1) / 2 * ppm, con.top + T.depth * ppm + 14, 9, 'rgba(60,255,122,0.8)', 'center', 900, MONO);
+    const p = con.pipe; if (p && !(P.res && P.res.pipeHit)) { const x = p.x * ppm, y = con.top + p.y * ppm, r = p.r * ppm; cx.fillStyle = radg(cx, x - r * 0.3, y - r * 0.3, 2, x, y, r, [[0, '#fff27a'], [1, '#b89a10']]); cx.beginPath(); cx.arc(x, y, r, 0, 6.283); cx.fill(); txt('LIVE GAS MAIN', x, y + r + 12, 9, '#ffe27a', 'center', 900, MONO); }
+    glass(W - 230, 196, 218, 26, '#ffd23f', 0.6, 8); txt(con.house.name + ' ' + con.house.d + ' m \u2192', W - 222, 209, 10, '#ffe9a0', 'left', 900, MONO);
+  }
+}
+function drawTunnelFrame() {
+  // rails, vent duct, lamp
+  cx.fillStyle = '#05060a'; cx.fillRect(0, G.fy + 4, W, H - G.fy);
+  cx.strokeStyle = '#3b3f46'; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(0, G.fy + 30); cx.lineTo(W, G.fy + 30); cx.moveTo(0, G.fy + 50); cx.lineTo(W, G.fy + 50); cx.stroke();
+}
+function drawPlanMarkers() {
+  const con = P.con, front = isRock() && con.view === 'front';
+  if (isRock() && !front) for (let i = 0; i < G.holes.length; i++) { const h = G.holes[i], p = P.plan[i];
+    cx.strokeStyle = 'rgba(10,8,6,0.8)'; cx.lineWidth = 4; cx.beginPath(); cx.moveTo(h.x, h.top); cx.lineTo(h.x, h.bot); cx.stroke();
+    if (h.wet < 1e8) { cx.strokeStyle = '#4aa0ff'; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(h.x, h.wet); cx.lineTo(h.x, h.bot); cx.stroke(); }
+    if (p.ord !== 'none') { const c = holeColumn(h, p); cx.strokeStyle = ORD[p.ord].col; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(h.x, c.y0); cx.lineTo(h.x, c.y1); cx.stroke();
+      cx.strokeStyle = '#9b9488'; cx.lineWidth = 3; cx.beginPath(); cx.moveTo(h.x, h.top); cx.lineTo(h.x, c.y0); cx.stroke(); }
+    if (p.mat) { cx.fillStyle = '#2a2a2a'; cx.fillRect(h.x - 22, h.top - 5, 44, 5); cx.fillStyle = '#555'; for (let k = -20; k < 22; k += 6) cx.fillRect(h.x + k, h.top - 5, 3, 5); }
+  }
+  if (front) for (const r of G.relief) { cx.fillStyle = '#000'; cx.beginPath(); cx.arc(r.x, r.y, r.r + 2, 0, 6.283); cx.fill(); cx.strokeStyle = 'rgba(255,255,255,0.3)'; cx.lineWidth = 1; cx.stroke(); }
+  for (let i = 0; i < P.plan.length; i++) {
+    const p = P.plan[i], pos = slotPos(i), sel = P.sel.includes(i), ord = isRock() ? (p.ord === 'none' ? null : p.ord) : p.ord, col = ord ? ORD[ord].col : '#9aa4ad';
+    const r = front ? 6 : 8, hv = hitSlot(ptr.x, ptr.y) === i && ptr.type === 'mouse';
+    if (sel || hv) { cx.save(); cx.shadowColor = '#fff'; cx.shadowBlur = 12; cx.strokeStyle = '#fff'; cx.lineWidth = 2; cx.beginPath(); cx.arc(pos.x, pos.y, r + 4, 0, 6.283); cx.stroke(); cx.restore(); }
+    cx.fillStyle = ord ? col : 'rgba(20,24,30,0.8)'; cx.beginPath(); cx.arc(pos.x, pos.y, r, 0, 6.283); cx.fill();
+    cx.strokeStyle = ord ? '#fff' : col; cx.lineWidth = 1.3; cx.setLineDash(ord ? [] : [2, 2]); cx.stroke(); cx.setLineDash([]);
+    if (ord && !front) txt(isRock() ? p.delay + '' : (p.delay / 1000).toFixed(1), pos.x, pos.y - r - 7, 9, '#fff', 'center', 900, MONO);
+    if (ord && front) txt(String(p.delay / 100 | 0), pos.x, pos.y, 7.5, '#000', 'center', 900, MONO);
+    if (!isRock() && ord) { txt(SIZES[p.size].n, pos.x, pos.y + 0.5, 8, '#000', 'center', 900, MONO); if (p.wrap) { cx.strokeStyle = '#c0c8d0'; cx.lineWidth = 1; cx.strokeRect(pos.x - r - 3, pos.y - r - 3, r * 2 + 6, r * 2 + 6); } }
+  }
+  if (S && S.pre.length && P.phase === 'plan') for (const mi of S.pre) { const pp = prePos(mi), on = P.pre[mi];
+    cx.fillStyle = on ? '#3cff7a' : 'rgba(255,90,60,0.85)'; rrect(cx, pp.x - 9, pp.y - 6, 18, 12, 3); cx.fill(); txt(on ? '\u2713' : 'PW', pp.x, pp.y + 0.5, 7.5, '#000', 'center', 900, MONO); }
+}
+function chip(id, x, y, w, label, on, col, fn, opt) { button(id, x, y, w, 24, label, Object.assign({ col: on ? col : '#5b6670', size: 10.5, hot: on, fn }, opt || {})); }
+function drawPlanUI() {
+  const con = P.con, cost = planCost(), bud = budget(), pr = predict(), front = isRock() && con.view === 'front';
+  // header
+  glass(10, 8, 330, 56, '#ffd23f', 0.8, 10);
+  txt(con.name.toUpperCase(), 22, 24, 15, '#fff', 'left', 900); txt(con.client + (P.practice ? '  \u00b7  PRACTICE' : ''), 22, 42, 10, 'rgba(255,255,255,0.6)', 'left', 700);
+  txt(P.practice ? 'COST $' + cost : '$' + cost + ' / $' + bud, 330, 24, 11, cost > bud ? '#ff5a4a' : '#ffd23f', 'right', 900, MONO);
+  if (!P.practice) bar(190, 46, 140, 6, cost / bud, cost > bud ? '#ff3b3b' : '#3cff7a');
+  // predictions
+  const lim = con.ppvLim, px = W - 250;
+  glass(px, 8, 240, front ? 58 : 92, '#7fe0e8', 0.8, 10);
+  txt('PREDICTION', px + 12, 22, 9, '#7fe0e8', 'left', 900, MONO);
+  txt('max charge / 8 ms', px + 12, 38, 9.5, 'rgba(255,255,255,0.7)', 'left', 700); txt(pr.kg.toFixed(con.small ? 1 : 0) + (con.kind === 'struct' ? ' units' : ' kg'), px + 228, 38, 10, '#fff', 'right', 900, MONO);
+  if (!front) {
+    const pc = pr.ppv / lim; txt('PPV ' + pr.ppv.toFixed(2) + ' / ' + lim + ' in/s', px + 12, 56, 9.5, pc > 1 ? '#ff6a4a' : '#dfffe8', 'left', 800, MONO); bar(px + 150, 53, 78, 6, pc, pc > 1 ? '#ff3b3b' : pc > 0.8 ? '#ffd23f' : '#3cff7a');
+    const dc = pr.db / con.dbLim; txt('AIR ' + pr.db.toFixed(0) + ' / ' + con.dbLim + ' dB', px + 12, 74, 9.5, pr.db > con.dbLim ? '#ff6a4a' : '#dfffe8', 'left', 800, MONO); bar(px + 150, 71, 78, 6, clamp((pr.db - 100) / (con.dbLim - 100), 0, 1.2), pr.db > con.dbLim ? '#ff3b3b' : '#3cff7a');
+  } else txt('underground: aim for clean walls', px + 12, 54, 9.5, 'rgba(255,255,255,0.6)', 'left', 700);
+  button('hb', px - 108, 10, 98, 26, 'HANDBOOK', { col: '#c78bff', size: 10.5, fn: () => { game.prev = 'plan'; game.state = 'book'; } });
+  button('menu', px - 108, 40, 98, 24, 'CONTRACTS', { col: '#7fe0e8', size: 10, fn: () => { game.state = 'board'; } });
+  // rock global: hole-to-hole delay
+  if (isRock() && con.h2h) { const y = front ? 72 : 106; glass(px, y, 240, 52, '#7fe0e8', 0.75, 10); txt('HOLE-TO-HOLE DELAY (in each row)', px + 12, y + 13, 8.5, '#7fe0e8', 'left', 900, MONO);
+    con.h2h.forEach((v, k) => chip('h2h' + k, px + 10 + k * 45, y + 22, 41, v + ' ms', P.h2h === k, '#7fe0e8', () => { P.h2h = k; })); }
+  if (front) { const y = 72; glass(px, y, 240, 116, '#7fe0e8', 0.75, 10); txt('SELECT A GROUP', px + 12, y + 13, 8.5, '#7fe0e8', 'left', 900, MONO);
+    const groups = ['CUT', 'EASER 1', 'EASER 2', 'EASER 3', 'PERIMETER', 'LIFTERS'];
+    groups.forEach((g, k) => button('grp' + k, px + 10 + (k % 2) * 112, y + 24 + Math.floor(k / 2) * 29, 106, 25, g, { col: '#c78bff', size: 10, fn: () => { P.sel = G.holes.map((h, i) => h.group === g ? i : -1).filter(i => i >= 0); } })); }
+  // tip from the chief
+  const tipY = P.sel.length ? 0 : H - 34;
+  if (!P.sel.length) { glass(10, H - 52, W - 270, 42, '#ff9a1f', 0.75, 10); txt('CHIEF ROSA:', 22, H - 37, 9.5, '#ff9a1f', 'left', 900, MONO); wrapTxt(con.tip, 104, H - 37, W - 390, 10.5, 'rgba(255,255,255,0.88)', 14); }
+  // fire button
+  const over = cost > bud, any = P.plan.some(p => isRock() ? p.ord !== 'none' : !!p.ord);
+  button('fire', W - 250, H - 56, 240, 46, 'CHECKLIST & FIRE', { col: '#ff3b3b', size: 16, sub: over ? 'over budget!' : !any ? 'load at least one charge' : 'pre-blast safety  \u00b7  Enter', disabled: over || !any, hot: !over && any, fn: openChecklist });
+  if (P.sel.length) drawSelPanel();
+}
+function selPanelY() { let maxY = 0; for (const i of P.sel) maxY = Math.max(maxY, slotPos(i).y); return maxY > H - 150 ? 72 : H - 128; }
+function drawSelPanel() {
+  const con = P.con, p = curSel(), y = selPanelY(), x = 10, w = W - 270, h = 120;
+  glass(x, y, w, h, '#ffd23f', 0.92, 12);
+  txt(P.sel.length > 1 ? P.sel.length + ' selected' : slotLabel(P.sel[0]), x + 12, y + 14, 11, '#fff', 'left', 900);
+  button('selx', x + w - 30, y + 4, 22, 20, '\u00d7', { col: '#7d8a94', size: 12, fn: () => { P.sel = []; } });
+  const cx0 = x + 12, ry = y + 28, ry2 = y + 58;
+  let x2 = cx0;
+  if (con.kind === 'struct') {
+    chip('o0', cx0, ry, 62, 'NONE', !p.ord, '#9aa4ad', () => setSel(q => { q.ord = null; }));
+    ['lsc', 'drill', 'kick'].forEach((k, i) => chip('o' + k, cx0 + 66 + i * 104, ry, 100, ORD[k].short + ' $' + ORD[k].cost, p.ord === k, ORD[k].col, () => setSel(q => { q.ord = k; })));
+    let xs = cx0 + 66 + 3 * 104 + 12; txt('SIZE', xs, ry + 12, 9, 'rgba(255,255,255,0.6)', 'left', 900, MONO);
+    [1, 2, 3].forEach((sz, i) => chip('s' + sz, xs + 34 + i * 34, ry, 30, SIZES[sz].n, p.size === sz, '#ffd23f', () => setSel(q => { q.size = sz; })));
+    chip('wrap', cx0, ry2, 92, p.wrap ? 'WRAP \u2713' : 'WRAP $60', p.wrap, '#c0c8d0', () => { const v = !p.wrap; setSel(q => { q.wrap = v; }); }); x2 = cx0 + 100;
+    if (p.ord === 'kick') { chip('dirL', x2, ry2, 30, '\u2190', p.dir < 0, '#ff3b3b', () => setSel(q => { q.dir = -1; })); chip('dirR', x2 + 34, ry2, 30, '\u2192', p.dir > 0, '#ff3b3b', () => setSel(q => { q.dir = 1; })); }
+    x2 = cx0 + 176;
+    wrapTxt(p.ord ? ORD[p.ord].desc : 'Click a charge type. Steel = cutters. Concrete & brick = drilled.', cx0, y + 100, w - 30, 10, 'rgba(255,255,255,0.72)', 13);
+  } else {
+    const opts = con.view === 'front' ? ['none', 'emul', 'trim'] : ['none', 'anfo', 'emul', 'trim'];
+    opts.forEach((k, i) => chip('o' + k, cx0 + i * 104, ry, 100, ORD[k].short + (k === 'none' ? '' : ' $' + ORD[k].cost), p.ord === k, ORD[k].col, () => setSel(q => { q.ord = k; })));
+    if (con.view === 'side') { const xs = cx0 + opts.length * 104 + 10; txt('STEM', xs, ry + 12, 9, 'rgba(255,255,255,0.6)', 'left', 900, MONO);
+      STEMS.forEach((st, i) => chip('st' + i, xs + 38 + i * 62, ry, 58, st.n, p.stem === i, '#9b9488', () => setSel(q => { q.stem = i; })));
+      if (con.mats) { chip('mat', cx0, ry2, 92, p.mat ? 'MAT \u2713' : 'MAT $90', p.mat, '#c0c8d0', () => { const v = !p.mat; setSel(q => { q.mat = v; }); }); } }
+    x2 = cx0 + (con.mats ? 100 : 0);
+    wrapTxt(ORD[p.ord].desc + (con.view === 'side' ? '  Stemming ' + STEMS[p.stem].n.toLowerCase() + ' = ' + (STEMS[p.stem].m * (con.small ? 0.32 : 1)).toFixed(1) + ' m of crushed stone on top.' : ''), cx0, y + 100, w - 30, 10, 'rgba(255,255,255,0.72)', 13);
+  }
+  // delay control (second row)
+  const st = delayStep(), mx = delayMax();
+  txt(con.kind === 'struct' ? 'DELAY' : con.view === 'front' ? 'DELAY' : 'ROW DELAY', x2, ry2 + 12, 9, 'rgba(255,255,255,0.6)', 'left', 900, MONO);
+  const dx = x2 + (con.kind === 'struct' || con.view === 'front' ? 46 : 74);
+  button('dm', dx, ry2, 30, 24, '\u2212', { col: '#7fe0e8', size: 15, fn: () => setSel(q => { q.delay = Math.max(0, q.delay - st); }) });
+  glass(dx + 33, ry2, 84, 24, '#7fe0e8', 0.6, 6); txt(con.kind === 'struct' ? (p.delay / 1000).toFixed(1) + ' s' : p.delay + ' ms', dx + 75, ry2 + 12, 12.5, '#fff', 'center', 900, MONO);
+  button('dp', dx + 120, ry2, 30, 24, '+', { col: '#7fe0e8', size: 15, fn: () => setSel(q => { q.delay = Math.min(mx, q.delay + st); }) });
+  let bx = dx + 158;
+  if (P.sel.length > 1) { button('stag', bx, ry2, 72, 24, 'STAGGER', { col: '#c78bff', size: 9.5, fn: () => { const d0 = curSel().delay; P.sel.forEach((i, k) => { P.plan[i].delay = Math.min(mx, d0 + k * st); }); sfx('tick'); } }); bx += 78; }
+  button('all', x + w - 212, ry2, 98, 24, 'SELECT ALL', { col: '#5b6670', size: 9.5, fn: () => { P.sel = P.plan.map((_, i) => i); } });
+  button('cpy', x + w - 110, ry2, 98, 24, 'COPY TO ALL', { col: '#5b6670', size: 9.5, fn: () => { const s0 = Object.assign({}, curSel()); P.plan.forEach(q => { const d = q.delay; Object.assign(q, s0); q.delay = d; }); sfx('tick'); } });
+}
+function wrapTxt(s, x, y, w, size, col, lh, weight) {
+  cx.font = (weight || 700) + ' ' + size + 'px ' + FONT; const words = String(s).split(' '); let line = '', yy = y;
+  for (const wd of words) { const t = line + wd + ' '; if (cx.measureText(t).width > w && line) { txt(line.trim(), x, yy, size, col, 'left', weight || 700); line = wd + ' '; yy += lh; } else line = t; }
+  txt(line.trim(), x, yy, size, col, 'left', weight || 700); return yy;
+}
+
+// ---------- CHECKLIST, COUNTDOWN, BLAST, EVALUATION ----------
+const B = { t: 0, tms: 0, phase: 'none', dets: [], fired: [], waves: [], peakPPV: 0, peakDB: 0, msg: '', misfire: -1, events: [], last: 0, settleT: 0, abort: null, slow: 1, flyIn: 0 };
+function openChecklist() { if (planCost() > budget()) return; P.phase = 'check'; P.sel = []; sfx('select'); }
+function startCountdown() {
+  const con = P.con;
+  // abort scenarios (taught consequences)
+  B.abort = null;
+  if (!P.checks.guards && Math.random() < 0.45) B.abort = { t: 'COUNTDOWN ABORTED', b: 'A dog walker strolled through the unguarded access road. You stopped the shot - good call - but the crew stood down for an hour.', fine: 400 };
+  else if (con.storm && !P.checks.weather) B.abort = { t: 'LIGHTNING - SITE EVACUATED', b: 'A storm cell rolled in while the shot was loaded. Nobody checked the forecast. Everyone cleared out and waited two hours.', fine: 600 };
+  P.phase = 'count'; B.t = 0; B.countN = -1; sfx('select');
+  if (con.storm && P.checks.weather) toast('Forecast showed a storm cell - you waited it out (standby -$300)', '#7fe0e8', 3.2);
+}
+function beginBlast() {
+  const con = P.con; resetSim();
+  if (S) for (const k in P.pre) if (P.pre[k]) { const m = S.mem[k]; m.alive = false; if (m.pair != null) S.mem[m.pair].alive = false; }
+  B.t = 0; B.tms = con.kind === 'rock' ? -15 : -150; B.phase = 'fire'; B.fired = []; B.waves = []; B.peakPPV = 0; B.peakDB = 0; B.events = []; B.settleT = 0; B.flyIn = 0; B.flyList = []; B.ejects = 0;
+  // schedule
+  B.dets = [];
+  if (con.kind === 'struct') P.plan.forEach((p, i) => { if (p.ord) B.dets.push({ t: p.delay, i, done: false }); });
+  else P.plan.forEach((p, i) => { if (p.ord !== 'none') B.dets.push({ t: p.delay, i, done: false }); });
+  B.dets.sort((a, b) => a.t - b.t);
+  B.last = B.dets.length ? B.dets[B.dets.length - 1].t : 0;
+  if (con.kind === 'rock' && con.h2h) { const h2h = con.h2h[P.h2h]; B.last += h2h * 8; }
+  B.misfire = -1;
+  if (!P.checks.circuit && B.dets.length && Math.random() < 0.4) B.misfire = B.dets[Math.floor(Math.random() * B.dets.length)].i;
+  P.phase = 'blast';
+  game.flash = 0; sfx('fire');
+}
+function addWave(amp, delay) { B.waves.push({ t0: B.t + (delay || 0), amp, f: RND(9, 22) }); }
+function seisVal(t) { let v = 0; for (const w of B.waves) { const d = t - w.t0; if (d < 0 || d > 2.5) continue; v += w.amp * Math.exp(-d * 4) * Math.sin(d * w.f * 6.283); } return v; }
+function updateBlast(dt) {
+  const con = P.con;
+  if (P.phase === 'count') {
+    B.t += dt; const n = Math.floor(B.t);
+    if (n !== B.countN) { B.countN = n;
+      if (B.abort && n === 2) { P.phase = 'aborted'; sfx('deny'); return; }
+      if (n <= 1) { if (P.checks.signals) sfx('siren'); } else if (n < 5) sfx('beep', n); }
+    if (B.t >= 5) beginBlast();
+    return;
+  }
+  if (P.phase !== 'blast') return;
+  B.t += dt;
+  const rock = con.kind === 'rock';
+  // blast clock: slow-mo while charges are going off
+  const firing = B.tms < B.last + (rock ? 40 : 200);
+  const rate = rock ? (con.view === 'front' ? 260 : 110) : 650; // ms of blast time per real second
+  B.tms += dt * (firing ? rate : 1000);
+  const simK = firing ? (rock ? 0.35 : 0.65) : 1;
+  B.slow = firing ? (rock ? 0.35 : 0.65) : 1;
+  // detonations
+  for (const d of B.dets) {
+    if (d.done || B.tms < d.t) continue; d.done = true;
+    if (d.i === B.misfire) { B.events.push({ type: 'misfire', i: d.i }); continue; }
+    fireOne(d);
+  }
+  // physics
+  const sdt = dt * simK;
+  if (rock) {
+    rockRelease(B.tms); rockStep(sdt); rockSyncDirty();
+    // flyrock tracking: particles that leave the screen with speed
+    fxStep(sdt, x => H);
+  } else {
+    const n = 2; for (let k = 0; k < n; k++) structStep(sdt / n);
+    fxStep(sdt, x => GY - pileAt(x) * 0.85);
+    if (S.impactE > (B.lastE || 0) + 0.5) { addWave(Math.min(3, (S.impactE - (B.lastE || 0)) * 0.08)); B.lastE = S.impactE; }
+  }
+  // settle detection
+  const quiet = rock ? (G.parts.length === 0 && G.muckActive <= 0) : (S.energy < 0.02);
+  if (!rock) S.energy = 0;
+  if (!firing && quiet) B.settleT += dt; else if (!firing) B.settleT += dt * 0.15;
+  if (B.settleT > 1.2 || B.t > 16) finishBlast();
+}
+function fireOne(d) {
+  const con = P.con, p = P.plan[d.i];
+  if (con.kind === 'struct') {
+    const r = structCharge(d.i, p); B.events.push({ type: 'charge', i: d.i, cut: r.cut, note: r.note, t: B.tms });
+    const w = SIZE_COST[p.size] * ORD[p.ord].w * 4; B.fired.push({ t: d.t, w, unc: ORD[p.ord].unconf * (p.wrap ? 0.6 : 1) });
+    addWave(clamp(ppvFrom(con.mon.dist, w, 8), 0.05, 3));
+  } else {
+    const h = G.holes[d.i], r = rockFire(h, p, B.tms); B.events.push(Object.assign({ type: 'hole', i: d.i }, r));
+    const pos = h.front ? { x: h.x, y: h.y } : { x: h.x, y: h.top };
+    if (r.wetfail) { B.events.push({ type: 'misfire', i: d.i, wet: 1 }); return; }
+    const h2h = con.h2h ? con.h2h[P.h2h] : 0, kgm = r.choke ? 1.8 : 1;
+    for (let j = 0; j < h.n; j++) {
+      B.fired.push({ t: d.t + j * h2h, w: r.kg * kgm, unc: r.eject ? 12 : r.choke ? 0.6 : (con.trench ? (p.mat ? 0.9 : 5) : 1) });
+      const delayReal = j * h2h / (con.view === 'front' ? 260 : 110);
+      later(() => { if (P.phase !== 'blast') return; explode(pos.x + (h.front ? 0 : RND(-4, 4)), pos.y - (h.front ? 0 : 2), h.front ? 1 : con.small ? 1 : 2, ORD[p.ord].col, p.mat, 'rock', { noChunks: true });
+        if (r.eject) ejectAt(pos.x, pos.y);
+        addWave(clamp(ppvFrom(monDist() || 50, r.kg * kgm) * 0.9, 0.08, 3)); }, delayReal);
+    }
+    if (r.eject) B.ejects++;
+  }
+}
+function ejectAt(x, y) {
+  // stemming blows out: vertical flyrock + extra smoke
+  for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + RND(-0.5, 0.5), v = RND(240, 420); spawnChunk(x, y, Math.cos(a) * v, Math.sin(a) * v, 'rock', RND(2, 3.5), true); }
+  FX.smoke.push({ x, y: y - 20, vx: 0, vy: -80, r: 26, gr: 40, t: 0, life: 3, a: 0.6, k: 1, col: 'smoke' });
+}
+// ---------- evaluation ----------
+function finishBlast() {
+  if (P.phase !== 'blast') return;
+  const con = P.con, R = { rows: [], fines: 0, notes: [], ok: true, good: true, great: true };
+  const fail = (label, note, fine) => { R.rows.push({ label, note, bad: 2 }); R.ok = false; R.good = false; R.great = false; if (fine) R.fines += fine; };
+  const warn = (label, note, fine) => { R.rows.push({ label, note, bad: 1 }); R.good = false; R.great = false; if (fine) R.fines += fine; };
+  const pass = (label, note) => R.rows.push({ label, note, bad: 0 });
+  // vibration / airblast from what actually fired
+  const fd = B.fired.slice().sort((a, b) => a.t - b.t), D = monDist();
+  const mw = maxPerDelay(fd);
+  let ppv = 0, db = 0;
+  if (con.kind === 'struct') { ppv = Math.max(ppvFrom(D, mw.w, 8), 0.22 * Math.sqrt(S.impactE) * (12 / D)); db = dbFrom(D, mw.u, 900); }
+  else if (D) { ppv = ppvFrom(D, mw.w); db = dbFrom(D, mw.u, 900); }
+  R.ppv = ppv; R.db = db;
+  const misfires = B.events.filter(e => e.type === 'misfire');
+  // objective
+  if (con.kind === 'struct') {
+    const top = structTopHeight() / S.H0, out = structDebrisOutside(con.zone);
+    const mr = Math.max(...S.nodes.map(n => n.r || 0)), tops = S.nodes.filter(n => n.r === mr), tx = tops.reduce((a, n) => a + n.x, 0) / tops.length;
+    const startX = S.type === 'stack' ? 250 : (S.x0 + S.x1) / 2;
+    const down = top < (S.type === 'stack' ? 0.25 : 0.45);
+    if (!down) fail('Structure still standing', top > 0.9 ? 'Nothing came down. Check charge types and sizes - and what is still holding it up.' : 'A hang-up: partly collapsed and dangerously unstable. The worst outcome on a demo job.', 1500);
+    else if (con.id === 'stack' || con.id === 'tower') {
+      const need = S.H0 * (con.id === 'stack' ? 0.5 : 0.12);
+      if (tx - startX >= need) pass('Felled into the lane', 'Top landed ' + Math.round((tx - startX) / S.ppm) + ' m out');
+      else if (tx - startX <= -need * 0.5) fail('Fell the WRONG way', 'It went left - toward the neighbours.', 2500);
+      else fail('Dropped straight down', 'No controlled fall direction: leave a hinge on the far side, cut the near side first.', 800);
+    } else { const ph = Math.max(...S.pile) * 0.85 / S.ppm; pass('Structure down', ph < 1.5 ? 'Low, tidy rubble pile' : 'Rubble pile about ' + Math.round(ph) + ' m high'); }
+    const hits = S.nbrHits.reduce((a, b) => a + b, 0);
+    // chunk debris on neighbours / outside zone
+    let flyOut = 0, flyNb = 0;
+    for (const c of FX.chunks) { if (!c.fly) continue; const inNb = con.nbrs.some(n => c.x > n.x - 4 && c.x < n.x + n.w + 4 && c.y > GY - n.h - 6); if (inNb) flyNb++; else if (c.x < con.zone[0] - 30 || c.x > con.zone[1] + 30) flyOut++; }
+    if (hits > 3) fail('Neighbour struck', con.nbrs.filter((n, i) => S.nbrHits[i] > 1).map(n => n.name).join(', ') + ' took structural damage', 4000);
+    else if (hits > 0.5 || flyNb > 2) warn('Debris on a neighbour', (flyNb > 2 ? flyNb + ' pieces of flyrock hit ' : 'Light damage to ') + 'a neighbouring building', 900);
+    else pass('Neighbours untouched');
+    if (S.spill) warn('Facade fell outward', 'Exterior columns went before the interior ones - the wall peeled out instead of being pulled in.', 300);
+    if (flyOut > 3) warn('Flyrock outside the zone', flyOut + ' pieces landed beyond the safe line. Wrap the charges.', 300);
+  } else {
+    const sc = rockScore(); R.sc = sc; const front = con.view === 'front';
+    const pct = Math.round(sc.pct * 100);
+    if (sc.pct < 0.85) fail(front ? 'Round pulled short' : 'Design rock not broken', pct + '% broken. ' + (B.events.some(e => e.choke) ? 'Holes choked/froze: no free face within reach when they fired.' : ''), 600);
+    else pass(front ? 'Round pulled' : 'Rock broken to design', pct + '% broken' + (sc.crackPct > 0.03 ? ', ' + Math.round(sc.crackPct * 100) + '% blocky/oversize' : ''));
+    if (sc.crackPct > 0.06) warn('Oversize boulders', 'Choked or under-loaded holes left cracked blocks that need secondary breaking.', 250);
+    if (!front && !con.trench && sc.toe > 20) warn('Toe left at the floor', 'The floor wasn\'t broken - drill deeper or load the bottom.', 200);
+    if (front) { if (sc.profPct > 0.05) warn('Overbreak past the profile', Math.round(sc.profPct * 100) + '% extra rock outside the design arch. Use trim loads on the perimeter.', 300); else pass('Clean profile', 'Walls within tolerance'); }
+    if (con.trench) { if (G.overR > 3 || sc.overPct > 0.06) warn('Overbreak toward the gas main', 'The trench wall broke past the design line. Light trim loads on the edge holes.', 400); }
+    if (!front && !con.trench && sc.overPct > 0.05) warn('Backbreak', 'The wall behind the design line got shattered - stronger than needed in the back row.', 250);
+    if (B.events.some(e => e.pipeHit)) fail('GAS MAIN DAMAGED', 'Evacuation, utility emergency, huge liability.', 20000);
+    // flyrock from launched debris
+    let fly = 0; const lim = con.road ? con.road.d : con.house ? con.house.d * (con.trench ? 1 : 0.8) : 999;
+    for (const e of B.events) if (e.type === 'hole' && e.over && !P.plan[e.i].mat) fly += 2;
+    fly += B.ejects * (con.road ? 1 : 0);
+    if (con.trench) for (const e of B.events) if (e.type === 'hole' && e.broken && !P.plan[e.i].mat) fly += 2;
+    if (fly > 0) fail('FLYROCK reached ' + (con.road ? con.road.name : con.house ? con.house.name : 'the public'), 'Rock thrown beyond the blast area. ' + (con.trench ? 'Close to homes, every collar gets a blasting mat.' : 'Over-driven holes (too little burden) or blown stemming.'), 5000);
+    else if (B.ejects) warn('Stemming blew out', 'Short stemming let gas vent out the top: noise, dust and rock thrown up.', 150);
+  }
+  if (misfires.length) fail('MISFIRE', misfires.some(m => m.wet) ? 'ANFO in a wet hole did not fire. The site is shut down until the blaster in charge clears it.' : 'A charge on an untested circuit did not fire. Site shut down; wait the required time, then treat it as live.', 1200);
+  // limits
+  if (D && con.ppvLim < 9) {
+    if (!P.checks.seis) warn('No seismograph record', 'You can\'t prove the blast met the permit. Regulator fine.', 300);
+    if (ppv > con.ppvLim) { warn('Vibration over limit', 'PPV ' + ppv.toFixed(2) + ' in/s vs ' + con.ppvLim + ' allowed - spread charges over more delays.', P.checks.survey ? 600 : 2000); R.ok = R.ok && ppv < con.ppvLim * 1.6; if (ppv >= con.ppvLim * 1.6) R.rows[R.rows.length - 1].bad = 2; }
+    else pass('Vibration ' + ppv.toFixed(2) + ' in/s', 'limit ' + con.ppvLim);
+    if (db > con.dbLim) warn('Airblast over limit', db.toFixed(0) + ' dB(L) vs ' + con.dbLim + '. ' + (con.kind === 'struct' ? 'Wrap the cutters, fewer per delay.' : 'Confine the charges / mats.'), 500);
+    else pass('Airblast ' + db.toFixed(0) + ' dB', 'limit ' + con.dbLim);
+  }
+  // checklist
+  const missing = CHECKLIST.filter(c => !P.checks[c.id]);
+  if (!P.checks.signals) { warn('No warning signals', 'Required before every blast.', 500); }
+  if (missing.length) { R.great = false; R.rows.push({ label: 'Checklist ' + (CHECKLIST.length - missing.length) + '/' + CHECKLIST.length, note: 'Skipped: ' + missing.map(c => c.name.split(' ')[0].toLowerCase()).join(', '), bad: 1 }); }
+  else pass('Pre-blast checklist complete');
+  if (!P.checks.survey && R.fines > 0 && (ppv > (con.ppvLim || 99) || (S && S.nbrHits.some(v => v > 0.5)))) { R.fines += 1500; R.rows.push({ label: 'Damage claims', note: 'No pre-blast survey: you paid for every old crack in town.', bad: 1 }); }
+  R.stars = R.ok ? (R.good ? (R.great ? 3 : 2) : 1) : 0;
+  R.cost = planCost(); R.earn = P.practice ? 0 : (R.ok ? con.fee : 0) - R.cost - R.fines - (con.storm && P.checks.weather ? 300 : 0);
+  // coaching
+  R.tips = coachTips(R);
+  P.res = R; P.phase = 'result'; B.phase = 'done';
+  if (!P.practice) commitResult(con, R);
+  sfx(R.stars ? 'win' : 'lose');
+  announce('Result: ' + R.stars + ' stars. ' + R.rows.map(r => r.label).join('. '));
+}
+function coachTips(R) {
+  const con = P.con, t = [];
+  if (con.kind === 'struct') {
+    const bad = B.events.filter(e => e.type === 'charge' && !e.cut);
+    if (bad.length) t.push(bad[0].note + ' (' + bad.length + ' column' + (bad.length > 1 ? 's' : '') + ' survived).');
+    if (S && S.pre.length && !Object.values(P.pre).some(v => v)) t.push('The shear-wall core is still there. Pre-weaken it (red PW markers) or the building stands on it.');
+    if (con.id === 'stack' && R.rows.some(r => /straight/.test(r.label))) t.push('Cut the RIGHT side and the NOTCH, leave the LEFT side as the hinge.');
+    if (con.id === 'tower' && R.rows.some(r => /straight|WRONG|standing/.test(r.label))) t.push('Right columns first on all three floors, middle ones a beat later, left ones last (or never). Kickers pointed right help.');
+    if (R.rows.some(r => /Debris on|Flyrock outside/.test(r.label))) t.push('Wrap the charges (geotextile + chain-link) - it traps most of the debris they throw.');
+    if (S && S.spill) t.push('Give the interior columns a head start of at least 0.2 s before the outside ones.');
+  } else {
+    const ch = B.events.filter(e => e.type === 'hole' && e.choke);
+    if (ch.length) t.push(ch.length + ' hole' + (ch.length > 1 ? 's' : '') + ' choked: burden ' + ch[0].B.toFixed(1) + ' m vs reach ' + ch[0].R.toFixed(1) + ' m. ' + (con.view === 'front' ? 'Fire inner rings first, give each ring its own later delay.' : 'Fire front-to-back and give each row ~' + Math.ceil(4 * 3 + 6) + '+ ms so the rock ahead can move.' + (con.rock === 'granite' ? ' Granite needs a stronger product.' : '')));
+    if (B.events.some(e => e.type === 'misfire' && e.wet)) t.push('Blue = water. ANFO dies in water - use emulsion in that hole.');
+    if (B.events.some(e => e.type === 'hole' && e.over)) t.push('Over-driven hole (too little burden for that charge): longer stemming or a lighter product there.');
+  }
+  if (R.ppv > con.ppvLim && con.ppvLim < 9) t.push('Too much explosive went off inside one 8 ms window. ' + (con.kind === 'rock' ? 'Raise the hole-to-hole delay above 8 ms, and offset row delays so no two holes land inside the same 8 ms.' : 'Spread charges over more delays.'));
+  if (!t.length) t.push(R.stars === 3 ? 'Textbook shot. The neighbours didn\'t even spill their coffee.' : 'Close. Tick every checklist box and stay inside every limit for 3 stars.');
+  return t.slice(0, 3);
+}
+
+// ---------- SAVE, TITLE, BOARD, HANDBOOK, MODALS, HUD ----------
+let SAVE = (() => { try { return Object.assign({ stars: {}, best: {}, cash: 0, seen: {} }, JSON.parse(LS.get('cb_save', '{}'))); } catch (e) { return { stars: {}, best: {}, cash: 0, seen: {} }; } })();
+function saveNow() { LS.set('cb_save', JSON.stringify(SAVE)); }
+function totalStars() { return CONTRACTS.reduce((a, c) => a + (SAVE.stars[c.id] || 0), 0); }
+function rankName() { const s = totalStars(); let r = RANKS[0][1]; for (const q of RANKS) if (s >= q[0]) r = q[1]; return r; }
+function conAvail(i) { return i === 0 || (SAVE.stars[CONTRACTS[i - 1].id] || 0) > 0 || (SAVE.stars[CONTRACTS[i].id] || 0) > 0; }
+function lessonUnlocked(id) { return CONTRACTS.some(c => c.lesson === id && (SAVE.stars[c.id] || 0) > 0) || SAVE.seen[id]; }
+function commitResult(con, R) {
+  const prev = SAVE.stars[con.id] || 0; if (R.stars > prev) SAVE.stars[con.id] = R.stars;
+  if (R.ok && (SAVE.best[con.id] == null || R.earn > SAVE.best[con.id])) SAVE.best[con.id] = R.earn;
+  SAVE.cash += R.earn; if (R.ok) { SAVE.seen[con.lesson] = 1; R.newLesson = !prev; }
+  saveNow();
+}
+function metalTxt(s, x, y, size, align, glowCol) {
+  cx.save(); cx.font = '900 ' + size + 'px ' + FONT; cx.textAlign = align || 'left'; cx.textBaseline = 'middle';
+  if (glowCol) { cx.shadowColor = glowCol; cx.shadowBlur = size * 0.5; }
+  cx.fillStyle = lin(cx, 0, y - size / 2, 0, y + size / 2, [[0, '#fff7e0'], [0.45, '#ffcf7a'], [0.52, '#a8642a'], [1, '#ffe2b0']]); cx.fillText(s, x, y);
+  cx.shadowBlur = 0; cx.lineWidth = Math.max(1, size / 28); cx.strokeStyle = 'rgba(0,0,0,0.35)'; cx.strokeText(s, x, y); cx.restore();
+}
+// ---- title: quarry backdrop with demo shots going off ----
+const TT = { bg: null, t: 0, next: 0.5 };
+function drawTitle(dt) {
+  if (!TT.bg) TT.bg = bakeBackdrop({ site: 'quarry' });
+  TT.t += dt; TT.next -= dt;
+  if (TT.next <= 0) { TT.next = RND(0.6, 1.6); const x = RND(120, 840), y = RND(250, 300); explode(x, y, RND(1, 3), pick(['#ffd23f', '#ff9a1f', '#ff3b3b']), false, 'rock'); for (let i = 0; i < 6; i++) spawnDust(x + RND(-30, 30), y + 10, 0.8, 'rock'); }
+  fxStep(dt, x => 300);
+  cx.drawImage(TT.bg, 0, 0, W, H);
+  cx.fillStyle = lin(cx, 0, 290, 0, H, [[0, '#8a7a64'], [1, '#3a3128']]); cx.fillRect(0, 300, W, H - 300); grain(cx, 0, 300, W, H - 300, 0.2);
+  drawFXBack(); drawDustTint(); drawChunks(); drawFXFront();
+  cx.fillStyle = 'rgba(4,3,2,0.5)'; cx.fillRect(0, 0, W, H);
+  cloverLogo(W / 2, 62, 28);
+  metalTxt('CLOVER BLAST', W / 2, 124, 66, 'center', 'rgba(255,140,40,0.7)');
+  txt('D E M O L I T I O N   &   M I N I N G   A C A D E M Y', W / 2, 168, 14, '#ffd23f', 'center', 900, MONO);
+  txtS('Pick the charges. Place them. Time them to the millisecond. Bring it down - and nothing else.', W / 2, 200, 13.5, 'rgba(255,255,255,0.85)', 'center', 700);
+  const st = totalStars();
+  button('play', W / 2 - 150, 232, 300, 56, st ? 'CONTINUE CAREER' : 'START CAREER', { col: '#ff9a1f', size: 20, sub: rankName() + '  \u00b7  ' + st + ' / ' + CONTRACTS.length * 3 + ' \u2605  \u00b7  Enter', hot: true, fn: () => { game.state = 'board'; } });
+  button('book', W / 2 - 150, 298, 146, 36, 'HANDBOOK', { col: '#c78bff', size: 12, sub: 'lessons & careers', fn: () => { game.prev = 'title'; game.state = 'book'; } });
+  button('mute', W / 2 + 4, 298, 146, 36, muted ? 'Sound off' : 'Sound on', { col: '#7fe0e8', size: 12, fn: () => setMute(!muted) });
+  glass(W / 2 - 300, 352, 600, 112, '#ffd23f', 0.72, 12);
+  txt('HOW IT WORKS', W / 2 - 284, 368, 9.5, '#ffd23f', 'left', 900, MONO);
+  ['1. Read the brief: what has to come down, what must NOT get hit, and the vibration & airblast limits.',
+    '2. Click charge points (columns, drill holes) to load them: product, size or stemming, and delay.',
+    '3. Run the pre-blast safety checklist, sound the signals, fire - then read the blaster\'s report.',
+    '4. Every contract you pass unlocks a real-world lesson in the Handbook on how blasters actually work.'].forEach((s, i) => txt(s, W / 2 - 284, 388 + i * 18, 11, 'rgba(255,255,255,0.85)', 'left', 700));
+  txtS('Simplified game physics for learning concepts - not a blasting manual. Real blasting is done only by licensed, trained professionals.', W / 2, H - 42, 10.5, 'rgba(255,220,180,0.75)', 'center', 700);
+  txtS('Original game by Viktor for MyClover.Tech  \u00b7  all art & sound generated in code', W / 2, H - 22, 10, 'rgba(255,255,255,0.45)', 'center', 700);
+}
+// ---- contract board ----
+const SITE_ICON = { farm: '\u2302', quarry: '\u26f0', mill: '\u2668', city: '\u25a6', city2: '\u25a5', tunnel: '\u25d2', street: '\u2261' };
+function drawBoard() {
+  if (!TT.bg) TT.bg = bakeBackdrop({ site: 'quarry' });
+  cx.drawImage(TT.bg, 0, 0, W, H); cx.fillStyle = 'rgba(4,3,2,0.72)'; cx.fillRect(0, 0, W, H);
+  button('back', 14, 12, 84, 30, '\u2190 Title', { col: '#7fe0e8', size: 11, fn: () => { game.state = 'title'; } });
+  metalTxt('CONTRACTS', W / 2, 28, 28, 'center', 'rgba(255,140,40,0.5)');
+  txt(rankName().toUpperCase() + '  \u00b7  ' + totalStars() + ' \u2605  \u00b7  career $' + SAVE.cash.toLocaleString(), W - 16, 28, 11, '#ffd23f', 'right', 900, MONO);
+  button('prac', 112, 12, 130, 30, practiceMode ? 'PRACTICE: ON' : 'PRACTICE: OFF', { col: practiceMode ? '#3cff7a' : '#5b6670', size: 10.5, fn: () => { practiceMode = !practiceMode; } });
+  const cw = 176, ch = 210;
+  CONTRACTS.forEach((c, i) => { const x = 22 + (i % 5) * (cw + 8), y = 54 + Math.floor(i / 5) * (ch + 10), av = conAvail(i) || practiceMode, hv = av && hov(x, y, cw, ch), st = SAVE.stars[c.id] || 0;
+    cx.save(); if (hv) { cx.shadowColor = '#ff9a1f'; cx.shadowBlur = 18; } glass(x, y, cw, ch, hv ? '#ff9a1f' : st ? '#3cff7a' : '#7fe0e8', 0.86); cx.restore();
+    cx.save(); if (!av) cx.globalAlpha = 0.38;
+    txt(SITE_ICON[c.site] || '\u2605', x + 14, y + 20, 18, '#ff9a1f', 'left', 900);
+    txt((i + 1) + '. ' + c.name, x + 38, y + 16, 12, '#fff', 'left', 900); txt(c.client, x + 38, y + 31, 9, 'rgba(255,255,255,0.55)', 'left', 700);
+    txt(c.kind === 'struct' ? 'DEMOLITION' : c.view === 'front' ? 'UNDERGROUND' : c.trench ? 'CONSTRUCTION' : 'QUARRY', x + 14, y + 50, 8.5, c.kind === 'struct' ? '#ff9a1f' : '#7fe0e8', 'left', 900, MONO);
+    wrapTxt(c.brief, x + 14, y + 68, cw - 24, 9.5, 'rgba(255,255,255,0.75)', 13);
+    txt('fee $' + c.fee.toLocaleString() + '  \u00b7  budget $' + c.budget.toLocaleString(), x + 14, y + ch - 42, 8.5, '#ffe9b0', 'left', 800, MONO);
+    for (let k = 0; k < 3; k++) star(x + 22 + k * 20, y + ch - 18, 7.5, k < st);
+    cx.restore();
+    if (!av) txt('LOCKED', x + cw - 14, y + ch - 18, 9.5, 'rgba(255,255,255,0.6)', 'right', 900, MONO);
+    else if (SAVE.best[c.id] != null) txt('best $' + SAVE.best[c.id].toLocaleString(), x + cw - 12, y + ch - 18, 8.5, 'rgba(255,255,255,0.6)', 'right', 800, MONO);
+    UI.push({ id: 'con' + i, x, y, w: cw, h: ch, dis: !av, fn: () => openContract(c, practiceMode) }); });
+  txt('1 star unlocks the next contract  \u00b7  3 stars = clean result, every limit met, full safety checklist', W / 2, H - 16, 10.5, 'rgba(255,255,255,0.55)', 'center', 700);
+}
+let practiceMode = false;
+// ---- handbook ----
+let bookPage = 0;
+function drawBook() {
+  cx.fillStyle = '#0b0906'; cx.fillRect(0, 0, W, H); grain(cx, 0, 0, W, H, 0.15);
+  button('bk', 14, 12, 84, 30, '\u2190 Back', { col: '#7fe0e8', size: 11, fn: () => { game.state = game.prev || 'title'; } });
+  metalTxt('BLASTER\'S HANDBOOK', W / 2, 28, 26, 'center');
+  // tabs
+  const tabs = LESSONS.map(l => l).concat([{ id: 'careers', t: 'Careers' }]);
+  tabs.forEach((l, i) => { const x = 16, y = 58 + i * 40, un = l.id === 'careers' || lessonUnlocked(l.id);
+    button('tab' + i, x, y, 230, 34, un ? l.t : 'Locked lesson', { col: bookPage === i ? '#ff9a1f' : un ? '#5b6670' : '#2f343a', size: 10.5, hot: bookPage === i, disabled: !un, fn: () => { bookPage = i; } }); });
+  const x = 264, y = 58, w = W - x - 16, h = H - y - 16; glass(x, y, w, h, '#ff9a1f', 0.85, 12);
+  if (!(tabs[bookPage].id === 'careers' || lessonUnlocked(tabs[bookPage].id))) bookPage = tabs.length - 1;
+  const l = tabs[bookPage];
+  if (l.id === 'careers') {
+    metalTxt('Getting into blasting', x + 20, y + 26, 20); let yy = y + 58;
+    for (const [t, b] of CAREERS) { txt(t, x + 20, yy, 12, '#ffd23f', 'left', 900); yy = wrapTxt(b, x + 20, yy + 17, w - 40, 11, 'rgba(255,255,255,0.85)', 15) + 24; }
+    wrapTxt('Requirements change and vary by state and country - always check the current rules with your state licensing agency, MSHA, OSHA and ATF.', x + 20, y + h - 30, w - 40, 10, 'rgba(255,200,160,0.75)', 14);
+  } else if (lessonUnlocked(l.id)) {
+    const con = CONTRACTS.find(c => c.lesson === l.id);
+    metalTxt(l.t, x + 20, y + 26, 20); txt('Unlocked by: ' + (con ? con.name : ''), x + 20, y + 50, 10, 'rgba(255,255,255,0.5)', 'left', 700);
+    let yy = y + 80; for (const b of l.b) { cx.fillStyle = '#ff9a1f'; cx.beginPath(); cx.arc(x + 26, yy, 3.5, 0, 6.283); cx.fill(); yy = wrapTxt(b, x + 40, yy, w - 64, 12.5, 'rgba(255,255,255,0.9)', 18) + 30; }
+    txt('Concepts are real; numbers in the game are simplified.', x + 20, y + h - 22, 10, 'rgba(255,200,160,0.6)', 'left', 700);
+  }
+}
+// ---- modals ----
+function drawChecklist() {
+  cx.fillStyle = 'rgba(0,0,0,0.55)'; cx.fillRect(0, 0, W, H);
+  const w = 620, h = 400, x = (W - w) / 2, y = (H - h) / 2; glass(x, y, w, h, '#ff3b3b', 0.95, 16);
+  metalTxt('PRE-BLAST CHECKLIST', x + 22, y + 28, 22);
+  txt('Blaster in charge signs off on every line. Skipping costs nothing now...', x + 22, y + 52, 10.5, 'rgba(255,255,255,0.6)', 'left', 700);
+  CHECKLIST.forEach((c, i) => { const yy = y + 70 + i * 44, on = !!P.checks[c.id], cost = CHECK_COST[c.id];
+    const hv = hov(x + 16, yy, w - 32, 40);
+    cx.fillStyle = on ? 'rgba(60,255,122,0.1)' : hv ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)'; rrect(cx, x + 16, yy, w - 32, 40, 8); cx.fill();
+    cx.strokeStyle = on ? '#3cff7a' : 'rgba(255,255,255,0.4)'; cx.lineWidth = 2; rrect(cx, x + 28, yy + 11, 18, 18, 4); cx.stroke(); if (on) txt('\u2713', x + 37, yy + 21, 14, '#3cff7a', 'center', 900);
+    txt(c.name, x + 58, yy + 13, 12, '#fff', 'left', 800); txt(c.why, x + 58, yy + 29, 9.5, 'rgba(255,255,255,0.6)', 'left', 600);
+    txt(cost ? '$' + cost : 'free', x + w - 28, yy + 20, 10.5, cost ? '#ffd23f' : 'rgba(255,255,255,0.5)', 'right', 900, MONO);
+    UI.push({ id: 'chk' + i, x: x + 16, y: yy, w: w - 32, h: 40, fn: () => { P.checks[c.id] = !P.checks[c.id]; } }); });
+  const cost = planCost(), over = cost > budget();
+  txt('Total with checklist: $' + cost + (P.practice ? '' : ' / $' + budget()), x + 22, y + h - 34, 11, over ? '#ff5a4a' : '#ffd23f', 'left', 900, MONO);
+  button('back2', x + w - 330, y + h - 52, 110, 40, 'BACK', { col: '#7fe0e8', size: 13, fn: () => { P.phase = 'plan'; } });
+  button('go', x + w - 210, y + h - 52, 190, 40, 'FIRE IN THE HOLE', { col: '#ff3b3b', size: 14, hot: !over, disabled: over, sub: over ? 'over budget' : 'Enter', fn: startCountdown });
+}
+function drawAborted() {
+  cx.fillStyle = 'rgba(0,0,0,0.55)'; cx.fillRect(0, 0, W, H);
+  const w = 520, h = 220, x = (W - w) / 2, y = (H - h) / 2; glass(x, y, w, h, '#ff3b3b', 0.95, 16);
+  metalTxt(B.abort.t, x + 22, y + 30, 20); wrapTxt(B.abort.b, x + 22, y + 66, w - 44, 12, 'rgba(255,255,255,0.88)', 17);
+  txt('Standby cost: -$' + B.abort.fine + (P.practice ? ' (practice)' : ''), x + 22, y + 140, 11, '#ff6a4a', 'left', 900, MONO);
+  button('ab', x + w - 230, y + h - 54, 210, 40, 'BACK TO THE PLAN', { col: '#ffd23f', size: 13, hot: true, fn: () => { if (!P.practice) { SAVE.cash -= B.abort.fine; saveNow(); } P.phase = 'check'; } });
+}
+function drawCountdown() {
+  const n = Math.floor(B.t), f = B.t - n;
+  const s = n <= 1 ? (P.checks.signals ? 'WARNING SIGNAL' : 'NO SIGNAL?!') : n === 2 ? 'FIRE IN THE HOLE!' : String(5 - n);
+  cx.save(); cx.globalAlpha = 1 - f * 0.5; cx.translate(W / 2, H / 2 - 40); const sc = 1 + (1 - f) * 0.15; cx.scale(sc, sc);
+  cx.font = '900 ' + (n >= 3 ? 90 : 46) + 'px ' + FONT; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.shadowColor = '#ff3b3b'; cx.shadowBlur = 30; cx.fillStyle = n >= 3 ? '#fff' : '#ffd23f'; cx.fillText(s, 0, 0); cx.restore();
+}
+function drawBlastHUD() {
+  const con = P.con;
+  // timer + slow-mo
+  glass(10, 8, 250, 44, '#ff9a1f', 0.75, 10);
+  txt('T + ' + Math.max(0, Math.round(B.tms)) + ' ms', 22, 30, 16, '#fff', 'left', 900, MONO);
+  if (B.slow < 1) txt('SLOW-MO', 248, 30, 10, '#ff9a1f', 'right', 900, MONO);
+  // seismograph strip
+  if (monDist() && con.ppvLim < 9) {
+    const x = W - 300, y = 8, w = 290, h = 76; glass(x, y, w, h, '#3cff7a', 0.8, 10);
+    txt(P.checks.seis ? 'SEISMOGRAPH  \u00b7  ' + (con.kind === 'struct' ? con.nbrs[0] ? 'nearest bldg' : '' : con.house.name) : 'NO SEISMOGRAPH SET', x + 10, y + 12, 8.5, P.checks.seis ? '#3cff7a' : '#ff6a4a', 'left', 900, MONO);
+    if (P.checks.seis) {
+      const lim = con.ppvLim, mid = y + 46, sc = 22 / Math.max(lim * 1.3, 0.1);
+      cx.strokeStyle = 'rgba(255,80,60,0.45)'; cx.setLineDash([3, 3]); cx.beginPath(); cx.moveTo(x + 8, mid - lim * sc); cx.lineTo(x + w - 8, mid - lim * sc); cx.moveTo(x + 8, mid + lim * sc); cx.lineTo(x + w - 8, mid + lim * sc); cx.stroke(); cx.setLineDash([]);
+      cx.strokeStyle = '#3cff7a'; cx.lineWidth = 1.3; cx.beginPath();
+      for (let k = 0; k < w - 16; k++) { const t = B.t - (w - 16 - k) / 70, v = seisVal(t); B.peakSeen = Math.max(B.peakSeen || 0, Math.abs(v)); cx.lineTo(x + 8 + k, mid - clamp(v * sc, -26, 26)); }
+      cx.stroke();
+      const fd = B.fired.slice().sort((a, b) => a.t - b.t), m = maxPerDelay(fd); const live = con.kind === 'struct' ? Math.max(ppvFrom(con.mon.dist, m.w, 8), S ? 0.22 * Math.sqrt(S.impactE) * (12 / con.mon.dist) : 0) : ppvFrom(monDist(), m.w);
+      txt('PPV ' + live.toFixed(2), x + w - 10, y + 12, 9.5, live > lim ? '#ff6a4a' : '#dfffe8', 'right', 900, MONO);
+    }
+  }
+  // pattern inset for side-view rock: holes in each row lighting up
+  if (con.kind === 'rock' && con.view === 'side' && con.h2h) {
+    const rows = G.holes.length, n = G.holes[0].n, x = 10, y = 60, w = 30 + n * 18, h = 26 + rows * 16, h2h = con.h2h[P.h2h];
+    glass(x, y, w, h, '#ffd23f', 0.7, 8); txt('PLAN VIEW', x + 8, y + 10, 7.5, '#ffd23f', 'left', 900, MONO);
+    G.holes.forEach((hh, r) => { const pl = P.plan[r]; for (let j = 0; j < n; j++) { const t = pl.delay + j * h2h, done = pl.ord !== 'none' && B.tms >= t, age = B.tms - t;
+      const px = x + 20 + j * 18, py = y + 24 + (rows - 1 - r) * 16; cx.fillStyle = pl.ord === 'none' ? '#333' : done ? (age < 30 ? '#fff6c0' : '#ff9a1f') : '#4a4f56'; cx.beginPath(); cx.arc(px, py, done && age < 30 ? 6 : 4, 0, 6.283); cx.fill(); } });
+  }
+  button('skip', W - 110, H - 40, 100, 30, 'Skip \u25b6\u25b6', { col: '#7fe0e8', size: 11, fn: () => { for (let i = 0; i < 1200 && P.phase === 'blast'; i++) updateBlast(1 / 30); } });
+}
+function drawResult() {
+  const R = P.res, con = P.con; if (!R) return;
+  const w = 600, rows = R.rows.length, h = Math.min(H - 20, 150 + rows * 30 + R.tips.length * 30 + 70), x = (W - w) / 2, y = (H - h) / 2;
+  cx.fillStyle = 'rgba(0,0,0,0.4)'; cx.fillRect(0, 0, W, H);
+  glass(x, y, w, h, R.stars ? '#3cff7a' : '#ff3b3b', 0.94, 16);
+  metalTxt(R.stars ? 'BLAST REPORT' : 'BLAST FAILED', x + 22, y + 30, 24);
+  for (let k = 0; k < 3; k++) star(x + w - 96 + k * 30, y + 30, 12, k < R.stars);
+  txt(con.name + (P.practice ? '  \u00b7  practice' : ''), x + 22, y + 54, 10.5, 'rgba(255,255,255,0.55)', 'left', 700);
+  let yy = y + 78;
+  for (const r of R.rows) { const c = r.bad === 2 ? '#ff4a4a' : r.bad ? '#ffd23f' : '#3cff7a';
+    cx.fillStyle = c; cx.beginPath(); cx.arc(x + 28, yy, 4, 0, 6.283); cx.fill();
+    txt(r.label, x + 40, yy - (r.note ? 5 : 0), 12, '#fff', 'left', 800); if (r.note) txt(r.note.length > 92 ? r.note.slice(0, 90) + '...' : r.note, x + 40, yy + 9, 9.5, 'rgba(255,255,255,0.6)', 'left', 600); yy += 30; }
+  yy += 4; txt('CHIEF ROSA SAYS', x + 22, yy, 9, '#ff9a1f', 'left', 900, MONO); yy += 16;
+  for (const t of R.tips) yy = wrapTxt('\u2022 ' + t, x + 26, yy, w - 52, 10.5, 'rgba(255,255,255,0.88)', 14) + 16;
+  if (!P.practice) txt('Fee ' + (R.ok ? '+$' + con.fee : '$0') + '   cost -$' + R.cost + '   fines -$' + R.fines + '   =   ' + (R.earn >= 0 ? '+' : '-') + '$' + Math.abs(R.earn), x + 22, y + h - 70, 10.5, R.earn >= 0 ? '#3cff7a' : '#ff6a4a', 'left', 900, MONO);
+  if (R.newLesson) txt('NEW HANDBOOK LESSON: ' + LESSONS.find(l => l.id === con.lesson).t, x + w - 22, y + h - 70, 9.5, '#c78bff', 'right', 900, MONO);
+  const idx = CONTRACTS.indexOf(con), next = CONTRACTS[idx + 1];
+  button('retry', x + 20, y + h - 54, 150, 40, 'REPLAN', { col: '#ffd23f', size: 13, sub: 'keep charges  \u00b7  Enter', hot: !R.stars, fn: () => { resetSim(); P.phase = 'plan'; P.res = null; } });
+  button('book2', x + 178, y + h - 54, 120, 40, 'HANDBOOK', { col: '#c78bff', size: 12, fn: () => { game.prev = 'plan'; bookPage = Math.max(0, LESSONS.findIndex(l => l.id === con.lesson)); game.state = 'book'; } });
+  button('board', x + 306, y + h - 54, 110, 40, 'CONTRACTS', { col: '#7fe0e8', size: 12, fn: () => { game.state = 'board'; } });
+  if (next && (R.stars || P.practice)) button('next', x + 424, y + h - 54, w - 444, 40, 'NEXT \u25b6', { col: '#3cff7a', size: 13, hot: true, sub: next.name, fn: () => openContract(next, P.practice) });
+}
+function drawPause() {
+  cx.fillStyle = 'rgba(0,0,0,0.55)'; cx.fillRect(0, 0, W, H);
+  glass(W / 2 - 150, 150, 300, 230, '#ff9a1f', 0.92, 16); metalTxt('PAUSED', W / 2, 186, 28, 'center');
+  button('res', W / 2 - 110, 214, 220, 40, 'RESUME', { col: '#3cff7a', size: 15, hot: true, fn: () => { game.paused = false; } });
+  button('snd', W / 2 - 110, 262, 106, 34, muted ? 'Sound off' : 'Sound on', { col: '#7fe0e8', size: 11, fn: () => setMute(!muted) });
+  button('rm', W / 2 + 4, 262, 106, 34, RMOTION ? 'Shake off' : 'Shake on', { col: '#7fe0e8', size: 11, fn: () => { RMOTION = !RMOTION; LS.set('cb_rm', RMOTION ? '1' : '0'); } });
+  button('quit', W / 2 - 110, 308, 220, 40, 'CONTRACT BOARD', { col: '#ff3b3b', size: 13, fn: () => { game.paused = false; game.state = 'board'; } });
+}
+
+// ---------- MAIN LOOP ----------
+function update(dt) {
+  game.t += dt;
+  for (const tm of game.timers) { tm.t -= dt; if (tm.t <= 0 && !tm.fired) { tm.fired = true; tm.fn(); } } game.timers = game.timers.filter(q => !q.fired);
+  for (const m of toasts) m.t -= dt; toasts = toasts.filter(m => m.t > 0);
+  if (pressed.mute) setMute(!muted);
+  musicTick();
+  game.shake = Math.max(0, game.shake - dt * 18);
+  if (game.state === 'title') { if (pressed.start) game.state = 'board'; if (pressed.book) { game.prev = 'title'; game.state = 'book'; } }
+  else if (game.state === 'board') { if (pressed.pause) game.state = 'title'; }
+  else if (game.state === 'book') { if (pressed.pause || pressed.book) game.state = game.prev || 'title'; }
+  else if (game.state === 'plan') {
+    if (game.paused) { if (pressed.pause) game.paused = false; return; }
+    if (P.phase === 'plan') { updatePlan(dt); if (pressed.book) { game.prev = 'plan'; game.state = 'book'; }
+      if (P.sel.length && (pressed.dl || pressed.dr)) { const st = delayStep(), mx = delayMax(); setSel(q => { q.delay = clamp(q.delay + (pressed.dr ? st : -st), 0, mx); }); } }
+    else if (P.phase === 'check') { if (pressed.start && planCost() <= budget()) startCountdown(); if (pressed.pause) P.phase = 'plan'; }
+    else if (P.phase === 'count' || P.phase === 'blast') { updateBlast(dt); if (pressed.pause && P.phase === 'blast') game.paused = true; }
+    else if (P.phase === 'result') { if (pressed.start) { resetSim(); P.phase = 'plan'; P.res = null; } }
+    else if (P.phase === 'aborted') { if (pressed.start) { if (!P.practice) { SAVE.cash -= B.abort.fine; saveNow(); } P.phase = 'check'; } }
+    if (P.phase !== 'blast' && P.phase !== 'count') { const sdt = dt; fxStep(sdt, P.con.kind === 'struct' ? (x => GY - pileAt(x) * 0.85) : (x => H)); if (G) { rockStep(sdt); rockSyncDirty(); } }
+  }
+  game.flash = Math.max(0, game.flash - dt * 2.5);
+}
+function render(dt) {
+  UI = [];
+  cx.setTransform(SC, 0, 0, SC, 0, 0);
+  cx.clearRect(0, 0, W, H);
+  if (game.state === 'title') drawTitle(dt);
+  else if (game.state === 'board') drawBoard();
+  else if (game.state === 'book') drawBook();
+  else if (game.state === 'plan') {
+    const sh = RMOTION ? 0 : game.shake;
+    cx.save(); if (sh > 0) cx.translate(RND(-sh, sh) * 0.6, RND(-sh, sh) * 0.6);
+    drawPlanWorld(); drawFXBack(); drawDustTint(); drawFXFront();
+    if (FX.light > 0) { cx.globalAlpha = FX.light * 0.25; cx.fillStyle = '#fff3d0'; cx.fillRect(-20, -20, W + 40, H + 40); cx.globalAlpha = 1; }
+    cx.restore();
+    if (P.phase === 'plan' || P.phase === 'check') drawPlanMarkers();
+    if (P.phase === 'plan') drawPlanUI();
+    else if (P.phase === 'check') drawChecklist();
+    else if (P.phase === 'aborted') drawAborted();
+    else if (P.phase === 'count') drawCountdown();
+    else if (P.phase === 'blast') drawBlastHUD();
+    else if (P.phase === 'result') drawResult();
+    if (game.paused) drawPause();
+  }
+  toasts.forEach((tt, i) => { cx.globalAlpha = clamp(tt.t / 0.3, 0, 1); txtS(tt.s, W / 2, 96 + i * 24, 14, tt.col, 'center', 900); });
+  cx.globalAlpha = 1;
+  if (game.flash > 0) { cx.save(); cx.globalAlpha = game.flash * 0.45; cx.fillStyle = game.flashCol; cx.fillRect(0, 0, W, H); cx.restore(); }
+  vignette();
+  UIprev = UI;
+}
+function frame(dt) {
+  if (pressed.click && processClicks()) { ptr.ldown = false; }
+  update(dt);
+  for (const k in pressed) pressed[k] = false;
+}
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  frame(dt); render(dt);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+window.__CB = { game, P, B, CONTRACTS, SAVE, openContract, startCountdown, beginBlast, finishBlast, updateBlast, step: (k, dt) => { for (let i = 0; i < k; i++) frame(dt || 1 / 60); }, render: () => render(1 / 60), get S() { return S; }, get G() { return G; } };
+
+})();
+</script>
+</body>
+</html>
