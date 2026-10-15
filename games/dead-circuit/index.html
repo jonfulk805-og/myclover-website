@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dead Circuit: Warzone | MyClover Arcade</title>
+<meta name="description" content="Pilot a combat drone through a suburb overrun by zombie machines. Destroy every robot, level every stronghold.">
+<link rel="icon" href="assets/clover.png">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{ "imports": { "three": "./js/three.module.min.js", "three/addons/": "./js/addons/" } }</script>
+</head>
+<body>
+<div id="app">
+  <canvas id="view"></canvas>
+  <div id="scan"></div>
+  <div id="vignette"></div>
+  <div id="hurt"></div>
+  <div id="popups"></div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="panel tl" id="scorePanel">
+      <div class="lbl">Combat score</div>
+      <div class="big" id="score">000000</div>
+      <div class="row small"><span>Personal best <b id="best">0</b></span><span id="mult" class="mult">x1</span></div>
+    </div>
+    <div class="tc" id="sectorPanel">
+      <div class="row lbl"><span id="sectorName">Sector 01</span><span id="sectorCount">0/10</span></div>
+      <div class="bar"><i id="sectorBar"></i></div>
+      <div class="row tiny"><span id="sectorStreet">Maple Row</span><span>Targets eliminated</span></div>
+    </div>
+    <div class="tr">
+      <div class="panel" id="hullPanel">
+        <div class="row lbl"><span>Hull integrity</span><b id="hullNum">100</b></div>
+        <div class="segs" id="hullSegs"></div>
+      </div>
+      <div class="panel counts">
+        <div><b id="robotsN">0</b><span>/ 24</span><div class="tiny">Robots destroyed</div></div>
+        <div><b id="housesN">0</b><span>/ 16</span><div class="tiny">Strongholds destroyed</div></div>
+      </div>
+      <div class="btnrow">
+        <button class="ib" id="btnSound" title="Sound (M)">SND</button>
+        <button class="ib" id="btnPause" title="Pause (P / Esc)">II</button>
+      </div>
+    </div>
+    <div class="panel bl" id="targetPanel">
+      <div class="lbl">Target lock <span id="lockMode" class="tag">AUTO</span></div>
+      <div class="tname" id="targetName">No target</div>
+      <div class="pips" id="targetPips"></div>
+      <div class="tiny" id="targetDist">Fly closer to acquire</div>
+    </div>
+    <div class="bc panel" id="boostPanel">
+      <span class="lbl">Boost</span><div class="bar wide"><i id="boostBar"></i></div><kbd>Shift</kbd>
+    </div>
+    <div class="br panel" id="shockPanel">
+      <div class="dial"><svg viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" class="track"/><circle cx="22" cy="22" r="18" class="fill" id="shockArc"/></svg><kbd>E</kbd></div>
+      <div><div class="lbl">Shockwave</div><div class="state" id="shockState">READY</div></div>
+    </div>
+    <div id="lowHull" class="hidden">HULL CRITICAL</div>
+    <div id="banner" class="hidden"><div class="b1" id="bannerTop"></div><div class="b2" id="bannerMain"></div><div class="b3" id="bannerSub"></div></div>
+  </div>
+
+  <!-- Title -->
+  <div id="title" class="screen">
+    <div class="card hero">
+      <div class="brand"><img src="assets/clover.png" alt=""><span>MyClover Arcade</span></div>
+      <div class="eyebrow"><i></i>Zombie machines. Zero mercy.</div>
+      <h1>DEAD<br>CIRCUIT<em>.</em></h1>
+      <div class="sub">WARZONE</div>
+      <p>The machines have taken the district. Fly the combat drone down three streets, destroy all 24 robots and level all 16 machine strongholds.</p>
+      <div class="diff" id="diffSel">
+        <button data-d="recruit">Recruit</button><button data-d="veteran">Veteran</button><button data-d="elite">Elite</button>
+      </div>
+      <button class="cta" id="btnStart">Deploy drone <span>&#8599;</span></button>
+      <div class="row keys"><span><kbd>WASD</kbd> Fly</span><span><kbd>Space</kbd> Fire</span><span><kbd>Q</kbd> Cycle</span><span><kbd>E</kbd> Shockwave</span><span><kbd>Shift</kbd> Boost</span></div>
+      <div class="row links"><button class="link" id="btnHowTitle">How to play</button><button class="link" id="btnQualTitle">Graphics: <b class="qualLbl">High</b></button><button class="link" id="btnSndTitle">Sound: <b class="sndLbl">On</b></button></div>
+      <div class="best">Personal best <b id="bestTitle">0</b></div>
+    </div>
+  </div>
+
+  <!-- How to play -->
+  <div id="how" class="screen hidden">
+    <div class="card wide">
+      <div class="eyebrow"><i></i>Field manual</div>
+      <h2>How to play</h2>
+      <div class="cols">
+        <div>
+          <h3>Mission</h3>
+          <ul>
+            <li>Clear each sector by destroying <b>every robot</b> and <b>every machine stronghold</b> (the boarded houses with green-lit windows and antenna masts). Clear all three to win.</li>
+            <li>Robots take <b>3 hits</b>. Strongholds take <b>6 hits</b>.</li>
+            <li>Enemies fire <span class="g">green plasma</span>. Their weapon glows before it fires, so watch for the charge and get out of the way.</li>
+            <li>Every 4th kill restores <b>8 hull</b>. Clearing a sector restores <b>15 hull</b>.</li>
+            <li>Quick kills build a score multiplier up to <b>x5</b>. Taking a hit resets it.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Controls</h3>
+          <table>
+            <tr><td><kbd>WASD</kbd> / <kbd>Arrows</kbd></td><td>Move the drone</td></tr>
+            <tr><td>Hold <kbd>Space</kbd></td><td>Fire at the locked target</td></tr>
+            <tr><td><kbd>Q</kbd></td><td>Cycle targets (manual lock)</td></tr>
+            <tr><td><kbd>E</kbd></td><td>Shockwave: 1 hit to everything nearby, stuns and knocks back machines, wipes out enemy fire (7s recharge)</td></tr>
+            <tr><td><kbd>Shift</kbd></td><td>Boost (energy recharges)</td></tr>
+            <tr><td><kbd>P</kbd> / <kbd>Esc</kbd></td><td>Pause</td></tr>
+            <tr><td><kbd>M</kbd></td><td>Sound on/off</td></tr>
+          </table>
+        </div>
+      </div>
+      <p class="credit">Built with <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> (MIT, by Ricardo Cabello / mrdoob and contributors). Every texture, model and sound is generated in code. <a href="dead-circuit-warzone.zip" download>Download the full source (.zip)</a>.</p>
+      <button class="cta small" id="btnHowClose">Got it</button>
+    </div>
+  </div>
+
+  <!-- Pause -->
+  <div id="pause" class="screen hidden">
+    <div class="card menu">
+      <div class="eyebrow"><i></i>Operation suspended</div>
+      <h2>Paused</h2>
+      <button class="cta" id="btnResume">Resume</button>
+      <button class="mb" id="btnRestart">Restart mission</button>
+      <button class="mb" id="btnHowPause">How to play</button>
+      <div class="row toggles">
+        <button class="mb half" id="btnSndPause">Sound: <b class="sndLbl">On</b></button>
+        <button class="mb half" id="btnMusPause">Music: <b class="musLbl">On</b></button>
+      </div>
+      <button class="mb" id="btnQualPause">Graphics: <b class="qualLbl">High</b></button>
+      <button class="mb ghost" id="btnQuit">Abort to title</button>
+    </div>
+  </div>
+
+  <!-- End screens -->
+  <div id="end" class="screen hidden">
+    <div class="card menu end">
+      <div class="eyebrow" id="endEyebrow"><i></i>Mission report</div>
+      <h2 id="endTitle">District liberated</h2>
+      <p id="endText"></p>
+      <div class="stats" id="endStats"></div>
+      <div class="newbest hidden" id="endBest">NEW PERSONAL BEST</div>
+      <button class="cta" id="btnAgain">Fly again</button>
+      <button class="mb ghost" id="btnEndTitle">Title screen</button>
+    </div>
+  </div>
+
+  <div id="loading" class="screen"><div class="spin"></div><div>Building the district...</div></div>
+  <div id="footer"><span>A <a href="https://myclover.tech/games/" target="_blank" rel="noopener">MyClover.Tech</a> arcade game</span><span>Powered by three.js</span></div>
+</div>
+<script type="module" src="js/game.js"></script>
+</body>
+</html>
