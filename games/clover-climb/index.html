@@ -208,14 +208,14 @@ function toLogical(e) {
 }
 addEventListener('scroll', () => CRect = null);
 // touch pedal zones (logical coords) - only active while driving
-const PEDALS = { brake: { x: 18, y: 388, w: 132, h: 138 }, gas: { x: W - 150, y: 388, w: 132, h: 138 }, nitro: { x: W - 252, y: 432, w: 92, h: 92 } };
+const PEDALS = { brake: { x: 18, y: 388, w: 132, h: 138 }, gas: { x: W - 150, y: 388, w: 132, h: 138 }, nitro: { x: W - 252, y: 432, w: 92, h: 92 }, wheelie: { x: 160, y: 432, w: 92, h: 92 } };
 function zoneAt(p) {
   if (game.state !== 'play' || game.paused) return null;
-  for (const k of ['nitro', 'gas', 'brake']) { const z = PEDALS[k]; if (p.x > z.x - 12 && p.x < z.x + z.w + 12 && p.y > z.y - 12 && p.y < z.y + z.h + 12) return k; }
+  for (const k of ['nitro', 'wheelie', 'gas', 'brake']) { const z = PEDALS[k]; if (p.x > z.x - 12 && p.x < z.x + z.w + 12 && p.y > z.y - 12 && p.y < z.y + z.h + 12) return k; }
   if (lastInput === 'touch' && p.y > 200) return p.x > W / 2 ? 'gas' : 'brake';
   return null;
 }
-function syncTouch() { theld.gas = theld.brake = theld.nitro = false; for (const z of touches.values()) if (z) theld[z] = true; }
+function syncTouch() { theld.gas = theld.brake = theld.nitro = theld.wheelie = false; for (const z of touches.values()) if (z) theld[z] = true; }
 cv.addEventListener('pointerdown', e => {
   ensureAudio(); const p = toLogical(e); ptr.type = e.pointerType; ptr.seen = true;
   if (e.pointerType === 'touch') lastInput = 'touch'; else if (lastInput === 'touch') lastInput = 'kb';
@@ -236,7 +236,7 @@ const up = e => { if (e && touches.has(e.pointerId)) { touches.delete(e.pointerI
 cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); addEventListener('pointerup', up);
 cv.addEventListener('contextmenu', e => e.preventDefault());
 const KM = { Escape: 'esc', KeyP: 'pause', Enter: 'start', KeyM: 'mute', KeyR: 'restart', KeyG: 'garage' };
-const HK = { ArrowRight: 'gas', KeyD: 'gas', ArrowUp: 'gas', KeyW: 'gas', ArrowLeft: 'brake', KeyA: 'brake', ArrowDown: 'brake', KeyS: 'brake', ShiftLeft: 'nitro', ShiftRight: 'nitro', KeyN: 'nitro', Space: 'nitro' };
+const HK = { ArrowRight: 'gas', KeyD: 'gas', ArrowUp: 'wheelie', KeyW: 'wheelie', ArrowLeft: 'brake', KeyA: 'brake', ArrowDown: 'brake', KeyS: 'brake', ShiftLeft: 'nitro', ShiftRight: 'nitro', KeyN: 'nitro', Space: 'nitro' };
 addEventListener('keydown', e => {
   ensureAudio(); const a = KM[e.code], h = HK[e.code]; lastInput = 'kb';
   if (a && !e.repeat) pressed[a] = true;
@@ -264,7 +264,7 @@ function pollPad(dt) {
   const edge = (i, name) => { const v = b(i); if (v && !PAD.prev[i]) { pressed[name] = true; lastInput = 'pad'; } PAD.prev[i] = v; };
   const lx = dz(gp.axes[0] || 0), ly = dz(gp.axes[1] || 0);
   if (game.state === 'play') {
-    pheld.gas = Math.max(bv(7), lx > 0.3 ? 1 : 0); pheld.brake = Math.max(bv(6), lx < -0.3 ? 1 : 0); pheld.nitro = b(0) || b(5);
+    pheld.gas = Math.max(bv(7), lx > 0.3 ? 1 : 0); pheld.brake = Math.max(bv(6), lx < -0.3 ? 1 : 0); pheld.nitro = b(0) || b(5); pheld.wheelie = b(2) || ly < -0.6;
     if (pheld.gas || pheld.brake) lastInput = 'pad';
   } else if (lx || ly) { lastInput = 'pad'; ptr.seen = true; ptr.type = 'mouse'; ptr.x = clamp(ptr.x + lx * 560 * dt, 0, W); ptr.y = clamp(ptr.y + ly * 560 * dt, 0, H); }
   const a = b(0); if (a && !PAD.prev[0] && game.state !== 'play') { pressed.click = true; pressed.down = true; lastInput = 'pad'; } PAD.prev[0] = a;
@@ -272,11 +272,12 @@ function pollPad(dt) {
   PAD.on = true;
 }
 function readControls() {
-  held.gas = !!(kheld.gas || theld.gas || pheld.gas > 0.2);
-  held.brake = !!(kheld.brake || theld.brake || pheld.brake > 0.2);
+  const wl = !!(kheld.wheelie || theld.wheelie || pheld.wheelie);
+  held.gas = !!(kheld.gas || theld.gas || pheld.gas > 0.2 || wl);
+  held.brake = !!(kheld.brake || theld.brake || pheld.brake > 0.2 || wl);
   held.nitro = !!(kheld.nitro || theld.nitro || pheld.nitro);
-  held.gasAmt = held.gas ? Math.max(kheld.gas || theld.gas ? 1 : 0, pheld.gas) : 0;
-  held.brakeAmt = held.brake ? Math.max(kheld.brake || theld.brake ? 1 : 0, pheld.brake) : 0;
+  held.gasAmt = held.gas ? Math.max(kheld.gas || theld.gas || wl ? 1 : 0, pheld.gas) : 0;
+  held.brakeAmt = held.brake ? Math.max(kheld.brake || theld.brake || wl ? 1 : 0, pheld.brake) : 0;
 }
 
 // ---------- AUDIO ENGINE (100% synthesized, no samples) ----------
@@ -432,7 +433,8 @@ const UPGS = [
   { id: 'tire', name: 'Tires', icon: 'tire', max: 10, desc: lv => '+' + (lv * 5) + '% grip' },
   { id: 'fuel', name: 'Fuel Tank', icon: 'fuel', max: 10, desc: lv => '+' + (lv * 14) + '% fuel time' },
   { id: 'cage', name: 'Roll Cage', icon: 'cage', max: 10, desc: lv => '+' + (lv * 12) + '% cage HP, softer roll hits' },
-  { id: 'nos', name: 'Nitrous', icon: 'nos', max: 10, desc: lv => '+' + (lv * 12) + '% bottle, +' + (lv * 4) + '% push' }
+  { id: 'nos', name: 'Nitrous', icon: 'nos', max: 10, desc: lv => '+' + (lv * 12) + '% bottle, +' + (lv * 4) + '% push' },
+  { id: 'air', name: 'Air Control', icon: 'air', max: 10, desc: lv => '+' + (lv * 12) + '% mid-air spin, +' + (lv * 6) + '% max flip speed' }
 ];
 const UPG_MULT = [1, 1.5, 2.2, 3.1, 4.3, 5.8, 7.8, 10.5, 14, 18.5];
 function upgCost(rig, lv) { return Math.round(rig.cost * UPG_MULT[lv] / 10) * 10; }
@@ -505,14 +507,14 @@ const STAGES = [
 const SAVE = (() => {
   let s = {}; try { s = JSON.parse(LS.get('cc_save', '{}')) || {}; } catch (e) { }
   s.coins = s.coins == null ? 0 : s.coins; s.rigs = s.rigs || ['trail']; s.rig = s.rig || 'trail'; s.stages = s.stages || ['meadow']; s.stage = s.stage || 'meadow';
-  s.upg = s.upg || {}; s.mods = s.mods || {}; s.eq = s.eq || {}; s.best = s.best || {}; s.paints = s.paints || []; s.liv = s.liv || []; s.rimsOwned = s.rimsOwned || [];
+  s.upg = s.upg || {}; s.mods = s.mods || {}; s.eq = s.eq || {}; s.best = s.best || {}; s.bestTrick = s.bestTrick || {}; s.paints = s.paints || []; s.liv = s.liv || []; s.rimsOwned = s.rimsOwned || [];
   s.stats = s.stats || { runs: 0, dist: 0, flips: 0, coins: 0 }; s.tut = s.tut || 0;
   return s;
 })();
 function saveNow() { LS.set('cc_save', JSON.stringify(SAVE)); }
 function rigById(id) { return RIGS.find(r => r.id === id) || RIGS[0]; }
 function stageById(id) { return STAGES.find(r => r.id === id) || STAGES[0]; }
-function upgOf(rid) { return SAVE.upg[rid] || (SAVE.upg[rid] = { eng: 0, sus: 0, tire: 0, fuel: 0, cage: 0, nos: 0 }); }
+function upgOf(rid) { const u = SAVE.upg[rid] || (SAVE.upg[rid] = { eng: 0, sus: 0, tire: 0, fuel: 0, cage: 0, nos: 0, air: 0 }); UPGS.forEach(g => { if (u[g.id] == null) u[g.id] = 0; }); return u; }
 function eqOf(rid) {
   const e = SAVE.eq[rid] || (SAVE.eq[rid] = {});
   MOD_SLOTS.forEach(k => { if (!e[k]) e[k] = MODS[k].opts[0].id; });
@@ -543,6 +545,7 @@ function buildSpec(rid) {
     fuelSec: R.fuel * (1 + u.fuel * 0.14), fuelMul: ecu.fuel,
     hp: R.hp * (1 + u.cage * 0.12), cageSoft: 1 - u.cage * 0.035,
     nitroCap: R.nitro * (1 + u.nos * 0.12), nitroF: (R.m * 7.5) * (1 + u.nos * 0.04),
+    airT: 1 + u.air * 0.12, wMax: 10 * (1 + u.air * 0.06),
     light: modOpt('light', e.light).range, snork: modOpt('snork', e.snork).snork,
     paint: PAINTS.find(p => p.id === e.paint) || PAINTS[0], liv: e.liv, rim: (RIMS.find(p => p.id === e.rim) || RIMS[0]).c
   };
@@ -668,6 +671,7 @@ function circleGround(x, y, r) {
 // ---------- PHYSICS: rigid chassis + 2 sprung axles (side view of a 4-wheeler) ----------
 const PDT = 1 / 240;
 let LAT_TQ = 0.6, REACT = 0.25;
+const WHL = { trim: 2.0, bal: 0.6, k: 3.0, gain: 18, popW: 2.6 };
 let RUN = null;
 function hullPts(S) { // chassis collision points in body frame (m), with flags
   const L = S.len / 2, cg = 1.08 + S.lift * 0.4;
@@ -718,7 +722,8 @@ function stepCar(R, dt, ctl) {
   // drivetrain
   const fuelOk = R.fuel > 0, stalled = R.flooded > 0;
   const live = fuelOk && !stalled && !R.over;
-  const thr = live ? ctl.gas : 0, brk = R.over ? 0 : ctl.brake;
+  const clutch = ctl.gas > 0.5 && ctl.brake > 0.5; // gas + brake together = clutch-pop wheelie
+  const thr = live ? ctl.gas : 0, brk = R.over || clutch ? 0 : ctl.brake;
   const wmax = S.vmax / r * (R.nitroOn ? 1.25 : 1);
   let reactT = 0;
   for (const wh of c.wh) {
@@ -735,7 +740,7 @@ function stepCar(R, dt, ctl) {
   if (S.lock) { const a = c.wh[0], b = c.wh[1], avg = (a.sg + b.sg) / 2; a.sg = lerp(a.sg, avg, 0.5); b.sg = lerp(b.sg, avg, 0.5); }
   c.w += reactT * REACT / I * dt;
   // integrate
-  c.x += c.vx * dt; c.y += c.vy * dt; c.a += c.w * dt;
+  c.x += c.vx * dt; c.y += c.vy * dt; c.a += c.w * dt; if (c.a > Math.PI) c.a -= 2 * Math.PI; else if (c.a < -Math.PI) c.a += 2 * Math.PI;
   for (const wh of c.wh) { wh.x += wh.vx * dt; wh.y += wh.vy * dt; wh.rot += wh.sg * dt; }
   // wheel-ground contacts
   for (const wh of c.wh) {
@@ -791,9 +796,18 @@ function stepCar(R, dt, ctl) {
     else if (vn < -3) R.bodyHit = Math.max(R.bodyHit || 0, -vn);
   }
   // air control + nitro
-  if (onCount === 0) { c.w += (ctl.gas - ctl.brake) * (R.stage.grav < 5 ? 3.2 : 4.6) * dt; c.w *= 1 - 0.25 * dt; }
-  else c.w *= 1 - 0.6 * dt;
-  c.w = clamp(c.w, -9, 9);
+  if (onCount === 0) { c.w += (ctl.gas - ctl.brake) * (R.stage.grav < 5 ? 3.8 : 6.5) * (S.airT || 1) * dt; c.w *= 1 - 0.25 * dt; }
+  else {
+    c.w *= 1 - 0.6 * dt;
+    // wheelie assist: gas + brake together pops the nose and balances it (arcade assist, scales with Air Control)
+    const fr = c.wh[0].front ? c.wh[0] : c.wh[1], rr = fr === c.wh[0] ? c.wh[1] : c.wh[0];
+    const sl = Math.atan((hAt(c.x + 1) - hAt(c.x - 1)) / 2), rel = c.a - sl, at = Math.sqrt(S.airT || 1);
+    const fwd = c.vx * ca + c.vy * sa;
+    // only while the wheelie input (gas + brake together) is held - normal driving keeps pure physics
+    if (clutch && live && rr.on && fr.on && rel < 0.4 && fwd > 1.5) c.w += (WHL.popW - c.w) * WHL.gain * at * dt;
+    else if (clutch && live && rr.on && !fr.on && rel > 0.04 && rel < 1.3 && fwd > 0.5) c.w += ((WHL.bal - rel) * WHL.k + (ctl.gas - ctl.brake) * WHL.trim - c.w) * WHL.gain * at * dt;
+  }
+  const wm = S.wMax || 10; c.w = clamp(c.w, -wm, wm);
   if (R.nitroOn) { c.vx += exw * S.nitroF / m * dt; c.vy += eyw * S.nitroF / m * dt; }
   // water: drag + buoyancy + flooding
   const pl = R.stage.id === 'bog' ? poolAt(c.x) : null;
@@ -816,27 +830,61 @@ function startRun(stageId) {
   terrainReset(st); FX.length = 0;
   const spec = buildSpec(SAVE.rig);
   RUN = { stage: st, spec, car: newCar(spec, 6), t: 0, dist: 0, coins: 0, fuel: spec.fuelSec, nitro: spec.nitroCap, nitroOn: false, hp: spec.hp,
-    over: null, overT: 0, flips: 0, bestAir: 0, air: 0, airRot: 0, stuck: 0, noMove: 0, flooded: 0, nextMark: 500, cam: { x: 6, y: hAt(6) + 1.5, z: 1 },
+    over: null, overT: 0, score: 0, combo: { n: 0, mult: 1, t: 0, pts: 0 }, bestCombo: 0, wheelie: 0, wGap: 0, stoppie: 0, sGap: 0, bestWheelie: 0, perfects: 0, pend: null, live: '', flips: 0, bestAir: 0, air: 0, airRot: 0, stuck: 0, noMove: 0, flooded: 0, nextMark: 500, cam: { x: 6, y: hAt(6) + 1.5, z: 1 },
     bonus: [], startX: 6, best: SAVE.best[st.id] || 0, beatBest: false, lowWarn: 0, wasWet: false, fuelCans: 0, steps: 0 };
   const c = RUN.car; for (let i = 0; i < 120; i++) stepCar(RUN, PDT, { gas: 0, brake: 0 }); // settle suspension
   RUN.cam.x = c.x; RUN.cam.y = c.y;
   game.state = 'play'; game.paused = false; MUS.on = true; ensureAudio(); engineStart(); sfx('start');
   SAVE.stats.runs++; saveNow();
-  if (!SAVE.tut) toast(TOUCH ? 'Hold right pedal for gas, left to brake / reverse' : 'D / Right = gas   A / Left = brake & reverse   Shift = nitro', '#ffd23f', 5);
+  if (!SAVE.tut) toast(TOUCH ? 'Right pedal = gas, left = brake. WHEELIE button pops a wheelie. Mid-air: gas/brake to flip' : 'D = gas   A = brake   W = wheelie   Shift = nitro   Mid-air: D/A to flip', '#ffd23f', 5);
   announce('Run started on ' + st.name);
 }
 function endRun(reason) {
   const R = RUN; if (R.over) return;
+  if (R.pend) settleTrick(R, reason !== 'OUT OF FUEL' && reason !== 'RUN ENDED'); { const cr = reason === 'WRECKED' || reason === 'ROLLED OVER'; endBalance(R, 'w', cr); endBalance(R, 's', cr); }
   R.over = reason; R.overT = 0; if (R.demo) return; engineStop(); sfx(reason === 'WRECKED' ? 'crunch' : 'over');
   game.shake = reason === 'WRECKED' ? 1 : 0.3;
 }
 function finishRun() {
   const R = RUN, st = R.stage, d = Math.floor(R.dist);
   const newBest = d > (SAVE.best[st.id] || 0); if (newBest) SAVE.best[st.id] = d;
+  R.newTrick = R.score > 0 && R.score > (SAVE.bestTrick[st.id] || 0); if (R.newTrick) SAVE.bestTrick[st.id] = R.score;
   SAVE.coins += R.coins; SAVE.stats.dist += d; SAVE.stats.flips += R.flips; SAVE.stats.coins += R.coins; SAVE.tut = 1; saveNow();
   R.newBest = newBest; game.state = 'result'; MUS.int = 0.1; announce('Run over: ' + R.over + '. ' + d + ' meters, ' + R.coins + ' coins.');
 }
 function award(v, label, col) { RUN.coins += v; RUN.bonus.push({ s: label + '  +' + fmtN(v), col: col || '#ffd23f', t: 2.2 }); if (RUN.bonus.length > 4) RUN.bonus.shift(); }
+const FLIPN = ['', '', 'DOUBLE ', 'TRIPLE ', 'QUAD ', 'QUINT '];
+function flipName(n, back) { return (FLIPN[n] != null ? FLIPN[n] : n + 'x ') + (back ? 'BACKFLIP' : 'FRONTFLIP'); }
+// every trick: points x combo multiplier -> trick score; coins = 40% of points x stage multiplier
+function trick(label, pts, col, kind) {
+  const R = RUN, cb = R.combo; if (R.demo) return;
+  // variety pays: a new trick type in the chain raises the multiplier (max x4); repeats score half
+  cb.kinds = cb.kinds || {}; const rep = kind && cb.kinds[kind];
+  if (kind) cb.kinds[kind] = 1;
+  cb.n++; if (!rep) cb.mult = Math.min(4, 1 + 0.5 * Math.max(0, Object.keys(cb.kinds).length - 1)); cb.t = 2.6;
+  const p = Math.round(pts * cb.mult * (rep ? 0.5 : 1)); R.score += p; cb.pts += p; R.bestCombo = Math.max(R.bestCombo, cb.n);
+  R.coins += Math.round(p * 0.3 * R.stage.mult);
+  R.bonus.push({ s: label + '  +' + fmtN(p) + (cb.mult > 1 ? '  (x' + cb.mult.toFixed(1) + ')' : ''), col: col || '#3cff7a', t: 2.2 }); if (R.bonus.length > 4) R.bonus.shift();
+}
+function endCombo(R, lost) {
+  const cb = R.combo;
+  if (cb.n >= 2 && !R.demo) { R.bonus.push({ s: lost ? 'COMBO LOST' : 'COMBO x' + cb.n + '  =  ' + fmtN(cb.pts) + ' pts', col: lost ? '#ff3b3b' : '#ffd23f', t: 2.2 }); if (R.bonus.length > 4) R.bonus.shift(); if (!lost) sfx('check'); }
+  cb.n = 0; cb.mult = 1; cb.t = 0; cb.pts = 0; cb.kinds = {};
+}
+function settleTrick(R, bailed) {
+  const P = R.pend; R.pend = null; if (!P) return;
+  if (bailed) { if (P.fl > 0 || R.combo.n > 0) { R.bonus.push({ s: 'BAILED!', col: '#ff3b3b', t: 1.8 }); endCombo(R, true); } return; }
+  const ath = 1.4 * Math.sqrt(9.81 / R.stage.grav);
+  if (P.fl > 0) { R.flips += P.fl; trick(flipName(P.fl, P.back), (P.back ? 300 : 350) * P.fl * P.fl, P.back ? '#3cff7a' : '#c48cff', P.back ? 'bf' : 'ff'); sfx('flip'); }
+  if (P.air > ath) trick('BIG AIR ' + P.air.toFixed(1) + 's', Math.round(Math.min(P.air / ath, 4) * 50), '#7fe0e8', 'air');
+  if (P.perfect && (P.fl > 0 || P.air > ath * 0.85)) { R.perfects++; trick('PERFECT LANDING', 150, '#ffd23f', 'pl'); }
+}
+function endBalance(R, k, silent) {
+  const T = k === 'w' ? R.wheelie : R.stoppie; if (k === 'w') { R.wheelie = 0; R.wGap = 0; } else { R.stoppie = 0; R.sGap = 0; }
+  if (k === 'w') R.bestWheelie = Math.max(R.bestWheelie, T);
+  const min = k === 'w' ? 1 : 0.6; if (silent || T < min || R.over) return;
+  const t = Math.min(T, 15); trick((k === 'w' ? 'WHEELIE ' : 'STOPPIE ') + T.toFixed(1) + 's', Math.round(k === 'w' ? 40 * t : 90 * t), k === 'w' ? '#ff9a1f' : '#ff6a6a', k);
+}
 function updatePlay(dt) {
   const R = RUN, c = R.car, S = R.spec;
   if (R.demo) { const b = botCtl(R); held.gasAmt = b.gas; held.brakeAmt = b.brake; held.nitro = b.nitro; } else readControls();
@@ -863,21 +911,40 @@ function updatePlay(dt) {
   else R.flooded = Math.max(0, R.flooded - dt);
   if (R.wet > 0.2 && !R.wasWet) { sfx('splash'); for (let i = 0; i < 26; i++) puff(c.x + RND(-1.5, 1.5), c.y - 0.2, c.vx * 0.3 + RND(-2, 2), RND(2, 6), RND(0.5, 1), RND(0.12, 0.3), '#cfe8ff', 'splash'); }
   R.wasWet = R.wet > 0.2;
-  // stunts: track rotation while all wheels are off the ground
-  if (on === 0) { R.air += dt; R.airRot += c.w * dt; }
-  else {
+  // ---------- TRICKS: flips, air, wheelies, stoppies, landings, combos ----------
+  const slopeA = Math.atan((hAt(c.x + 1) - hAt(c.x - 1)) / 2), rel = c.a - slopeA;
+  const rear = c.wh[0].front ? c.wh[1] : c.wh[0], front = c.wh[0].front ? c.wh[0] : c.wh[1];
+  if (on === 0) {
+    if (R.pend) settleTrick(R, false);
+    endBalance(R, 'w'); endBalance(R, 's');
+    R.air += dt; R.airRot += c.w * dt;
+  } else {
     if (R.air > 0.25 && !R.over) {
       const fl = Math.floor((Math.abs(R.airRot) + 0.7) / (Math.PI * 2));
-      if (fl > 0) { const v = Math.round(100 * fl * fl * R.stage.mult); R.flips += fl; award(v, (R.airRot > 0 ? 'BACKFLIP' : 'FRONTFLIP') + (fl > 1 ? ' x' + fl : ''), '#3cff7a'); sfx('flip'); }
-      const ath = 1.4 * Math.sqrt(9.81 / R.stage.grav); if (R.air > ath) { const v = Math.round(Math.min(R.air / ath, 4) * 15 * R.stage.mult); award(v, 'BIG AIR ' + R.air.toFixed(1) + 's', '#7fe0e8'); }
+      R.pend = { fl, back: R.airRot > 0, air: R.air, perfect: R.air > 0.6 && Math.abs(rel) < 0.2 && Math.cos(rel) > 0, t: 0.35 };
       R.bestAir = Math.max(R.bestAir, R.air);
       if (R.landHit > 7) { game.shake = Math.min(1, game.shake + R.landHit * 0.03); sfx('thud', 1.4); }
     }
     R.air = 0; R.airRot = 0;
+    if (R.pend) { R.pend.t -= dt; if (Math.cos(rel) < 0.2 || R.cageHit > 2.6 || R.over) settleTrick(R, true); else if (R.pend.t <= 0) settleTrick(R, false); }
+    // wheelie = rear tyres planted, nose up, front off the dirt; stoppie = the reverse
+    const fwd = c.vx * Math.cos(c.a) + c.vy * Math.sin(c.a);
+    if (!R.over && rear.on && !front.on && rel > 0.12 && fwd > 2.5) { R.wheelie += dt; R.wGap = 0; } else if (R.wheelie > 0) { R.wGap += dt; if (R.wGap > 0.18 || front.on && rel < 0.05) endBalance(R, 'w'); }
+    if (!R.over && front.on && !rear.on && rel < -0.1 && fwd > 2.5) { R.stoppie += dt; R.sGap = 0; } else if (R.stoppie > 0) { R.sGap += dt; if (R.sGap > 0.18 || rear.on && rel > -0.05) endBalance(R, 's'); }
   }
+  // combo clock runs only while you are not mid-trick
+  const cb = R.combo;
+  if (cb.n > 0 && on > 0 && !R.pend && R.wheelie < 0.3 && R.stoppie < 0.3) { cb.t -= dt; if (cb.t <= 0) endCombo(R, false); }
+  // live trick readout for the HUD
+  if (R.over) R.live = '';
+  else if (on === 0 && R.air > 0.3) { const lf = Math.floor((Math.abs(R.airRot) + 0.7) / (Math.PI * 2)); R.live = lf > 0 ? flipName(lf, R.airRot > 0) + '...' : 'AIR ' + R.air.toFixed(1) + 's' + (Math.abs(R.airRot) > 1.2 ? '  ' + Math.round(Math.abs(R.airRot) * 57.3) + '\u00b0' : ''); }
+  else if (R.wheelie > 0.5) R.live = 'WHEELIE ' + R.wheelie.toFixed(1) + 's';
+  else if (R.stoppie > 0.4) R.live = 'STOPPIE ' + R.stoppie.toFixed(1) + 's';
+  else R.live = '';
   // damage
   if (R.cageHit > 2.6 && !R.over) {
     const dmg = Math.pow(R.cageHit - 2.6, 1.35) * 8.5 * S.cageSoft * (R.stage.grav < 5 ? 0.6 : 1);
+    if (R.combo.n > 0 && !R.pend) endCombo(R, true);
     R.hp -= dmg; game.shake = Math.min(1, game.shake + dmg * 0.02); sfx('clank', clamp(dmg / 20, 0.5, 2)); sfx('thud', 1.2);
     if (R.sparkAt) for (let i = 0; i < 10 + dmg; i++) puff(R.sparkAt[0], R.sparkAt[1], RND(-4, 4) + c.vx * 0.3, RND(1, 5), RND(0.2, 0.5), 0.05, '#ffd27a', 'spark');
     if (R.hp <= 0) { R.hp = 0; endRun('WRECKED'); }
@@ -931,7 +998,7 @@ function startDemo() {
   const st = stageById(SAVE.stage); terrainReset(st); FX.length = 0;
   const spec = buildSpec(SAVE.rig);
   RUN = { demo: true, stage: st, spec, car: newCar(spec, 6), t: 0, dist: 0, coins: 0, fuel: 1e9, nitro: spec.nitroCap, nitroOn: false, hp: 1e9,
-    over: null, overT: 0, flips: 0, bestAir: 0, air: 0, airRot: 0, stuck: 0, noMove: 0, flooded: 0, nextMark: 1e9, cam: { x: 6, y: hAt(6) + 1.5, z: 1 }, bonus: [], startX: 6, best: 0, beatBest: true, lowWarn: 0, fuelCans: 0, steps: 0 };
+    over: null, overT: 0, score: 0, combo: { n: 0, mult: 1, t: 0, pts: 0 }, bestCombo: 0, wheelie: 0, wGap: 0, stoppie: 0, sGap: 0, bestWheelie: 0, perfects: 0, pend: null, live: '', flips: 0, bestAir: 0, air: 0, airRot: 0, stuck: 0, noMove: 0, flooded: 0, nextMark: 1e9, cam: { x: 6, y: hAt(6) + 1.5, z: 1 }, bonus: [], startX: 6, best: 0, beatBest: true, lowWarn: 0, fuelCans: 0, steps: 0 };
   for (let i = 0; i < 120; i++) stepCar(RUN, PDT, { gas: 0, brake: 0 });
   RUN.cam.x = RUN.car.x; RUN.cam.y = RUN.car.y;
 }
@@ -1443,6 +1510,7 @@ function icon(kind, x, y, s, col) {
   else if (kind === 'fuel') { cx.strokeRect(-8, -6, 14, 17); cx.beginPath(); cx.moveTo(-6, -6); cx.lineTo(-3, -10); cx.lineTo(3, -10); cx.moveTo(-6, 0); cx.lineTo(4, 9); cx.moveTo(4, 0); cx.lineTo(-6, 9); cx.stroke(); }
   else if (kind === 'cage') { cx.beginPath(); cx.moveTo(-11, 10); cx.lineTo(-6, -8); cx.lineTo(8, -8); cx.lineTo(11, 10); cx.moveTo(1, -8); cx.lineTo(2, 10); cx.stroke(); }
   else if (kind === 'nos') { cx.beginPath(); cx.moveTo(-5, 11); cx.lineTo(-5, -4); cx.quadraticCurveTo(-5, -8, 0, -8); cx.quadraticCurveTo(5, -8, 5, -4); cx.lineTo(5, 11); cx.closePath(); cx.stroke(); cx.fillRect(-2, -12, 4, 4); }
+  else if (kind === 'air') { cx.beginPath(); cx.arc(0, 1, 9, -2.6, 1.9); cx.stroke(); cx.beginPath(); cx.moveTo(-3, 10); cx.lineTo(-8, 9); cx.lineTo(-5, 4.5); cx.closePath(); cx.fill(); cx.beginPath(); cx.moveTo(-7, -3); cx.lineTo(7, -3); cx.moveTo(-4, 1); cx.lineTo(4, 1); cx.stroke(); }
   cx.restore();
 }
 // ---------- HUD ----------
@@ -1454,6 +1522,10 @@ function drawHUD(R, t) {
   txt(R.best ? 'BEST ' + fmtN(R.best) + ' m  ·  ' + R.stage.name.toUpperCase() : R.stage.name.toUpperCase(), 28, 62, 10, 'rgba(255,255,255,0.65)', 'left', 800);
   // coins
   glass(238, 12, 150, 40, '#ffd23f', 0.62); coinTxt(R.coins, 250, 32, 18);
+  // trick score + combo meter
+  glass(398, 12, 178, 40, '#c48cff', 0.62); txt('TRICKS', 410, 26, 8.5, 'rgba(255,255,255,0.6)', 'left', 900); txt(fmtN(R.score), 410, 42, 16, '#e2c8ff', 'left', 900);
+  const cb = R.combo; if (cb.n > 0) { txt('x' + cb.mult.toFixed(1), 566, 34, 18, '#ffd23f', 'right', 900); bar(398, 56, 178, 6, clamp(cb.t / 2.6, 0, 1), '#ffd23f'); txt('COMBO ' + cb.n, 487, 72, 9, '#ffd23f', 'center', 900); }
+  if (R.live) metalTxtC(R.live, W / 2, 104, 22, R.live[0] === 'W' ? '#ff9a1f' : R.live[0] === 'A' ? '#7fe0e8' : '#3cff7a');
   // gauges right
   const gx = W - 250, gw = 186;
   glass(gx - 12, 12, gw + 72, 92, '#ff9a1f', 0.62);
@@ -1484,6 +1556,7 @@ function drawHUD(R, t) {
       cx.restore(); txt(label, z.x + z.w / 2, z.y + z.h - 14, 12, '#fff', 'center', 900); };
     pedal(PEDALS.brake, 'BRAKE', '#ff3b3b', theld.brake); pedal(PEDALS.gas, 'GAS', '#3cff7a', theld.gas);
     const z = PEDALS.nitro; cx.save(); cx.globalAlpha = theld.nitro ? 0.95 : 0.65; cx.fillStyle = rgba('#5aa8ff', 0.35); cx.beginPath(); cx.arc(z.x + z.w / 2, z.y + z.h / 2, z.w / 2, 0, 6.29); cx.fill(); cx.strokeStyle = '#7fb8ff'; cx.lineWidth = 2; cx.stroke(); cx.restore(); txt('NOS', z.x + z.w / 2, z.y + z.h / 2, 14, '#fff', 'center', 900);
+    { const q = PEDALS.wheelie; cx.save(); cx.globalAlpha = theld.wheelie ? 0.95 : 0.65; cx.fillStyle = rgba('#ff9a1f', 0.32); cx.beginPath(); cx.arc(q.x + q.w / 2, q.y + q.h / 2, q.w / 2, 0, 6.29); cx.fill(); cx.strokeStyle = '#ffb02a'; cx.lineWidth = 2; cx.stroke(); cx.restore(); txt('WHEELIE', q.x + q.w / 2, q.y + q.h / 2, 11, '#fff', 'center', 900); }
   }
 }
 // ---------- shared screen chrome ----------
@@ -1519,10 +1592,10 @@ function drawTitle(t) {
   button('snd', W / 2 - 130, 378, 82, 26, muted ? 'SOUND OFF' : 'SOUND ON', { col: '#7fe0e8', size: 10, fn: () => setMute(!muted) });
   button('mus', W / 2 - 41, 378, 82, 26, musicOn ? 'MUSIC ON' : 'MUSIC OFF', { col: '#7fe0e8', size: 10, fn: () => setMusic(!musicOn) });
   button('mot', W / 2 + 48, 378, 82, 26, RMOTION ? 'SHAKE OFF' : 'SHAKE ON', { col: '#7fe0e8', size: 10, fn: () => { RMOTION = !RMOTION; LS.set('cc_rm', RMOTION ? '1' : '0'); } });
-  const help = TOUCH ? 'Right pedal = gas · Left pedal = brake / reverse · NOS button = nitro · tilt mid-air with gas & brake'
-    : 'D / Right = gas  ·  A / Left = brake & reverse  ·  Shift = nitro  ·  In the air: gas tilts back, brake tilts forward  ·  Esc = pause';
+  const help = TOUCH ? 'Right pedal = gas · Left pedal = brake / reverse · NOS = nitro · WHEELIE (or both pedals) = wheelie · mid-air: gas = backflip, brake = frontflip'
+    : 'D / Right = gas  ·  A / Left = brake  ·  W / Up = wheelie  ·  Shift = nitro  ·  Mid-air: gas = backflip, brake = frontflip  ·  Esc = pause';
   glass(W / 2 - 330, 420, 660, 30, '#3cff7a', 0.6); txt(help, W / 2, 435, 10.5, 'rgba(255,255,255,0.85)', 'center', 700);
-  txt('Grab fuel cans before the tank runs dry. Land on your wheels - roof hits damage the cage.', W / 2, 466, 10.5, 'rgba(255,255,255,0.7)', 'center', 600);
+  txt('Chain flips, big air, wheelies & perfect landings into combos for trick points + coins. Land on your wheels!', W / 2, 466, 10.5, 'rgba(255,255,255,0.7)', 'center', 600);
   txt('MyClover.Tech · original game by Viktor · all art & sound generated in code', W / 2, H - 16, 9.5, 'rgba(255,255,255,0.45)', 'center', 700);
   if (pressed.start) startRun(SAVE.stage); if (pressed.garage) game.state = 'garage';
 }
@@ -1567,13 +1640,13 @@ function drawGarage(t) {
 function drawUpgrades(rig, S, x, y, w, owned) {
   const u = upgOf(rig.id);
   UPGS.forEach((g, k) => {
-    const yy = y + k * 67, lv = u[g.id], max = lv >= g.max, cost = max ? 0 : upgCost(rig, lv);
-    cx.fillStyle = k % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.0)'; cx.fillRect(x + 6, yy, w - 12, 63);
-    cx.fillStyle = 'rgba(255,210,63,0.12)'; rrect(cx, x + 14, yy + 10, 44, 44, 10); cx.fill(); icon(g.icon, x + 36, yy + 32, 26, '#ffd23f');
-    txt(g.name.toUpperCase(), x + 70, yy + 18, 13, '#fff', 'left', 900);
-    txt(max ? 'Maxed: ' + g.desc(lv) : 'Next: ' + g.desc(lv + 1), x + 70, yy + 36, 10, 'rgba(255,255,255,0.6)', 'left', 700);
-    for (let p = 0; p < g.max; p++) { cx.fillStyle = p < lv ? lin(cx, 0, yy + 46, 0, yy + 54, [[0, '#9affb8'], [1, '#20a050']]) : 'rgba(255,255,255,0.1)'; rrect(cx, x + 70 + p * 19, yy + 47, 15, 7, 2); cx.fill(); }
-    button('u' + g.id, x + w - 136, yy + 12, 122, 40, max ? 'MAXED' : 'LV ' + (lv + 1), { col: max ? '#5a6470' : SAVE.coins >= cost ? '#3cff7a' : '#8a5a3a', size: 13, sub: max ? '' : fmtN(cost) + ' coins', disabled: max || !owned,
+    const yy = y + k * 58, lv = u[g.id], max = lv >= g.max, cost = max ? 0 : upgCost(rig, lv);
+    cx.fillStyle = k % 2 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.0)'; cx.fillRect(x + 6, yy, w - 12, 56);
+    cx.fillStyle = 'rgba(255,210,63,0.12)'; rrect(cx, x + 14, yy + 7, 42, 42, 10); cx.fill(); icon(g.icon, x + 35, yy + 28, 25, '#ffd23f');
+    txt(g.name.toUpperCase(), x + 70, yy + 15, 13, '#fff', 'left', 900);
+    txt(max ? 'Maxed: ' + g.desc(lv) : 'Next: ' + g.desc(lv + 1), x + 70, yy + 31, 10, 'rgba(255,255,255,0.6)', 'left', 700);
+    for (let p = 0; p < g.max; p++) { cx.fillStyle = p < lv ? lin(cx, 0, yy + 41, 0, yy + 49, [[0, '#9affb8'], [1, '#20a050']]) : 'rgba(255,255,255,0.1)'; rrect(cx, x + 70 + p * 19, yy + 42, 15, 7, 2); cx.fill(); }
+    button('u' + g.id, x + w - 136, yy + 8, 122, 40, max ? 'MAXED' : 'LV ' + (lv + 1), { col: max ? '#5a6470' : SAVE.coins >= cost ? '#3cff7a' : '#8a5a3a', size: 13, sub: max ? '' : fmtN(cost) + ' coins', disabled: max || !owned,
       fn: () => { if (spend(cost)) { u[g.id]++; saveNow(); toast(g.name + ' upgraded to LV ' + u[g.id], '#3cff7a'); } } });
   });
 }
@@ -1638,7 +1711,7 @@ function drawStages(t) {
     txt(st.name, x + 12, y + 118, 14, own ? '#fff' : 'rgba(255,255,255,0.6)', 'left', 900);
     txt('x' + st.mult + ' COINS', x + cw - 12, y + 118, 10, '#ffd23f', 'right', 900);
     wrapTxt(st.blurb, x + 12, y + 138, cw - 24, 10, 'rgba(255,255,255,0.65)', 13, 600);
-    txt(SAVE.best[st.id] ? 'BEST ' + fmtN(SAVE.best[st.id]) + ' m' : own ? 'NO RUNS YET' : '', x + 12, y + 170, 10, '#3cff7a', 'left', 900);
+    txt(SAVE.best[st.id] ? 'BEST ' + fmtN(SAVE.best[st.id]) + ' m' + (SAVE.bestTrick[st.id] ? '  ·  TRICKS ' + fmtN(SAVE.bestTrick[st.id]) : '') : own ? 'NO RUNS YET' : '', x + 12, y + 170, 10, '#3cff7a', 'left', 900);
     if (own) button('s' + st.id, x + 10, y + h - 36, cw - 20, 28, sel ? 'DRIVE' : 'SELECT', { col: '#3cff7a', size: 12, hot: sel, fn: () => { if (sel) startRun(st.id); else { SAVE.stage = st.id; saveNow(); RUN = null; } } });
     else button('s' + st.id, x + 10, y + h - 36, cw - 20, 28, 'UNLOCK', { col: SAVE.coins >= st.price ? '#ffd23f' : '#8a5a3a', size: 12, sub: fmtN(st.price) + ' coins', fn: () => { if (spend(st.price)) { SAVE.stages.push(st.id); SAVE.stage = st.id; saveNow(); RUN = null; toast(st.name + ' unlocked!', '#3cff7a', 2); } } });
   });
@@ -1649,7 +1722,8 @@ function tip(R) {
   if (R.over === 'OUT OF FUEL') return u.fuel < 10 ? 'Tip: a bigger Fuel Tank gets you to the next can.' : 'Tip: ease off the gas on flats to stretch fuel.';
   if (R.over === 'WRECKED') return 'Tip: Roll Cage upgrades add HP and soften roof hits.';
   if (R.over === 'ROLLED OVER') return R.stage.id === 'moon' ? 'Tip: in low gravity, tap brake mid-air to keep the nose down.' : 'Tip: lift off the gas on steep climbs, or fit a Winch Bumper.';
-  return 'Tip: Tires and Suspension upgrades help on every stage.';
+  if (!R.score) return 'Tip: hold W / Up (or both pedals) to pop a wheelie; gas mid-air = backflip.';
+  return 'Tip: mix different tricks in one combo - repeats only score half.';
 }
 function drawResult(t) {
   const R = RUN; drawWorld(R, t);
@@ -1660,8 +1734,10 @@ function drawResult(t) {
   txt(R.stage.name.toUpperCase() + '  ·  ' + R.spec.rig.name.toUpperCase(), W / 2, y + 70, 10.5, 'rgba(255,255,255,0.6)', 'center', 800);
   metalTxtC(fmtN(Math.floor(R.dist)) + ' m', W / 2, y + 114, 44, '#3cff7a');
   if (R.newBest) txtS('NEW BEST!', W / 2, y + 148, 15, '#ffd23f', 'center', 900); else txt('Best ' + fmtN(SAVE.best[R.stage.id] || 0) + ' m', W / 2, y + 148, 12, 'rgba(255,255,255,0.65)', 'center', 800);
-  const rows = [['Coins earned', null], ['Flips', R.flips], ['Best air', R.bestAir.toFixed(1) + ' s'], ['Fuel cans', R.fuelCans]];
-  rows.forEach(([n, v], k) => { const yy = y + 182 + k * 28; txt(n, x + 80, yy, 13, 'rgba(255,255,255,0.75)', 'left', 700); if (v == null) coinTxt(R.coins, x + w - 80, yy, 16, 'right'); else txt(String(v), x + w - 80, yy, 14, '#fff', 'right', 900); });
+  const rows = [['Coins earned', null], ['Trick score', fmtN(R.score) + (R.newTrick ? '  NEW BEST' : '')], ['Flips', R.flips], ['Best combo', R.bestCombo ? R.bestCombo + ' tricks' : '-'],
+    ['Best air', R.bestAir.toFixed(1) + ' s'], ['Longest wheelie', R.bestWheelie.toFixed(1) + ' s'], ['Fuel cans', R.fuelCans], ['Perfect landings', R.perfects]];
+  rows.forEach(([n, v], k) => { const col = k % 2, xx = x + 28 + col * (w / 2 - 14), yy = y + 180 + Math.floor(k / 2) * 27, cw = w / 2 - 42;
+    txt(n, xx, yy, 11.5, 'rgba(255,255,255,0.72)', 'left', 700); if (v == null) coinTxt(R.coins, xx + cw, yy, 14, 'right'); else txt(String(v), xx + cw, yy, 12.5, k === 1 && R.newTrick ? '#ffd23f' : '#fff', 'right', 900); });
   txt(tip(R), W / 2, y + 300, 11, '#7fe0e8', 'center', 700);
   button('retry', x + 24, y + 326, 132, 44, 'RETRY', { col: '#3cff7a', size: 15, hot: true, key: 'R', fn: () => startRun(R.stage.id) });
   button('rgar', x + 164, y + 326, 132, 44, 'GARAGE', { col: '#ffd23f', size: 15, key: 'G', fn: () => { game.state = 'garage'; GAR.view = SAVE.rig; RUN = null; } });
