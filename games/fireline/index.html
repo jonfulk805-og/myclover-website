@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05040c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%230a0603%22/%3E%3Ccircle cx=%2222%22 cy=%2222%22 r=%2212%22 fill=%22%23ff3b3b%22/%3E%3Ccircle cx=%2242%22 cy=%2222%22 r=%2212%22 fill=%22%233cff7a%22/%3E%3Ccircle cx=%2222%22 cy=%2242%22 r=%2212%22 fill=%22%23ff9a1f%22/%3E%3Ccircle cx=%2242%22 cy=%2242%22 r=%2212%22 fill=%22%23ffd23f%22/%3E%3C/svg%3E">
+<title>FIRELINE: Santa Ana Command | MyClover.Tech</title>
+<meta name="description" content="FIRELINE: Santa Ana Command - wildfire incident commander game. Wind-driven brush fires race down coastal canyons toward homes. Send Firehawk helicopters, Super Scoopers and pink retardant air tankers, park engines in the neighborhoods, cut fire line with hand crews, order evacuations and decide on power shutoffs. Night operations, ember spot fires, 8 incidents + endless Red Flag mode. Free browser game from MyClover.Tech.">
+<style>
+html,body{margin:0;height:100%;background:#05040c;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+body{display:flex;align-items:center;justify-content:center}
+canvas{display:block;box-shadow:0 0 60px rgba(255,120,40,.10);outline:none}
+#rot{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#05040c;color:#fff;font:800 18px system-ui,sans-serif;text-align:center;z-index:9;padding:24px}
+#rot .ph{width:46px;height:78px;border:3px solid #ffd23f;border-radius:9px;animation:rt 1.6s ease-in-out infinite}
+@keyframes rt{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (orientation:portrait) and (max-width:820px){#rot{display:flex}}
+html,body{cursor:default} canvas{cursor:default}
+</style>
+</head>
+<body>
+<canvas id="c" tabindex="0" role="img" aria-label="FIRELINE wildfire command game. Click a unit then click the map to give orders, drag to draw drop lines and fire lines. Keys 1 to 7 select tools, Space tactical pause, F speed, Escape menu."></canvas>
+<div id="live" class="sr" aria-live="polite"></div>
+<div id="rot"><div class="ph"></div><div>Rotate your phone to landscape</div><div style="font-weight:600;font-size:13px;opacity:.65">FIRELINE needs the wide view</div></div>
+<script>
+(function(){
+'use strict';
+// ===== FIRELINE: Santa Ana Command =====
+// Original code + procedurally drawn art by Viktor for MyClover.Tech. No external assets.
+const W = 960, H = 540;
+const cv = document.getElementById('c');
+const cx = cv.getContext('2d');
+const TOUCH = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1 || /Mobi|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent);
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
+let RMOTION = LS.get('fl_rm', null) != null ? LS.get('fl_rm') === '1' : !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+let SC = 1, CRect = null;
+function fit() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  const cw = Math.max(1, Math.floor(W * s)), ch = Math.max(1, Math.floor(H * s));
+  cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  SC = Math.max(1, Math.min(2, cw * (window.devicePixelRatio || 1) / W));
+  cv.width = Math.round(W * SC); cv.height = Math.round(H * SC);
+  CRect = null;
+}
+addEventListener('resize', fit); fit();
+
+
+// ---------- utils ----------
+const RND = (a, b) => a + Math.random() * (b - a);
+const RI = (a, b) => Math.floor(RND(a, b + 1));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const angTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+const wrapA = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
+const turnTo = (a, t, m) => { const d = wrapA(t - a); return a + clamp(d, -m, m); };
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const MONO = 'ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace';
+
+// ---------- GFX: noise, glow sprites, painted arenas ----------
+function layer(w, h, s) {
+  s = s || Math.min(2, SC);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w * s)); c.height = Math.max(1, Math.ceil(h * s));
+  const g = c.getContext('2d'); g.scale(s, s); return [c, g];
+}
+let seed = 1337;
+const srand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const sr = (a, b) => a + srand() * (b - a);
+function hash(x, y) { let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y, o) { o = o || 4; let s = 0, a = 0.5, f = 1, n = 0; for (let i = 0; i < o; i++) { s += a * vnoise(x * f, y * f); n += a; f *= 2; a *= 0.5; } return s / n; }
+const RGBC = {};
+function hexRgb(c) {
+  if (RGBC[c]) return RGBC[c];
+  let r = 255, g = 255, b = 255;
+  if (c[0] === '#') { let h = c.slice(1); if (h.length === 3) h = h.split('').map(q => q + q).join(''); const n = parseInt(h, 16); r = (n >> 16) & 255; g = (n >> 8) & 255; b = n & 255; }
+  else { const m = c.match(/\d+/g); if (m) { r = +m[0]; g = +m[1]; b = +m[2]; } }
+  return (RGBC[c] = [r, g, b]);
+}
+const SHC = {};
+function shade(c, k) { const key = c + k; if (SHC[key]) return SHC[key]; const f = v => Math.max(0, Math.min(255, Math.round(k > 0 ? v + (255 - v) * k : v * (1 + k)))); const [r, g, b] = hexRgb(c); return (SHC[key] = 'rgb(' + f(r) + ',' + f(g) + ',' + f(b) + ')'); }
+const rgba = (c, a) => { const [r, g, b] = hexRgb(c); return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'; };
+function glowSprite(rgb, size) {
+  size = size || 128; const [c, g] = layer(size, size, 1);
+  const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gr.addColorStop(0, 'rgba(' + rgb + ',1)'); gr.addColorStop(0.22, 'rgba(' + rgb + ',0.5)'); gr.addColorStop(0.55, 'rgba(' + rgb + ',0.13)'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+  g.fillStyle = gr; g.fillRect(0, 0, size, size); return c;
+}
+const GLOWC = {};
+function glowOf(c) { return GLOWC[c] || (GLOWC[c] = glowSprite(hexRgb(c).join(','), 64)); }
+function glowAt(x, y, r, c, a, g) {
+  g = g || cx; g.globalCompositeOperation = 'lighter'; g.globalAlpha = a == null ? 1 : a;
+  g.drawImage(glowOf(c), x - r, y - r, r * 2, r * 2); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+}
+const SMOKE = [0, 1, 2].map(i => { seed = 50 + i; const size = 96, [c, g] = layer(size, size, 1);
+  for (let k = 0; k < 14; k++) { const a = srand() * 6.28, d = srand() * 22, r = 14 + srand() * 20, x = 48 + Math.cos(a) * d, y = 48 + Math.sin(a) * d, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(70,66,74,0.36)'); gr.addColorStop(1, 'rgba(70,66,74,0)'); g.fillStyle = gr; g.fillRect(0, 0, size, size); }
+  return c; });
+const FIRE = (() => { const [c, g] = layer(64, 64, 1), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,250,225,1)'); gr.addColorStop(0.25, 'rgba(255,200,90,0.9)'); gr.addColorStop(0.55, 'rgba(230,90,20,0.45)'); gr.addColorStop(1, 'rgba(120,20,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
+function pnoise(x, y, p) { // periodic value noise (period p cells) so grain tiles seamlessly
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), m = q => ((q % p) + p) % p;
+  const a = hash(m(xi), m(yi)), b = hash(m(xi + 1), m(yi)), c = hash(m(xi), m(yi + 1)), d = hash(m(xi + 1), m(yi + 1));
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+const NOISE = (() => { const N = 256, [c, g] = layer(N, N, 1), id = g.createImageData(N, N), d = id.data;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let n = 0, a = 0.5, f = 8, s = 0; for (let o = 0; o < 4; o++) { n += a * pnoise(x / N * f, y / N * f, f); s += a; a *= 0.5; f *= 2; }
+    n = n / s * 0.6 + hash(x * 7 + 1, y * 13 + 5) * 0.4; const v = clamp(128 + (n - 0.5) * 220, 0, 255), i = (y * N + x) * 4; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  g.putImageData(id, 0, 0); return c; })();
+let VIG = null;
+function vignette() {
+  if (!VIG) { const [c, g] = layer(W, H, 1), vg = g.createRadialGradient(W / 2, H * 0.52, H * 0.35, W / 2, H / 2, W * 0.66);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(0.7, 'rgba(4,3,10,0.25)'); vg.addColorStop(1, 'rgba(2,1,6,0.7)'); g.fillStyle = vg; g.fillRect(0, 0, W, H); VIG = c; }
+  cx.drawImage(VIG, 0, 0, W, H);
+}
+const lin = (g, x0, y0, x1, y1, stops) => { const gr = g.createLinearGradient(x0, y0, x1, y1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+const radg = (g, x0, y0, r0, x1, y1, r1, stops) => { const gr = g.createRadialGradient(x0, y0, r0, x1, y1, r1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function grain(g, x, y, w, h, alpha, mode) {
+  g.save(); g.globalAlpha = alpha; g.globalCompositeOperation = mode || 'overlay';
+  for (let yy = y; yy < y + h; yy += 256) for (let xx = x; xx < x + w; xx += 256) g.drawImage(NOISE, xx, yy);
+  g.restore();
+}
+
+
+// ---------- UI kit ----------
+let UI = [], UIprev = [];
+function txt(s, x, y, size, col, align, weight, font) {
+  cx.font = (weight || 800) + ' ' + size + 'px ' + (font || FONT); cx.textAlign = align || 'left'; cx.textBaseline = 'middle';
+  cx.fillStyle = col || '#fff'; cx.fillText(s, x, y);
+}
+function txtS(s, x, y, size, col, align, weight) { cx.save(); cx.shadowColor = 'rgba(0,0,0,0.85)'; cx.shadowBlur = 8; cx.shadowOffsetY = 2; txt(s, x, y, size, col, align, weight); cx.restore(); }
+function glass(x, y, w, h, accent, a, r) {
+  r = r || 12; cx.save();
+  cx.fillStyle = 'rgba(6,12,14,' + (a == null ? 0.8 : a) + ')'; rrect(cx, x, y, w, h, r); cx.fill();
+  cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, 'rgba(255,255,255,0.08)'], [0.15, 'rgba(255,255,255,0.02)'], [1, 'rgba(255,255,255,0)']]); rrect(cx, x, y, w, h, r); cx.fill();
+  cx.strokeStyle = rgba(accent || '#7fe0e8', 0.35); cx.lineWidth = 1.2; rrect(cx, x + 0.5, y + 0.5, w - 1, h - 1, r); cx.stroke();
+  cx.restore();
+}
+function hov(x, y, w, h) { return ptr.seen && ptr.type === 'mouse' && ptr.x > x && ptr.x < x + w && ptr.y > y && ptr.y < y + h; }
+function button(id, x, y, w, h, label, opt) {
+  opt = opt || {}; const hv = hov(x, y, w, h), col = opt.col || '#3cff7a', dis = opt.disabled;
+  cx.save();
+  if (!dis && (hv || opt.hot)) { cx.shadowColor = col; cx.shadowBlur = 18; }
+  cx.fillStyle = dis ? 'rgba(40,44,50,0.75)' : lin(cx, 0, y, 0, y + h, [[0, rgba(col, hv ? 0.5 : 0.32)], [1, rgba(shade(col, -0.65), hv ? 0.8 : 0.6)]]);
+  rrect(cx, x, y, w, h, Math.min(10, h / 2)); cx.fill(); cx.shadowBlur = 0;
+  cx.strokeStyle = dis ? 'rgba(255,255,255,0.15)' : rgba(col, 0.9); cx.lineWidth = 1.4; cx.stroke();
+  cx.fillStyle = 'rgba(255,255,255,0.1)'; rrect(cx, x + 3, y + 2, w - 6, h * 0.42, Math.min(8, h / 3)); cx.fill();
+  if (opt.sub) { txt(label, x + w / 2, y + h * 0.36, opt.size || 14, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900); txt(opt.sub, x + w / 2, y + h * 0.72, 10.5, dis ? 'rgba(255,255,255,0.35)' : rgba(shade(col, 0.5), 0.95), 'center', 700); }
+  else txt(label, x + w / 2, y + h / 2 + 1, opt.size || 15, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900);
+  if (opt.key) { cx.fillStyle = 'rgba(0,0,0,0.45)'; rrect(cx, x + w - 22, y + 5, 17, 15, 4); cx.fill(); txt(opt.key, x + w - 13.5, y + 13, 9.5, 'rgba(255,255,255,0.7)', 'center', 900); }
+  if (opt.fill != null) { cx.fillStyle = rgba(col, 0.35); rrect(cx, x, y + h - 4, w * clamp(opt.fill, 0, 1), 4, 2); cx.fill(); }
+  cx.restore();
+  UI.push({ id, x, y, w, h, fn: opt.fn, dis });
+}
+function processClicks() {
+  if (!pressed.click) return false;
+  for (let i = UIprev.length - 1; i >= 0; i--) { const b = UIprev[i];
+    if (ptr.x > b.x && ptr.x < b.x + b.w && ptr.y > b.y && ptr.y < b.y + b.h) { if (b.dis) sfx('deny'); else if (b.fn) { sfx('select'); b.fn(); } pressed.click = false; pressed.down = false; return true; } }
+  return false;
+}
+let toasts = [];
+function toast(s, col, dur) {
+  if (M && M.demo) return;
+  if (toasts.length && toasts[toasts.length - 1].s === s) { toasts[toasts.length - 1].t = dur || 1.8; return; }
+  toasts.push({ s, col: col || '#fff', t: dur || 1.8, max: dur || 1.8 }); if (toasts.length > 3) toasts.shift();
+}
+const liveEl = document.getElementById('live');
+function announce(s) { if (liveEl) liveEl.textContent = s; }
+function cloverLogo(x, y, r) {
+  const cols = ['#ff3b3b', '#3cff7a', '#ff9a1f', '#ffd23f'];
+  for (let i = 0; i < 4; i++) { const a = -2.356 + i * 1.5708, lx = x + Math.cos(a) * r * 0.5, ly = y + Math.sin(a) * r * 0.5;
+    cx.fillStyle = radg(cx, lx - r * 0.15, ly - r * 0.15, 0, lx, ly, r * 0.55, [[0, '#fffbe8'], [0.3, cols[i]], [1, shade(cols[i], -0.65)]]); cx.beginPath(); cx.arc(lx, ly, r * 0.48, 0, 6.29); cx.fill();
+    cx.strokeStyle = 'rgba(255,235,170,0.8)'; cx.lineWidth = 1; cx.stroke(); }
+}
+function star(x, y, r, on) {
+  cx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; cx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } cx.closePath();
+  cx.fillStyle = on ? lin(cx, x, y - r, x, y + r, [[0, '#fff3b0'], [0.5, '#ffd23f'], [1, '#c07a10']]) : 'rgba(255,255,255,0.12)'; cx.fill();
+  cx.strokeStyle = on ? '#fff0a0' : 'rgba(255,255,255,0.25)'; cx.lineWidth = 1; cx.stroke();
+}
+function fmtT(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function txtGlow(s, x, y, size, col, align) { cx.save(); cx.shadowColor = col; cx.shadowBlur = 12; txt(s, x, y, size, col, align || 'right', 700, MONO); cx.restore(); }
+function bar(x, y, w, h, f, col) {
+  cx.fillStyle = 'rgba(255,255,255,0.08)'; rrect(cx, x, y, w, h, h / 2); cx.fill();
+  if (f > 0) { cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, shade(col, 0.4)], [0.5, col], [1, shade(col, -0.35)]]); rrect(cx, x, y, Math.max(h, w * clamp(f, 0, 1)), h, h / 2); cx.fill(); }
+}
+
+// ---------- input: mouse / touch (tap, drag lines) / keyboard / gamepad cursor ----------
+const game = { state: 'title', t: 0, paused: false, timers: [], shake: 0, flash: 0, flashCol: '#fff' };
+function later(fn, d) { game.timers.push({ fn, t: d }); }
+const ptr = { x: W / 2, y: H / 2, down: false, type: 'mouse', seen: false, sx: 0, sy: 0, moved: 0, rdown: false, onUI: false, justDown: false, justUp: false };
+const pressed = {}, kheld = {};
+let lastInput = TOUCH ? 'touch' : 'kb';
+function toLogical(e) {
+  if (!CRect) CRect = cv.getBoundingClientRect();
+  return { x: (e.clientX - CRect.left) / CRect.width * W, y: (e.clientY - CRect.top) / CRect.height * H };
+}
+addEventListener('scroll', () => CRect = null);
+function hitUI(p) { for (const b of UIprev) if (p.x > b.x && p.x < b.x + b.w && p.y > b.y && p.y < b.y + b.h) return true; return false; }
+let activePtr = null;
+cv.addEventListener('pointerdown', e => {
+  ensureAudio(); const p = toLogical(e); ptr.type = e.pointerType; ptr.seen = true;
+  if (e.pointerType === 'touch') lastInput = 'touch'; else if (lastInput === 'touch') lastInput = 'kb';
+  if (e.button === 2) { ptr.x = p.x; ptr.y = p.y; pressed.rclick = true; e.preventDefault(); return; }
+  if (activePtr != null) return; activePtr = e.pointerId;
+  ptr.x = p.x; ptr.y = p.y; ptr.sx = p.x; ptr.sy = p.y; ptr.moved = 0; ptr.down = true; ptr.onUI = hitUI(p);
+  pressed.click = true; pressed.down = true; ptr.justDown = true;
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', e => {
+  const p = toLogical(e); if (activePtr != null && e.pointerId !== activePtr) return;
+  ptr.moved += Math.hypot(p.x - ptr.x, p.y - ptr.y); ptr.x = p.x; ptr.y = p.y; ptr.type = e.pointerType; ptr.seen = true;
+});
+const up = e => {
+  if (e && e.button === 2) return;
+  if (e && activePtr != null && e.pointerId !== activePtr) return;
+  activePtr = null;
+  if (ptr.down) { pressed.up = true; ptr.justUp = true; } ptr.down = false;
+};
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); addEventListener('pointerup', up);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+const KM = { Escape: 'esc', KeyP: 'pause', Space: 'hold', Enter: 'start', KeyM: 'mute', KeyR: 'restart', KeyF: 'speed', Tab: 'tab',
+  Digit1: 't1', Digit2: 't2', Digit3: 't3', Digit4: 't4', Digit5: 't5', Digit6: 't6', Digit7: 't7', KeyE: 't6', KeyO: 't7', KeyH: 'help', KeyN: 'nextHot' };
+const PANK = { ArrowLeft: 1, ArrowRight: 1, ArrowUp: 1, ArrowDown: 1 };
+addEventListener('keydown', e => {
+  ensureAudio(); const a = KM[e.code]; lastInput = 'kb';
+  if (a && !e.repeat) pressed[a] = true;
+  if (a || PANK[e.code]) e.preventDefault();
+  kheld[e.code] = true;
+});
+addEventListener('keyup', e => { kheld[e.code] = false; });
+function releaseAll() { ptr.down = false; activePtr = null; for (const k in kheld) kheld[k] = false; }
+addEventListener('blur', () => { releaseAll(); if (game.state === 'play' && M && !M.over) game.paused = true; });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { releaseAll(); if (game.state === 'play' && M && !M.over) game.paused = true; if (AC && AC.state === 'running') AC.suspend(); }
+  else if (AC && AC.state === 'suspended') AC.resume();
+});
+// gamepad: left stick moves a cursor, A = click/hold-drag, B = cancel, X = tactical pause, Y = speed, LB/RB cycle tools, Start = menu
+const PAD = { on: false, prev: [] };
+function dz(v) { return Math.abs(v) < 0.18 ? 0 : (v - Math.sign(v) * 0.18) / 0.82; }
+function pollPad(dt) {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : []; let gp = null;
+  for (const p of pads) if (p && p.connected) { gp = p; break; }
+  if (!gp) { PAD.on = false; return; }
+  const b = i => gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > 0.5);
+  const edge = (i, name) => { const v = b(i); if (v && !PAD.prev[i]) { pressed[name] = true; lastInput = 'pad'; } PAD.prev[i] = v; };
+  const lx = dz(gp.axes[0] || 0), ly = dz(gp.axes[1] || 0);
+  if (lx || ly) { lastInput = 'pad'; ptr.seen = true; ptr.type = 'mouse'; const sp = 420 * (b(7) ? 1.8 : 1); ptr.x = clamp(ptr.x + lx * sp * dt, 0, W); ptr.y = clamp(ptr.y + ly * sp * dt, 0, H); ptr.moved += Math.hypot(lx, ly) * sp * dt; }
+  const a = b(0);
+  if (a && !PAD.prev[0]) { ptr.sx = ptr.x; ptr.sy = ptr.y; ptr.moved = 0; ptr.down = true; ptr.onUI = hitUI(ptr); pressed.click = true; pressed.down = true; ptr.justDown = true; lastInput = 'pad'; }
+  if (!a && PAD.prev[0]) { ptr.down = false; pressed.up = true; ptr.justUp = true; }
+  PAD.prev[0] = a;
+  edge(1, 'rclick'); edge(2, 'hold'); edge(3, 'speed'); edge(9, 'esc'); edge(4, 'toolPrev'); edge(5, 'toolNext');
+  PAD.on = true;
+}
+
+// ---------- AUDIO ENGINE (100% synthesized, no samples) ----------
+let AC = null, master = null, comp = null, musicBus = null, sfxBus = null, distBus = null, delay = null, noiseBuf = null;
+let muted = LS.get('fl_mute', '0') === '1', musicOn = LS.get('fl_music', '1') === '1';
+const VOL = 0.5;
+function ensureAudio() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    comp = AC.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.18;
+    master = AC.createGain(); master.gain.value = muted ? 0 : VOL; master.connect(comp); comp.connect(AC.destination);
+    sfxBus = AC.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
+    musicBus = AC.createGain(); musicBus.gain.value = musicOn ? 0.55 : 0; musicBus.connect(master);
+    // distortion bus for explosions / big hits
+    distBus = AC.createWaveShaper(); const n = 1024, cu = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; cu[i] = Math.tanh(x * 4.5); } distBus.curve = cu; distBus.oversample = '2x';
+    const dg = AC.createGain(); dg.gain.value = 0.7; distBus.connect(dg); dg.connect(sfxBus);
+    // ping-pong-ish delay for arps and zaps
+    delay = AC.createDelay(1); delay.delayTime.value = 60 / 96 * 0.75; const fb = AC.createGain(); fb.gain.value = 0.34;
+    const dl = AC.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 2600;
+    delay.connect(dl); dl.connect(fb); fb.connect(delay); const dOut = AC.createGain(); dOut.gain.value = 0.5; dl.connect(dOut); dOut.connect(master);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (err) { AC = null; }
+}
+function out(bus) { return bus === 'd' ? distBus : bus === 'm' ? musicBus : bus === 'e' ? delay : sfxBus; }
+function tone(f, d, type, v, slide, when, bus, attack) {
+  if (!AC || muted) return null;
+  const t = when || AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square'; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, f + slide), t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v || 0.1, t + (attack || 0.004)); g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+  o.connect(g); g.connect(out(bus)); if (bus === 'e') g.connect(sfxBus);
+  o.start(t); o.stop(t + d + 0.03); return o;
+}
+function noise(d, v, freq, slide, type, when, q, bus) {
+  if (!AC || muted) return;
+  const t = when || AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf; f.type = type || 'lowpass'; f.frequency.setValueAtTime(freq || 1200, t); if (q) f.Q.value = q;
+  if (slide) f.frequency.exponentialRampToValueAtTime(Math.max(40, (freq || 1200) + slide), t + d);
+  g.gain.setValueAtTime(v || 0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  s.connect(f); f.connect(g); g.connect(out(bus)); s.start(t, Math.random() * 1.2); s.stop(t + d + 0.02);
+}
+// buzzy electrical tone: carrier with fast FM wobble (mains hum / arc)
+function arc(f, d, v, when, bus, modf) {
+  if (!AC || muted) return;
+  const t = when || AC.currentTime, o = AC.createOscillator(), m = AC.createOscillator(), mg = AC.createGain(), g = AC.createGain();
+  o.type = 'sawtooth'; o.frequency.value = f; m.type = 'square'; m.frequency.value = modf || 60; mg.gain.value = f * 0.6;
+  m.connect(mg); mg.connect(o.frequency);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.005); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  o.connect(g); g.connect(out(bus)); o.start(t); m.start(t); o.stop(t + d + 0.02); m.stop(t + d + 0.02);
+}
+function duck(amt, dur) { if (!AC || !musicBus || !musicOn) return; const t = AC.currentTime, g = musicBus.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0.55 * (1 - amt), t + 0.02); g.linearRampToValueAtTime(0.55, t + dur); }
+
+// ---------- SOUND: radio chatter, rotors, sirens, drops, fire roar, tense score ----------
+const sfxLast = {};
+const SFX = {
+  tick: () => tone(1400, 0.03, 'square', 0.03),
+  select: () => { tone(660, 0.05, 'triangle', 0.06); tone(990, 0.07, 'triangle', 0.05, 0, AC.currentTime + 0.04); },
+  deny: () => tone(160, 0.18, 'sawtooth', 0.06, -60),
+  // radio: squelch burst + chirp, like a VHF tactical channel keying up
+  radio: () => { const t = AC.currentTime; noise(0.09, 0.09, 2400, 0, 'bandpass', t, 2.5); tone(1800, 0.04, 'square', 0.018, 0, t + 0.09);
+    for (let i = 0; i < 4; i++) tone(500 + Math.random() * 500, 0.05, 'sawtooth', 0.008, Math.random() * 200 - 100, t + 0.14 + i * 0.06, 0, 0.004);
+    noise(0.12, 0.07, 2600, 0, 'bandpass', t + 0.4, 3); },
+  ack: () => { const t = AC.currentTime; noise(0.05, 0.06, 2400, 0, 'bandpass', t, 2.5); tone(1200, 0.05, 'square', 0.02, 0, t + 0.05); tone(1600, 0.05, 'square', 0.02, 0, t + 0.1); },
+  siren: () => { const t = AC.currentTime; for (let i = 0; i < 2; i++) { tone(700, 0.45, 'sawtooth', 0.022, 600, t + i * 0.5); tone(1300, 0.45, 'sawtooth', 0.016, -600, t + i * 0.5 + 0.25); } },
+  horn: () => { const t = AC.currentTime; tone(233, 0.5, 'sawtooth', 0.04, 0, t); tone(311, 0.5, 'sawtooth', 0.03, 0, t); },
+  drop: () => { noise(1.2, 0.22, 900, -500, 'lowpass', 0, 0.6); noise(0.9, 0.12, 3500, -2000, 'bandpass', AC.currentTime + 0.1, 0.7); },
+  ret: () => { noise(1.6, 0.2, 1200, -700, 'lowpass', 0, 0.7); tone(90, 1.2, 'sine', 0.05, -30); },
+  plane: () => { const t = AC.currentTime; noise(2.2, 0.12, 300, 900, 'bandpass', t, 0.8); tone(110, 2, 'sawtooth', 0.02, 60, t, 0, 0.6); },
+  hose: () => noise(0.35, 0.05, 3500, -1000, 'bandpass', 0, 1.2),
+  chop: () => { noise(0.05, 0.06, 1800, -800, 'bandpass', 0, 2); tone(160, 0.04, 'square', 0.015, -60); },
+  ignite: () => { noise(0.5, 0.14, 500, 900, 'bandpass', 0, 0.8); },
+  spot: () => { tone(900, 0.08, 'square', 0.03); tone(700, 0.12, 'square', 0.03, 0, AC.currentTime + 0.1); },
+  house: () => { const t = AC.currentTime; noise(0.9, 0.25, 600, -400, 'lowpass', t, 0, 'd'); tone(70, 0.6, 'sine', 0.12, -30, t); duck(0.4, 0.6); },
+  saved: () => { [659, 880, 1175].forEach((f, i) => tone(f, 0.14, 'triangle', 0.05, 0, AC.currentTime + i * 0.06, 'e')); },
+  spark: () => { arc(140, 0.35, 0.05, 0, 'e', 70); noise(0.15, 0.15, 6000, -3000, 'highpass'); },
+  alarm: () => { const t = AC.currentTime; for (let i = 0; i < 3; i++) tone(988, 0.12, 'square', 0.035, 0, t + i * 0.2); },
+  news: () => { const t = AC.currentTime; [392, 523, 659, 784].forEach((f, i) => tone(f, 0.22, 'sawtooth', 0.03, 0, t + i * 0.05)); tone(98, 0.6, 'sine', 0.12, 0, t); noise(0.4, 0.06, 6000, -3000, 'highpass', t); },
+  over: () => { [392, 330, 262, 196].forEach((f, i) => tone(f, 0.4, 'sawtooth', 0.045, -20, AC.currentTime + i * 0.16)); },
+  win: () => { [523, 659, 784, 1046, 1318].forEach((f, i) => tone(f, 0.3, 'triangle', 0.07, 0, AC.currentTime + i * 0.09, 'e')); },
+  start: () => { const t = AC.currentTime; [392, 523, 659].forEach((f, i) => tone(f, 0.2, 'triangle', 0.06, 0, t + i * 0.08, 'e')); }
+};
+const SFX_GAP = { hose: 300, chop: 120, ignite: 250, spot: 600, house: 400, radio: 250, drop: 200 };
+let HEADLESS = false;
+function sfx(nm, k) {
+  if (!AC || muted || !SFX[nm] || HEADLESS || (M && M.demo)) return;
+  const t = performance.now(); if (sfxLast[nm] && t - sfxLast[nm] < (SFX_GAP[nm] || 30)) return;
+  sfxLast[nm] = t; SFX[nm](k);
+}
+function setMute(v) { muted = v; LS.set('fl_mute', v ? '1' : '0'); if (master) master.gain.value = muted ? 0 : VOL; }
+function setMusic(v) { musicOn = v; LS.set('fl_music', v ? '1' : '0'); if (musicBus) musicBus.gain.value = v ? 0.55 : 0; }
+
+// ---------- AMBIENT: fire roar, wind, rotor thump ----------
+const AMB = { on: false, rotNext: 0 };
+function ambStart() {
+  if (!AC || AMB.on) return;
+  try {
+    const t = AC.currentTime, mk = (type, f, q) => { const s = AC.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const fl = AC.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = AC.createGain(); g.gain.value = 0; s.connect(fl); fl.connect(g); g.connect(sfxBus); s.start(t, Math.random()); return { s, fl, g }; };
+    AMB.fire = mk('lowpass', 380, 0.6); AMB.crk = mk('highpass', 3000, 0.5); AMB.wind = mk('bandpass', 500, 0.8);
+    AMB.on = true;
+  } catch (e) { AMB.on = false; }
+}
+function ambSet(fire, wind, rotors) {
+  if (!AC || !AMB.on) return; const t = AC.currentTime, v = muted || HEADLESS ? 0 : 1;
+  AMB.fire.g.gain.setTargetAtTime(v * fire * 0.16, t, 0.3); AMB.fire.fl.frequency.setTargetAtTime(240 + fire * 500, t, 0.3);
+  AMB.crk.g.gain.setTargetAtTime(v * fire * (0.004 + Math.random() * 0.03), t, 0.02);
+  AMB.wind.g.gain.setTargetAtTime(v * (0.01 + wind * 0.06), t, 0.4); AMB.wind.fl.frequency.setTargetAtTime(300 + wind * 700 + Math.sin(t * 0.7) * 120, t, 0.4);
+  if (rotors > 0 && v && t > AMB.rotNext) { noise(0.07, 0.03 * Math.min(1, rotors), 160, -60, 'lowpass', t, 0.8); AMB.rotNext = t + 0.085; }
+}
+function ambStop() { if (AMB.on && AC) { const t = AC.currentTime; AMB.fire.g.gain.setTargetAtTime(0, t, 0.1); AMB.crk.g.gain.setTargetAtTime(0, t, 0.05); AMB.wind.g.gain.setTargetAtTime(0, t, 0.2); } }
+
+// ---------- MUSIC: dark minor pulse that swells with the fire ----------
+const MUS = { on: false, int: 0, step: 0, next: 0, bpm: 92 };
+function midi(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+function musicTick() {
+  if (!AC || muted || !MUS.on || !musicOn || HEADLESS) return;
+  const t = AC.currentTime, sp = 60 / MUS.bpm / 4;
+  if (MUS.next < t - 0.3) MUS.next = t + 0.05;
+  while (MUS.next < t + 0.12) {
+    const s = MUS.step % 64, w = MUS.next, I = MUS.int, bar = Math.floor(MUS.step / 16) % 8, root = [45, 45, 41, 41, 43, 43, 40, 40][bar];
+    const chord = bar % 2 ? [0, 3, 7, 10] : [0, 7, 3, 12];
+    if (s % 16 === 0) chord.forEach(k => tone(midi(root + k), sp * 15, 'triangle', 0.012, 0, w, 'm', 0.6));
+    if (s % 8 === 0) tone(midi(root - 24), sp * 7, 'sine', 0.1, 0, w, 'm', 0.03);
+    if (s % 4 === 0) tone(midi(root - 12), sp * 1.2, 'sawtooth', 0.012 + I * 0.012, 0, w, 'm', 0.01);
+    const sc = [0, 3, 5, 7, 10, 12], a = sc[(MUS.step * 7 + bar) % 6];
+    if (s % 4 === 2 && I > 0.15) tone(midi(root + 12 + a), sp * 2, 'triangle', 0.012 + I * 0.008, 0, w, 'e');
+    if (I > 0.35) { if (s % 8 === 0) tone(50, 0.25, 'sine', 0.12 + I * 0.08, -22, w, 'm'); if (s % 8 === 4) noise(0.12, 0.03 + I * 0.04, 1800, -900, 'bandpass', w, 0.8, 'm'); if (s % 2 === 1) noise(0.02, 0.008 + I * 0.01, 9000, 0, 'highpass', w, 0, 'm'); }
+    if (I > 0.7 && s % 2 === 0) tone(midi(root + (s % 4 ? 7 : 0)), sp * 0.9, 'square', 0.012, 0, w, 'm', 0.005);
+    MUS.step++; MUS.next += sp;
+  }
+}
+
+// ---------- DATA: fuels, units, incidents ----------
+const GW = 160, GH = 72, CS = 6, MY = 30, MAPW = GW * CS, MAPH = GH * CS; // map = 960 x 432 below a 30px top bar
+const F = { NONE: 0, GRASS: 1, BRUSH: 2, TREE: 3, HOUSE: 4, ROAD: 5, WATER: 6, SAND: 7, LAWN: 8, CUT: 9, PALM: 10, ROCK: 11 };
+// ign = how easily it catches, burn = seconds it burns, int = heat output, emb = ember (firebrand) production
+const FUEL = [
+  { n: 'Bare', ign: 0 }, { n: 'Grass', ign: 1.0, burn: 5, int: 0.8, emb: 0.12 }, { n: 'Chaparral', ign: 0.8, burn: 11, int: 1.0, emb: 0.6 },
+  { n: 'Oak / eucalyptus', ign: 0.5, burn: 18, int: 1.25, emb: 1.0 }, { n: 'Home', ign: 0.65, burn: 24, int: 1.35, emb: 0.9 },
+  { n: 'Road', ign: 0 }, { n: 'Water', ign: 0 }, { n: 'Sand', ign: 0 }, { n: 'Irrigated yard', ign: 0.3, burn: 3, int: 0.3, emb: 0.05 },
+  { n: 'Cut line', ign: 0 }, { n: 'Palm', ign: 0.75, burn: 7, int: 1.1, emb: 1.7 }, { n: 'Rock', ign: 0 }
+];
+const flam = f => FUEL[f].ign > 0;
+const SPEC = {
+  heli: { name: 'FIREHAWK', sub: 'UH-60 helitanker', spd: 120, fill: 1.8, r: 4, amt: 1.0, col: '#e33b2e' },
+  sky: { name: 'SKYCRANE', sub: 'S-64 heavy helitanker', spd: 95, fill: 2.4, r: 5.5, amt: 1.0, col: '#f2a516' },
+  scoop: { name: 'SUPER SCOOPER', sub: 'CL-415, scoops sea water', cd: 20, len: 36, r: 1.8, amt: 1.0, col: '#ffd23f' },
+  tanker: { name: 'AIR TANKER', sub: 'DC-10, pink retardant', cd: 40, len: 60, r: 2.3, amt: 1.0, col: '#ff4fa0' },
+  engine: { name: 'ENGINE', sub: 'Type 3 wildland engine', spd: 46, range: 6, tank: 26, col: '#ff3b3b' },
+  crew: { name: 'HAND CREW', sub: '20-person hotshot crew', spd: 15, col: '#ffd23f' }
+};
+// wind dir = direction the wind blows TOWARD (radians, 0 = east, +PI/2 = south / down the screen)
+const SW = Math.PI * 0.75, S = Math.PI / 2, SE = Math.PI / 4, WEST = Math.PI;
+const INCIDENTS = [
+  { id: 'clover', preburn: 35, maxAcres: 1500, name: 'CLOVER FIRE', place: 'Clover Canyon, Malibu', seed: 11, terrain: 'coast', canyons: [0.5], coast: 0.85, start: 13, limit: 420,
+    hoods: [{ name: 'CLOVER COVE', x: 0.52, y: 0.8, n: 12 }], heli: [0.18, 0.72], station: [0.3, 0.8],
+    ign: [{ x: 0.5, y: 0.16 }, { x: 0.25, y: 0.3, t: 60 }], wind: { dir: S, spd: 8, gust: 4 }, rh: 30, units: { heli: 2, engine: 1, crew: 1 },
+    stars: { lost: 0, acres: 120 }, maxLost: 8,
+    brief: 'Brush fire reported off Mulholland above Clover Canyon. Light winds, good day for it. Knock it down before it runs the canyon to the beach.',
+    tips: ['Click a FIREHAWK, then click the fire. It fills from the ocean and keeps cycling drops on the nearest flames.', 'Click an ENGINE, then a road. Parked engines hose nearby fire and wet down homes.', 'Select the HAND CREW and DRAG a line ahead of the fire: they cut it down to bare soil.'] },
+  { id: 'latigo', preburn: 30, maxAcres: 2500, name: 'LATIGO FIRE', place: 'Latigo Canyon, Malibu', seed: 23, terrain: 'coast', canyons: [0.3, 0.7], coast: 0.84, start: 11, limit: 420,
+    hoods: [{ name: 'LATIGO HEIGHTS', x: 0.32, y: 0.5, n: 10 }, { name: 'ESCONDIDO BEACH', x: 0.72, y: 0.8, n: 14 }], heli: [0.1, 0.75], station: [0.5, 0.82],
+    ign: [{ x: 0.42, y: 0.18 }, { x: 0.72, y: 0.22, t: 70 }], wind: { dir: S, spd: 14, gust: 6 }, rh: 22, units: { heli: 2, scoop: 1, engine: 2, crew: 1 },
+    stars: { lost: 1, acres: 260 }, maxLost: 10,
+    brief: 'Fire pushing downhill toward Latigo Heights. A CL-415 Super Scooper is on the board today.',
+    tips: ['SUPER SCOOPER: pick it (key 2), then DRAG across the fire head. It skims the ocean and lays a water strip along your line.', 'Fire runs fastest DOWNWIND and UPHILL. Hit the head, not the tail.'] },
+  { id: 'zuma', preburn: 25, maxAcres: 4000, name: 'ZUMA FIRE', place: 'Zuma Canyon, after dark', seed: 37, terrain: 'coast', canyons: [0.25, 0.62], coast: 0.86, start: 18.4, limit: 480,
+    hoods: [{ name: 'ZUMA RIDGE', x: 0.62, y: 0.46, n: 12 }, { name: 'POINT DUME', x: 0.3, y: 0.8, n: 16 }, { name: 'TRANCAS', x: 0.86, y: 0.8, n: 12 }], heli: [0.08, 0.74], station: [0.55, 0.83],
+    ign: [{ x: 0.5, y: 0.2 }, { x: 0.78, y: 0.3, t: 60 }, { x: 0.3, y: 0.36, t: 130 }], wind: { dir: S + 0.25, spd: 20, gust: 8 }, rh: 18, units: { heli: 2, sky: 1, scoop: 1, engine: 2, crew: 2 },
+    aid: [{ t: 80, units: { engine: 2 }, msg: 'MUTUAL AID: 2 ENGINES FROM VENTURA COUNTY ARRIVE' }],
+    stars: { lost: 2, acres: 380 }, maxLost: 14,
+    brief: 'Sunset fire in Zuma Canyon. Fixed-wing aircraft are GROUNDED after dark, only night-capable helicopters keep flying. Homes are in the path.',
+    tips: ['EVAC (key 6): click a neighborhood label to order a Level 3 GO evacuation. Homes that catch before an order count as trapped residents.', 'Evacuation traffic slows your engines on those roads. Order early.'] },
+  { id: 'mulholland', preburn: 15, maxAcres: 5000, name: 'MULHOLLAND FIRE', place: 'Santa Monica Mountains', seed: 41, terrain: 'coast', canyons: [0.2, 0.5, 0.8], coast: 0.87, start: 10, limit: 480,
+    hoods: [{ name: 'ENCINAL', x: 0.2, y: 0.55, n: 10 }, { name: 'BROAD BEACH', x: 0.45, y: 0.82, n: 16 }, { name: 'DECKER', x: 0.8, y: 0.5, n: 10 }], heli: [0.06, 0.78], station: [0.62, 0.84],
+    ign: [{ x: 0.66, y: 0.14 }, { x: 0.3, y: 0.15, t: 70 }, { x: 0.88, y: 0.3, t: 150 }], wind: { dir: SW, spd: 34, gust: 12 }, rh: 9, units: { heli: 2, scoop: 1, tanker: 1, engine: 3, crew: 2 },
+    stars: { lost: 3, acres: 450 }, maxLost: 16,
+    brief: 'SANTA ANA WINDS. Humidity 9%. Embers will fly hundreds of yards ahead of the front and start spot fires.',
+    tips: ['AIR TANKER (key 3): drag a long line AHEAD of the fire. Pink retardant does not put fire out, it stops it from crossing for minutes.', 'Watch for spot fires: catch them while they are small.'] },
+  { id: 'foothill', preburn: 35, maxAcres: 3500, name: 'FOOTHILL FIRE', place: 'Azusa foothills', seed: 53, terrain: 'foothill', canyons: [0.35, 0.7], start: 15, limit: 480, lakes: [{ x: 0.5, y: 0.34, r: 5 }],
+    hoods: [{ name: 'CITRUS HEIGHTS', x: 0.25, y: 0.86, n: 20 }, { name: 'SIERRA MADRE', x: 0.62, y: 0.84, n: 22 }, { name: 'CANYON END', x: 0.72, y: 0.55, n: 8 }], heli: [0.9, 0.9], station: [0.45, 0.92],
+    ign: [{ x: 0.4, y: 0.22 }, { x: 0.72, y: 0.25, t: 60 }, { x: 0.2, y: 0.4, t: 140 }], wind: { dir: S - 0.15, spd: 18, gust: 10, events: [{ t: 140, dir: SW, spd: 30, gust: 12, msg: 'NORTH WIND SURFACES: FIRE TURNS TOWARD THE CITY' }] }, rh: 14,
+    units: { heli: 2, sky: 1, scoop: 1, tanker: 1, engine: 4, crew: 2 },
+    stars: { lost: 3, acres: 450 }, maxLost: 18,
+    brief: 'Fire on the slopes above the city grid. No ocean here: helicopters and the scooper dip from the reservoir.',
+    tips: ['The wind is forecast to swing toward the neighborhoods mid-incident. Get engines into the grid early.'] },
+  { id: 'capistrano', preburn: 15, maxAcres: 6000, name: 'CAPISTRANO FIRE', place: 'San Juan Capistrano', seed: 67, terrain: 'coast', canyons: [0.4, 0.75], coast: 0.86, start: 12, limit: 500,
+    hoods: [{ name: 'MISSION HILLS', x: 0.3, y: 0.55, n: 14 }, { name: 'DANA POINT', x: 0.6, y: 0.82, n: 18 }, { name: 'ORTEGA', x: 0.86, y: 0.42, n: 10 }], heli: [0.06, 0.8], station: [0.45, 0.84],
+    power: [[[0, 0.3], [0.35, 0.36], [0.7, 0.28], [1, 0.34]], [[0.15, 0], [0.22, 0.5], [0.3, 1]]],
+    ign: [{ x: 0.7, y: 0.25 }, { x: 0.45, y: 0.2, t: 90 }], wind: { dir: SW, spd: 40, gust: 14 }, rh: 8, units: { heli: 2, sky: 1, scoop: 2, tanker: 1, engine: 4, crew: 2 },
+    stars: { lost: 3, acres: 250 }, maxLost: 18, sparkK: 1,
+    brief: 'Gusts over 50 mph and power lines across the ridges. Energized lines in this wind can arc and start brand new fires.',
+    tips: ['PSPS (key 7): a Public Safety Power Shutoff stops line ignitions, but every second it is on costs points as customers sit in the dark.'] },
+  { id: 'range', preburn: 35, maxAcres: 5000, name: 'RANGE FIRE', place: 'Camp Pendleton, I-5 corridor', seed: 79, terrain: 'mesa', canyons: [0.3, 0.65], coast: 0.9, start: 9, limit: 520, fwy: true,
+    hoods: [{ name: 'SAN ONOFRE', x: 0.2, y: 0.84, n: 14 }, { name: 'TALEGA', x: 0.82, y: 0.3, n: 14 }, { name: 'BASE HOUSING', x: 0.62, y: 0.7, n: 16 }], heli: [0.05, 0.6], station: [0.4, 0.62],
+    ign: [{ x: 0.2, y: 0.22 }, { x: 0.55, y: 0.12, t: 60 }, { x: 0.82, y: 0.15, t: 130 }, { x: 0.45, y: 0.4, t: 200 }], wind: { dir: SE - 0.1, spd: 26, gust: 10, events: [{ t: 200, dir: SW + 0.2, spd: 36, gust: 14, msg: 'WIND SHIFT: FIRE PUSHES TOWARD THE COAST' }] }, rh: 12,
+    units: { heli: 3, sky: 1, scoop: 2, tanker: 2, engine: 5, crew: 3 },
+    stars: { lost: 3, acres: 400 }, maxLost: 20,
+    brief: 'Fast grass fire on the training ranges. Grass burns out quickly but runs fast. If it jumps the freeway, Interstate 5 closes.',
+    tips: ['Grass fires are fast but low intensity: crews and engines can hold them where brush would overrun them.'] },
+  { id: 'firestorm', preburn: 15, maxAcres: 8000, name: 'SANTA ANA FIRESTORM', place: 'Malibu coast, red flag warning', seed: 97, terrain: 'coast', canyons: [0.18, 0.45, 0.72], coast: 0.86, start: 16.5, limit: 560,
+    hoods: [{ name: 'ENCINAL', x: 0.15, y: 0.5, n: 12 }, { name: 'ZUMA BEACH', x: 0.38, y: 0.82, n: 18 }, { name: 'MALIBU PARK', x: 0.62, y: 0.55, n: 12 }, { name: 'CARBON BEACH', x: 0.85, y: 0.82, n: 18 }], heli: [0.04, 0.82], station: [0.5, 0.84],
+    power: [[[0, 0.26], [0.4, 0.3], [0.75, 0.24], [1, 0.3]]],
+    ign: [{ x: 0.72, y: 0.12 }, { x: 0.3, y: 0.18, t: 45 }, { x: 0.55, y: 0.2, t: 110 }, { x: 0.15, y: 0.25, t: 180 }], wind: { dir: SW, spd: 48, gust: 22, events: [{ t: 170, dir: SW + 0.15, spd: 58, gust: 20, msg: 'GUSTS TO 75 MPH ON THE RIDGES' }] }, rh: 6,
+    units: { heli: 3, sky: 1, scoop: 2, tanker: 2, engine: 5, crew: 3 }, aid: [{ t: 120, units: { engine: 2, crew: 1 }, msg: '414 FIREFIGHTERS NOW ASSIGNED AS MUTUAL AID ROLLS IN' }],
+    stars: { lost: 5, acres: 600 }, maxLost: 26, sparkK: 1,
+    brief: 'The big one. Extreme Santa Ana winds, single-digit humidity, darkness coming. Thousands of structures in the canyons below. Hold the line.',
+    tips: ['Use everything. Retardant lines ahead, water on the head, engines in the neighborhoods, crews on the flanks.'] }
+];
+const HOOD_NAMES = ['SEA VIEW', 'RIDGECREST', 'OAK KNOLL', 'SUNSET MESA', 'CANYON VIEW', 'PALM TERRACE', 'VISTA DEL MAR', 'COYOTE HILLS', 'SAGE CREST', 'BLUFFS', 'CHAPARRAL PARK', 'SURFRIDER'];
+const FIRE_NAMES = ['KANAN', 'SOLSTICE', 'RAMIREZ', 'TOPANGA', 'DECKER', 'SYCAMORE', 'TUNA', 'CORRAL', 'LECHUZA', 'TRANCAS', 'ARROYO', 'MESA', 'SADDLE', 'COYOTE', 'SANDSTONE'];
+function randomIncident(lvl, sd) {
+  let s = sd >>> 0 || 1; const r = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  const terr = r() < 0.6 ? 'coast' : r() < 0.5 ? 'foothill' : 'mesa', nc = 1 + Math.floor(r() * 3), canyons = [];
+  for (let i = 0; i < nc; i++) canyons.push(0.15 + (i + r() * 0.6) / nc * 0.7);
+  const nh = 2 + Math.floor(r() * 2 + lvl * 0.3), hoods = [];
+  for (let i = 0; i < Math.min(4, nh); i++) hoods.push({ name: HOOD_NAMES[Math.floor(r() * HOOD_NAMES.length)], x: 0.12 + (i + r() * 0.5) / Math.min(4, nh) * 0.8, y: terr === 'foothill' ? 0.84 : 0.45 + r() * 0.4, n: 10 + Math.floor(r() * 8) });
+  const spd = Math.min(60, 12 + lvl * 6 + r() * 12), dir = S + (r() - 0.5) * 1.2;
+  const ign = [{ x: 0.2 + r() * 0.6, y: 0.14 + r() * 0.12 }]; for (let k = 0; k < 1 + Math.min(3, lvl >> 1); k++) ign.push({ x: 0.15 + r() * 0.7, y: 0.12 + r() * 0.25, t: 50 + k * 60 + r() * 30 });
+  const L = { id: 'red' + lvl, name: FIRE_NAMES[Math.floor(r() * FIRE_NAMES.length)] + ' FIRE', place: 'Red Flag Warning, incident ' + (lvl + 1), seed: 1000 + (s % 9000), terrain: terr, canyons, coast: 0.85 + r() * 0.04,
+    start: 8 + r() * 11, limit: 480, hoods, heli: [r() < 0.5 ? 0.05 : 0.95, terr === 'foothill' ? 0.9 : 0.78], station: [0.3 + r() * 0.4, terr === 'foothill' ? 0.92 : 0.83],
+    ign, wind: { dir, spd, gust: 4 + spd * 0.3 }, rh: Math.max(5, 30 - lvl * 4), units: { heli: 2 + (lvl > 3 ? 1 : 0), sky: lvl > 1 ? 1 : 0, scoop: 1 + (lvl > 2 ? 1 : 0), tanker: lvl > 0 ? 1 : 0, engine: 2 + Math.min(3, lvl), crew: 1 + Math.min(2, lvl >> 1) },
+    stars: { lost: 3, acres: 600 + lvl * 100 }, maxLost: 16 + lvl * 2, maxAcres: 3000 + lvl * 400, preburn: 30, red: true, lvl, fwy: terr === 'mesa', brief: 'Red Flag Warning. Unknown fire, unknown terrain. How long can you hold?', tips: [] };
+  if (terr === 'foothill') L.lakes = [{ x: 0.3 + r() * 0.4, y: 0.35, r: 5 }];
+  if (r() < 0.35 + lvl * 0.08) { L.power = [[[0, 0.28 + r() * 0.1], [0.5, 0.25 + r() * 0.15], [1, 0.3 + r() * 0.1]]]; L.sparkK = 1; }
+  return L;
+}
+
+// ---------- MAP: procedural canyons, coast, roads, neighborhoods ----------
+const idx = (c, r) => r * GW + c;
+const inb = (c, r) => c >= 0 && r >= 0 && c < GW && r < GH;
+const cellX = c => c * CS + CS / 2, cellY = r => r * CS + CS / 2; // map-local pixel centers
+const pxCell = (x, y) => [clamp(Math.floor(x / CS), 0, GW - 1), clamp(Math.floor(y / CS), 0, GH - 1)];
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+function mkRng(s) { s = s >>> 0 || 1; return () => { s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// 4-connected supercover line so roads / cut lines never leak diagonally
+function line4(c0, r0, c1, r1, fn) {
+  c0 = Math.round(c0); r0 = Math.round(r0); c1 = Math.round(c1); r1 = Math.round(r1);
+  let c = c0, r = r0, ix = 0, iy = 0; const nx = Math.abs(c1 - c0), ny = Math.abs(r1 - r0), sx = Math.sign(c1 - c0), sy = Math.sign(r1 - r0);
+  fn(c, r);
+  while (ix < nx || iy < ny) { if ((0.5 + ix) / nx < (0.5 + iy) / ny) { c += sx; ix++; } else { r += sy; iy++; } fn(c, r); }
+}
+function genMap(L) {
+  const R = mkRng(L.seed * 7919 + 3), N = GW * GH, so = L.seed * 13.7;
+  const map = { fuel: new Uint8Array(N), hgt: new Float32Array(N), can: new Float32Array(N), hyd: new Uint8Array(N), hoodOf: new Int16Array(N).fill(-1), houseAt: new Int16Array(N).fill(-1),
+    roads: [], houses: [], hoods: [], power: [], exits: [], water: [], deco: [] };
+  const coastRow = c => L.terrain === 'foothill' ? 999 : GH * (L.coast || 0.86) + 2.2 * Math.sin(c / 11 + so) + 1.5 * Math.sin(c / 4.3 + so * 2);
+  const canX = (k, r) => L.canyons[k] * GW + 5 * Math.sin(r / 8 + k * 2.1 + so) + 2 * Math.sin(r / 3.1 + k);
+  const mulRow = c => 5 + 1.6 * Math.sin(c / 13 + so) + 0.8 * Math.sin(c / 5 + so);
+  // --- heightfield ---
+  for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+    const y = r / GH, i = idx(c, r); let h, cp = 0;
+    const n = fbm(c / 20 + so, r / 20 + so, 4);
+    if (L.terrain === 'foothill') h = smooth(0.8, 0.12, y) * (0.7 + 0.5 * n) + 0.08 * n;
+    else if (L.terrain === 'mesa') h = 0.25 + 0.35 * (1 - y) + 0.45 * (n - 0.5);
+    else h = 0.62 * Math.pow(1 - y, 0.8) + 0.42 * (n - 0.5) + 0.12 * Math.exp(-(((r - mulRow(c)) / 5) ** 2));
+    for (let k = 0; k < L.canyons.length; k++) {
+      const w = 2.6 + r * 0.06, d = (c - canX(k, r)) / w, e = Math.exp(-d * d);
+      cp = Math.max(cp, e); h -= (L.terrain === 'mesa' ? 0.12 : 0.26) * e * smooth(0.06, 0.3, y);
+    }
+    map.hgt[i] = h; map.can[i] = cp;
+  }
+  let lo = 1e9, hi = -1e9; for (let i = 0; i < N; i++) { lo = Math.min(lo, map.hgt[i]); hi = Math.max(hi, map.hgt[i]); }
+  for (let i = 0; i < N; i++) map.hgt[i] = (map.hgt[i] - lo) / (hi - lo);
+  // --- base fuels ---
+  const cityY = L.terrain === 'foothill' ? 0.74 : 9;
+  for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+    const i = idx(c, r), y = r / GH, h = map.hgt[i], cr = coastRow(c), m = fbm(c / 9 + 50 + so, r / 9 + 7, 3), m2 = fbm(c / 5 + 90, r / 5 + so, 2);
+    let f;
+    if (r > cr) f = F.WATER;
+    else if (r > cr - 2.2) f = F.SAND;
+    else if (y > cityY) f = m2 > 0.62 ? F.GRASS : F.LAWN;
+    else if (map.can[i] > 0.5 && m > 0.38) f = F.TREE;
+    else if (L.terrain === 'mesa') f = m > 0.66 ? F.BRUSH : m2 > 0.74 ? F.TREE : F.GRASS;
+    else if (r > cr - 6 && m < 0.55) f = F.GRASS;
+    else if (m < 0.33) f = F.GRASS;
+    else if (h > 0.55 && m2 > 0.76) f = F.ROCK;
+    else f = F.BRUSH;
+    if (L.terrain === 'foothill' && y > 0.62 && y <= cityY && m < 0.45) f = F.GRASS;
+    map.fuel[i] = f;
+  }
+  for (const lk of (L.lakes || [])) { const lc = lk.x * GW, lr = lk.y * GH; for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) { const d = Math.hypot((c - lc) / 1.6, r - lr) + 1.2 * (vnoise(c / 3 + so, r / 3) - 0.5); if (d < lk.r) { map.fuel[idx(c, r)] = F.WATER; map.hgt[idx(c, r)] = Math.min(map.hgt[idx(c, r)], 0.1); } else if (d < lk.r + 1.2 && map.fuel[idx(c, r)] !== F.WATER) map.fuel[idx(c, r)] = F.SAND; } }
+  // --- roads ---
+  const addRoad = (pts, kind) => {
+    map.roads.push({ pts: pts.map(p => [p[0], p[1]]), kind });
+    for (let k = 1; k < pts.length; k++) line4(pts[k - 1][0], pts[k - 1][1], pts[k][0], pts[k][1], (c, r) => { if (inb(c, r) && map.fuel[idx(c, r)] !== F.WATER) map.fuel[idx(c, r)] = F.ROAD; });
+  };
+  if (L.terrain !== 'foothill') { const p = []; for (let c = -1; c <= GW; c += 2) p.push([c, Math.round(coastRow(c) - 4)]); addRoad(p, 'hwy'); }
+  if (L.terrain === 'coast' || L.terrain === 'foothill') { const p = []; for (let c = -1; c <= GW; c += 2) p.push([c, Math.round(mulRow(c))]); addRoad(p, 'ridge'); }
+  const bottomRow = L.terrain === 'foothill' ? Math.round(GH * 0.74) : null;
+  for (let k = 0; k < L.canyons.length; k++) {
+    const p = [], r0 = Math.round(L.terrain === 'mesa' ? GH * 0.1 : mulRow(canX(k, 0))), r1 = L.terrain === 'foothill' ? bottomRow : Math.round(coastRow(canX(k, GH * 0.8)) - 4);
+    for (let r = r0; r <= r1; r += 2) p.push([Math.round(canX(k, r) + 1.5), r]);
+    p.push([Math.round(canX(k, r1) + 1.5), r1]);
+    if (L.terrain === 'mesa') p.unshift([Math.round(canX(k, 0) + 1.5), -1]);
+    addRoad(p, 'canyon');
+  }
+  if (L.terrain === 'foothill') {
+    addRoad([[-1, bottomRow], [GW, bottomRow]], 'hwy');
+    for (let r = bottomRow + 5; r < GH; r += 5) addRoad([[-1, r], [GW, r]], 'street');
+    for (let c = 6; c < GW; c += 13) addRoad([[c, bottomRow], [c, GH]], 'street');
+  }
+  if (L.fwy) { addRoad([[-1, Math.round(GH * 0.3)], [GW * 0.5, Math.round(GH * 0.52)], [GW, Math.round(GH * 0.7)]], 'fwy'); addRoad([[-1, Math.round(GH * 0.3) + 1], [GW * 0.5, Math.round(GH * 0.52) + 1], [GW, Math.round(GH * 0.7) + 1]], 'fwy2'); }
+  // --- neighborhoods: houses set back two cells from the road with irrigated yards and palms ---
+  const nearestRoad = (c0, r0, maxD) => { let best = -1, bd = 1e9; for (let r = Math.max(0, r0 - maxD); r <= Math.min(GH - 1, r0 + maxD); r++) for (let c = Math.max(0, c0 - maxD); c <= Math.min(GW - 1, c0 + maxD); c++) if (map.fuel[idx(c, r)] === F.ROAD) { const d = (c - c0) ** 2 + (r - r0) ** 2; if (d < bd) { bd = d; best = idx(c, r); } } return best; };
+  L.hoods.forEach((hd, hi) => {
+    const start = nearestRoad(Math.round(hd.x * GW), Math.round(hd.y * GH), 30); if (start < 0) return;
+    const hood = { name: hd.name, i: hi, houses: [], roadCells: [], evac: 0, spawnLeft: 0, spawnT: 0, cars: 0, trapped: false, threat: 0, lx: 0, ly: 0, lost: 0, warned: false };
+    const seen = new Set([start]), q = [start]; let qi = 0;
+    while (qi < q.length && hood.houses.length < hd.n) {
+      const cur = q[qi++], c = cur % GW, r = (cur / GW) | 0; hood.roadCells.push(cur); if (qi % 3 === 0) map.hyd[cur] = 1;
+      for (const [dc, dr] of [[0, -2], [0, 2], [-2, 0], [2, 0]]) {
+        if (hood.houses.length >= hd.n) break;
+        const hc = c + dc, hr = r + dr; if (!inb(hc, hr) || hc < 1 || hr < 1 || hc > GW - 2 || hr > GH - 2) continue;
+        const hi2 = idx(hc, hr), f = map.fuel[hi2]; if (f === F.ROAD || f === F.WATER || f === F.HOUSE || f === F.SAND) continue;
+        let ok = map.fuel[idx(c + dc / 2, r + dr / 2)] !== F.WATER;
+        for (let yy = -1; yy <= 1 && ok; yy++) for (let xx = -1; xx <= 1; xx++) if (map.fuel[idx(hc + xx, hr + yy)] === F.HOUSE || map.fuel[idx(hc + xx, hr + yy)] === F.WATER) { ok = false; break; }
+        if (!ok || R() < 0.15) continue;
+        map.fuel[hi2] = F.HOUSE; map.houseAt[hi2] = map.houses.length; map.hoodOf[hi2] = hi;
+        const hs = { c: hc, r: hr, i: hi2, hood: hi, ang: dc ? Math.PI / 2 : 0, col: ['#c8643c', '#d9d2c4', '#9aa3ad', '#b85a3a', '#e8e0cf', '#8a7a6a'][Math.floor(R() * 6)], pool: R() < 0.28, state: 0, dmg: false, rand: R() };
+        map.houses.push(hs); hood.houses.push(map.houses.length - 1);
+        for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) { const j = idx(hc + xx, hr + yy), fj = map.fuel[j]; if (fj === F.GRASS || fj === F.BRUSH || fj === F.TREE || fj === F.ROCK) map.fuel[j] = R() < 0.14 ? F.PALM : F.LAWN; }
+      }
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const c2 = c + dc, r2 = r + dr; if (!inb(c2, r2)) continue; const j = idx(c2, r2); if (!seen.has(j) && map.fuel[j] === F.ROAD) { seen.add(j); q.push(j); } }
+    }
+    if (!hood.houses.length) return;
+    hood.houses.forEach(k => { hood.lx += cellX(map.houses[k].c); hood.ly += cellY(map.houses[k].r); }); hood.lx /= hood.houses.length; hood.ly /= hood.houses.length;
+    hood.cx = hood.lx; hood.cy = hood.ly; hood.lr = 0; hood.houses.forEach(k => { hood.lr = Math.max(hood.lr, Math.hypot(cellX(map.houses[k].c) - hood.cx, cellY(map.houses[k].r) - hood.cy)); });
+    hood.ly -= 4; hood.i = map.hoods.length; hood.houses.forEach(k => { map.houses[k].hood = hood.i; map.hoodOf[map.houses[k].i] = hood.i; });
+    map.hoods.push(hood);
+  });
+  // --- helibase + station ---
+  const free = (x, y) => { let c0 = Math.round(x * GW), r0 = Math.round(y * GH); for (let d = 0; d < 30; d++) for (let r = r0 - d; r <= r0 + d; r++) for (let c = c0 - d; c <= c0 + d; c++) if (inb(c, r) && c > 1 && r > 1 && c < GW - 2 && r < GH - 2) { const f = map.fuel[idx(c, r)]; if (f !== F.WATER && f !== F.ROAD && f !== F.HOUSE) return [c, r]; } return [c0, r0]; };
+  const [hc, hr] = free(L.heli[0], L.heli[1]);
+  for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) if (inb(hc + xx, hr + yy) && map.fuel[idx(hc + xx, hr + yy)] !== F.WATER && map.fuel[idx(hc + xx, hr + yy)] !== F.ROAD) map.fuel[idx(hc + xx, hr + yy)] = F.ROCK;
+  map.heli = { x: cellX(hc), y: cellY(hr) };
+  const st = nearestRoad(Math.round(L.station[0] * GW), Math.round(L.station[1] * GH), 40);
+  map.station = { i: st, x: cellX(st % GW), y: cellY((st / GW) | 0) }; map.hyd[st] = 1;
+  // station building on an adjacent land cell
+  { const c = st % GW, r = (st / GW) | 0; for (const [dc, dr] of [[0, -2], [0, -1], [0, 2], [2, 0], [-2, 0]]) { const j = idx(c + dc, r + dr); if (inb(c + dc, r + dr) && map.fuel[j] !== F.ROAD && map.fuel[j] !== F.WATER && map.fuel[j] !== F.HOUSE) { map.fuel[j] = F.ROCK; map.station.bx = cellX(c + dc); map.station.by = cellY(r + dr); break; } } }
+  // --- power lines ---
+  for (const pl of (L.power || [])) {
+    const pts = pl.map(p => [p[0] * MAPW, p[1] * MAPH]), cells = [];
+    for (let k = 1; k < pts.length; k++) { const n = Math.ceil(Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]) / CS); for (let s = 0; s < n; s++) { const t = s / n; cells.push([lerp(pts[k - 1][0], pts[k][0], t), lerp(pts[k - 1][1], pts[k][1], t)]); } }
+    map.power.push({ pts, cells });
+  }
+  // --- water list, exits, exit distance field (evacuation routing) ---
+  for (let i = 0; i < N; i++) if (map.fuel[i] === F.WATER) map.water.push(i);
+  map.exitD = new Int32Array(N).fill(1e9); const q = [];
+  for (let i = 0; i < N; i++) if (map.fuel[i] === F.ROAD) { const c = i % GW, r = (i / GW) | 0; if (c === 0 || r === 0 || c === GW - 1 || r === GH - 1) { map.exitD[i] = 0; q.push(i); map.exits.push(i); } }
+  for (let qi = 0; qi < q.length; qi++) { const cur = q[qi], c = cur % GW, r = (cur / GW) | 0; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const c2 = c + dc, r2 = r + dr; if (!inb(c2, r2)) continue; const j = idx(c2, r2); if (map.fuel[j] === F.ROAD && map.exitD[j] > map.exitD[cur] + 1) { map.exitD[j] = map.exitD[cur] + 1; q.push(j); } } }
+  map.fuel0 = map.fuel.slice();
+  return map;
+}
+// ---------- painted base map (rendered once per incident) ----------
+const BASECOL = {
+  [F.GRASS]: [[196, 168, 98], [178, 150, 84]], [F.BRUSH]: [[112, 112, 66], [92, 96, 58]], [F.TREE]: [[62, 84, 48], [52, 72, 42]], [F.ROAD]: [[150, 138, 112], [140, 128, 104]],
+  [F.WATER]: [[22, 70, 104], [18, 58, 92]], [F.SAND]: [[226, 206, 160], [214, 192, 146]], [F.LAWN]: [[120, 150, 70], [104, 136, 60]], [F.HOUSE]: [[150, 160, 110], [140, 150, 100]],
+  [F.PALM]: [[120, 150, 70], [104, 136, 60]], [F.ROCK]: [[150, 140, 124], [128, 120, 108]], [F.CUT]: [[160, 130, 90], [150, 120, 84]], [F.NONE]: [[120, 110, 90], [110, 100, 80]]
+};
+function renderBase(map) {
+  const [can, g] = layer(MAPW, MAPH);
+  const lo = document.createElement('canvas'); lo.width = MAPW; lo.height = MAPH; const lg = lo.getContext('2d'), id = lg.createImageData(MAPW, MAPH), d = id.data;
+  // per-cell color + light
+  const cr = new Float32Array(GW * GH * 3), li = new Float32Array(GW * GH), dist = new Float32Array(GW * GH);
+  for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+    const i = idx(c, r), f = map.fuel[i], pal = BASECOL[f] || BASECOL[0], t = fbm(c / 6 + 3, r / 6 + 9, 2), a = pal[0], b = pal[1];
+    cr[i * 3] = lerp(a[0], b[0], t); cr[i * 3 + 1] = lerp(a[1], b[1], t); cr[i * 3 + 2] = lerp(a[2], b[2], t);
+    const h = map.hgt[i], hx = map.hgt[idx(Math.min(GW - 1, c + 1), r)] - map.hgt[idx(Math.max(0, c - 1), r)], hy = map.hgt[idx(c, Math.min(GH - 1, r + 1))] - map.hgt[idx(c, Math.max(0, r - 1))];
+    li[i] = clamp(1 + (-hx - hy) * 5.5 + (h - 0.5) * 0.25, 0.45, 1.5);
+  }
+  // distance from shore for water depth tint
+  for (let i = 0; i < GW * GH; i++) dist[i] = map.fuel[i] === F.WATER ? 99 : 0;
+  for (let it = 0; it < 12; it++) for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) { const i = idx(c, r); if (dist[i] === 0) continue; let m = dist[i]; if (c > 0) m = Math.min(m, dist[i - 1] + 1); if (c < GW - 1) m = Math.min(m, dist[i + 1] + 1); if (r > 0) m = Math.min(m, dist[i - GW] + 1); if (r < GH - 1) m = Math.min(m, dist[i + GW] + 1); dist[i] = m; }
+  for (let y = 0; y < MAPH; y++) {
+    const fy = y / CS - 0.5, r0 = clamp(Math.floor(fy), 0, GH - 1), r1 = Math.min(GH - 1, r0 + 1), ty = clamp(fy - r0, 0, 1);
+    for (let x = 0; x < MAPW; x++) {
+      const fx = x / CS - 0.5, c0 = clamp(Math.floor(fx), 0, GW - 1), c1 = Math.min(GW - 1, c0 + 1), tx = clamp(fx - c0, 0, 1);
+      const i00 = idx(c0, r0), i10 = idx(c1, r0), i01 = idx(c0, r1), i11 = idx(c1, r1), w00 = (1 - tx) * (1 - ty), w10 = tx * (1 - ty), w01 = (1 - tx) * ty, w11 = tx * ty;
+      const L1 = li[i00] * w00 + li[i10] * w10 + li[i01] * w01 + li[i11] * w11, nz = (hash(x, y) - 0.5) * 16, o = (y * MAPW + x) * 4;
+      let R0 = 0, G0 = 0, B0 = 0;
+      for (const [ii, w] of [[i00, w00], [i10, w10], [i01, w01], [i11, w11]]) { R0 += cr[ii * 3] * w; G0 += cr[ii * 3 + 1] * w; B0 += cr[ii * 3 + 2] * w; }
+      const cc = idx(clamp(Math.round(fx), 0, GW - 1), clamp(Math.round(fy), 0, GH - 1));
+      if (map.fuel[cc] === F.WATER) { const dp = Math.min(1, (dist[i00] * w00 + dist[i10] * w10 + dist[i01] * w01 + dist[i11] * w11) / 8); d[o] = lerp(46, 10, dp) + nz * 0.3; d[o + 1] = lerp(130, 44, dp) + nz * 0.4; d[o + 2] = lerp(150, 78, dp) + nz * 0.5; }
+      else { d[o] = R0 * L1 + nz; d[o + 1] = G0 * L1 + nz; d[o + 2] = B0 * L1 + nz * 0.8; }
+      d[o + 3] = 255;
+    }
+  }
+  lg.putImageData(id, 0, 0);
+  g.imageSmoothingEnabled = true; g.drawImage(lo, 0, 0, MAPW, MAPH);
+  const R = mkRng(map.houses.length * 31 + 7);
+  // shoreline foam
+  g.fillStyle = 'rgba(255,255,255,0.18)';
+  for (let r = 1; r < GH; r++) for (let c = 0; c < GW; c++) if (map.fuel[idx(c, r)] === F.WATER && map.fuel[idx(c, r - 1)] !== F.WATER) { g.fillRect(c * CS, r * CS, CS, 1.5); g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(c * CS, r * CS + 3, CS, 1); g.fillStyle = 'rgba(255,255,255,0.18)'; }
+  // chaparral speckle, grass streaks
+  for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+    const f = map.fuel[idx(c, r)], x = c * CS, y = r * CS;
+    if (f === F.BRUSH) for (let k = 0; k < 3; k++) { const px = x + R() * CS, py = y + R() * CS, s = 0.8 + R() * 1.3; g.fillStyle = 'rgba(40,46,22,0.55)'; g.beginPath(); g.arc(px + 0.6, py + 0.8, s, 0, 6.29); g.fill(); g.fillStyle = 'rgba(130,136,80,0.55)'; g.beginPath(); g.arc(px, py, s * 0.8, 0, 6.29); g.fill(); }
+    else if (f === F.GRASS && R() < 0.5) { g.strokeStyle = 'rgba(240,215,150,0.35)'; g.lineWidth = 0.6; g.beginPath(); const px = x + R() * CS, py = y + R() * CS; g.moveTo(px, py); g.lineTo(px + 2, py - 1); g.stroke(); }
+    else if (f === F.ROCK && R() < 0.6) { g.fillStyle = 'rgba(200,190,170,0.5)'; g.beginPath(); g.ellipse(x + R() * CS, y + R() * CS, 1.6, 1.1, R() * 3, 0, 6.29); g.fill(); }
+  }
+  // tree canopies (with shadows)
+  const treeBlob = (x, y, s, c1, c2) => { g.fillStyle = 'rgba(0,0,0,0.28)'; g.beginPath(); g.arc(x + 1.4, y + 1.6, s, 0, 6.29); g.fill(); g.fillStyle = radg(g, x - s * 0.4, y - s * 0.4, 0, x, y, s, [[0, c1], [1, c2]]); g.beginPath(); g.arc(x, y, s, 0, 6.29); g.fill(); };
+  for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) if (map.fuel[idx(c, r)] === F.TREE) for (let k = 0; k < 2; k++) treeBlob(c * CS + R() * CS, r * CS + R() * CS, 2 + R() * 1.6, '#6f9a52', '#2a4424');
+  // roads
+  const roadPath = (rd, off) => { g.beginPath(); rd.pts.forEach((p, k) => { const x = p[0] * CS + CS / 2, y = p[1] * CS + CS / 2 + (off || 0); k ? g.lineTo(x, y) : g.moveTo(x, y); }); };
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  for (const rd of map.roads) {
+    const big = rd.kind === 'hwy' || rd.kind === 'fwy' || rd.kind === 'fwy2';
+    roadPath(rd); g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = big ? 6.5 : 5; g.stroke();
+    roadPath(rd); g.strokeStyle = rd.kind === 'canyon' && rd.pts.length > 30 && false ? '#8a7a60' : (big ? '#3b3c42' : '#4a4a4f'); g.lineWidth = big ? 5 : 3.6; g.stroke();
+    if (big && rd.kind !== 'fwy2') { roadPath(rd); g.setLineDash([3, 4]); g.strokeStyle = 'rgba(255,220,120,0.6)'; g.lineWidth = 0.6; g.stroke(); g.setLineDash([]); }
+  }
+  // houses: roofs with ridge lines, pools, shadows
+  for (const h of map.houses) {
+    const x = cellX(h.c), y = cellY(h.r);
+    if (h.pool) { const px = x + (h.ang ? 0 : 4.5) * (h.rand < 0.5 ? 1 : -1), py = y + (h.ang ? 4.5 : 0); g.fillStyle = '#e9f4f4'; rrect(g, px - 2.4, py - 1.7, 4.8, 3.4, 1); g.fill(); g.fillStyle = '#3fc9e0'; rrect(g, px - 1.8, py - 1.2, 3.6, 2.4, 0.8); g.fill(); }
+    g.save(); g.translate(x, y); g.rotate(h.ang + (h.rand - 0.5) * 0.3);
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(-3 + 1.2, -2.4 + 1.4, 6, 4.8);
+    g.fillStyle = lin(g, 0, -2.4, 0, 2.4, [[0, shade(h.col, 0.2)], [0.5, h.col], [0.51, shade(h.col, -0.25)], [1, shade(h.col, -0.35)]]); g.fillRect(-3, -2.4, 6, 4.8);
+    g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 0.5; g.beginPath(); g.moveTo(-3, 0); g.lineTo(3, 0); g.stroke();
+    g.restore();
+  }
+  for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) if (map.fuel[idx(c, r)] === F.PALM) palmIcon(g, cellX(c), cellY(r), '#4f8a3a');
+  // helibase + fire station
+  const hb = map.heli; g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.arc(hb.x + 1, hb.y + 1, 8, 0, 6.29); g.fill();
+  g.fillStyle = '#5a5c60'; g.beginPath(); g.arc(hb.x, hb.y, 8, 0, 6.29); g.fill(); g.strokeStyle = '#ffd23f'; g.lineWidth = 1; g.stroke();
+  g.fillStyle = '#fff'; g.font = '900 9px ' + FONT; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('H', hb.x, hb.y + 0.5);
+  if (map.station.bx != null) { const sx = map.station.bx, sy = map.station.by; g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(sx - 5, sy - 3, 11, 8); g.fillStyle = lin(g, 0, sy - 4, 0, sy + 4, [[0, '#e65a4a'], [1, '#8c2a20']]); g.fillRect(sx - 6, sy - 4, 11, 8); g.fillStyle = '#fff'; g.font = '900 5px ' + FONT; g.fillText('FS', sx - 0.5, sy + 0.3); }
+  grain(g, 0, 0, MAPW, MAPH, 0.18, 'overlay');
+  return can;
+}
+function palmIcon(g, x, y, col) {
+  g.fillStyle = 'rgba(0,0,0,0.3)'; g.beginPath(); g.arc(x + 1.5, y + 1.5, 2.2, 0, 6.29); g.fill();
+  g.strokeStyle = col; g.lineWidth = 1; g.beginPath(); for (let k = 0; k < 6; k++) { const a = k * 1.047; g.moveTo(x, y); g.lineTo(x + Math.cos(a) * 3, y + Math.sin(a) * 3); } g.stroke();
+}
+
+// ---------- FIRE: heat-transfer cellular automaton with wind, slope, embers ----------
+const NB = []; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (dc || dr) { const l = Math.hypot(dc, dr); NB.push({ dc, dr, ux: dc / l, uy: dr / l, k: l > 1 ? 0.7 : 1 }); }
+let FIREK = 0.11, DECAY = 0.998, WINDK = 24;
+function initFire(M) {
+  const N = GW * GH;
+  Object.assign(M, { st: new Uint8Array(N), burnT: new Float32Array(N), burnMax: new Float32Array(N), age: new Float32Array(N), heat: new Float32Array(N), wet: new Float32Array(N), ret: new Float32Array(N), inten: new Float32Array(N), burning: [], embers: [] });
+}
+function windNow(M) { return { ux: Math.cos(M.wind.dir), uy: Math.sin(M.wind.dir), spd: M.wind.spd + M.wind.gustNow }; }
+function ignite(M, i, why) {
+  const f = M.map.fuel[i]; if (!flam(f) || M.st[i] !== 0) return false;
+  M.st[i] = 1; const b = FUEL[f].burn * (0.8 + Math.random() * 0.4); M.burnT[i] = b; M.burnMax[i] = b; M.age[i] = 0; M.heat[i] = 0; M.burning.push(i);
+  if (f === F.HOUSE) houseIgnited(M, i);
+  if (why === 'spot' && !M.demo) { M.stats.spots++; }
+  return true;
+}
+function burnOut(M, i) {
+  M.st[i] = 2; M.inten[i] = 0;
+  if (M.map.fuel[i] === F.HOUSE) houseLost(M, i);
+}
+function extinguish(M, i) {
+  if (M.st[i] !== 1) return;
+  const f = M.map.fuel[i];
+  if (f === F.HOUSE && M.burnT[i] / M.burnMax[i] > 0.45) { M.st[i] = 0; M.heat[i] = 0; M.inten[i] = 0; houseSaved(M, i); }
+  else { M.st[i] = 2; M.inten[i] = 0; if (f === F.HOUSE) houseLost(M, i); }
+}
+function applyWater(M, cx0, cy0, rad, amt, kind) { // cx0/cy0 in cells (float), kind 'w' water | 'r' retardant | 'h' hose
+  const c0 = Math.floor(cx0 - rad), c1 = Math.ceil(cx0 + rad), r0 = Math.floor(cy0 - rad), r1 = Math.ceil(cy0 + rad);
+  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+    if (!inb(c, r)) continue; const d = Math.hypot(c + 0.5 - cx0, r + 0.5 - cy0); if (d > rad) continue;
+    const i = idx(c, r), k = amt * (0.55 + 0.45 * (1 - d / rad));
+    if (kind === 'r') { M.ret[i] = Math.min(1, M.ret[i] + k); M.wet[i] = Math.min(1.2, M.wet[i] + k * 0.35); }
+    else M.wet[i] = Math.min(1.2, M.wet[i] + k);
+    M.heat[i] *= 0.3;
+    if (M.st[i] === 1 && M.wet[i] >= 0.6) extinguish(M, i);
+  }
+}
+function fireTick(M, dt) {
+  const fuel = M.map.fuel, hgt = M.map.hgt, w = windNow(M), spd0 = Math.max(0, w.spd), spd = spd0 < 18 ? spd0 : 18 + (spd0 - 18) * 0.3, dry = clamp(1 + (25 - M.L.rh) / 45, 0.75, 1.5);
+  const st = M.st, heat = M.heat, wet = M.wet, ret = M.ret;
+  const list = M.burning, newB = []; M.burning = []; // ignite() pushes fresh cells into M.burning
+  for (let n = 0; n < list.length; n++) {
+    const i = list[n]; if (st[i] !== 1) continue;
+    const f = fuel[i], c = i % GW, r = (i / GW) | 0;
+    M.age[i] += dt; M.burnT[i] -= dt * (1 + wet[i] * 2.5);
+    if (M.burnT[i] <= 0) { burnOut(M, i); continue; }
+    newB.push(i);
+    const I = FUEL[f].int * Math.min(1, 0.35 + M.age[i] / 0.6) * Math.min(1, M.burnT[i] / 1.5 + 0.2) * (1 - 0.85 * Math.min(1, wet[i]));
+    M.inten[i] = I;
+    for (let k = 0; k < 8; k++) {
+      const nb = NB[k], c2 = c + nb.dc, r2 = r + nb.dr; if (c2 < 0 || r2 < 0 || c2 >= GW || r2 >= GH) continue;
+      let j = r2 * GW + c2, jump = 1; if (st[j] !== 0) continue; let fj = fuel[j], ig = FUEL[fj].ign;
+      if (!ig) { // radiant heat / short-range embers jump a single-cell road or gap (not a 2-wide cut line or the sea)
+        if (fj === F.WATER || fj === F.SAND) continue; const c3 = c2 + nb.dc, r3 = r2 + nb.dr; if (c3 < 0 || r3 < 0 || c3 >= GW || r3 >= GH) continue;
+        j = r3 * GW + c3; if (st[j] !== 0) continue; fj = fuel[j]; ig = FUEL[fj].ign; if (!ig) continue; jump = 0.3; }
+      const dot = nb.ux * w.ux + nb.uy * w.uy;
+      const wf = dot > 0 ? 1 + dot * spd / WINDK : Math.max(0.06, 1 + dot * spd / (WINDK * 1.4));
+      const sf = clamp(1 + (hgt[j] - hgt[i]) * 20, 0.75, 2.2);
+      heat[j] += FIREK * jump * I * ig * wf * sf * dry * nb.k * dt * (0.55 + Math.random() * 0.9) * (1 - Math.min(1, wet[j] * 1.4)) * (1 - 0.94 * ret[j]);
+      if (heat[j] >= 1) ignite(M, j);
+    }
+    // embers (firebrands) carried downwind ahead of the front
+    const er = FUEL[f].emb * I * Math.max(0, spd - 9) / 30 * 0.0025 * dry * (M.L.emberK || 1);
+    if (er > 0 && Math.random() < er * dt * 10 && M.embers.length < 220) {
+      const a = M.wind.dir + (Math.random() - 0.5) * 0.7, dd = (2 + spd0 * 0.3 * Math.pow(Math.random(), 1.4)) * CS;
+      M.embers.push({ x: cellX(c), y: cellY(r), x0: cellX(c), y0: cellY(r), tx: cellX(c) + Math.cos(a) * dd, ty: cellY(r) + Math.sin(a) * dd, t: 0, T: 0.6 + dd / 160 });
+    }
+  }
+  M.burning = newB.concat(M.burning);
+  for (let i = 0; i < heat.length; i++) { if (heat[i] > 0) heat[i] *= DECAY; if (wet[i] > 0) wet[i] = Math.max(0, wet[i] - dt * (0.022 + (spd > 30 ? 0.01 : 0))); if (ret[i] > 0) ret[i] = Math.max(0, ret[i] - dt * 0.0035); }
+}
+function updateEmbers(M, dt) {
+  for (const e of M.embers) {
+    e.t += dt; const k = Math.min(1, e.t / e.T);
+    e.x = lerp(e.x0, e.tx, k) + Math.sin(e.t * 9 + e.x0) * 2; e.y = lerp(e.y0, e.ty, k) - Math.sin(k * Math.PI) * 10;
+    if (k >= 1) {
+      e.dead = true; const [c, r] = pxCell(e.tx, e.ty); if (!inb(c, r) || e.tx < 0 || e.ty < 0 || e.tx > MAPW || e.ty > MAPH) continue;
+      const i = idx(c, r), f = M.map.fuel[i]; if (!flam(f) || M.st[i] !== 0) continue;
+      const dry = clamp(1 + (25 - M.L.rh) / 45, 0.75, 1.5), p = (f === F.HOUSE ? 0.5 : FUEL[f].ign * 0.42) * dry * (1 - Math.min(1, M.wet[i] * 1.5)) * (1 - 0.92 * M.ret[i]);
+      if (Math.random() < p) { ignite(M, i, 'spot'); spotNews(M, c, r); }
+    }
+  }
+  M.embers = M.embers.filter(e => !e.dead);
+}
+// containment = share of the fire perimeter that is cold or held by water / retardant / bare ground
+function fireStats(M) {
+  const st = M.st, fuel = M.map.fuel; let per = 0, held = 0, burned = 0;
+  for (let i = 0; i < st.length; i++) {
+    if (st[i] === 0) continue; burned++;
+    const c = i % GW, r = (i / GW) | 0;
+    for (let k = 0; k < 4; k++) {
+      const c2 = c + [1, -1, 0, 0][k], r2 = r + [0, 0, 1, -1][k]; if (!inb(c2, r2)) continue;
+      const j = idx(c2, r2); if (st[j] !== 0 || !flam(fuel[j])) continue;
+      per++; if (st[i] === 2 || M.wet[j] > 0.35 || M.ret[j] > 0.3) held++;
+    }
+  }
+  M.stats.burned = burned; M.stats.acres = Math.round(burned * 1.6);
+  M.stats.cont = M.burning.length === 0 ? 1 : per ? held / per : 0;
+}
+// power lines arc in high wind unless de-energized
+function powerTick(M, dt) {
+  if (!M.map.power.length || M.psps) return;
+  const spd = windNow(M).spd; if (spd < 24) return;
+  for (const pl of M.map.power) {
+    if (Math.random() < (spd - 24) * 0.0016 * dt * (M.L.sparkK || 1)) {
+      const p = pl.cells[Math.floor(Math.random() * pl.cells.length)], [c, r] = pxCell(p[0], p[1]);
+      for (let k = 0; k < 9; k++) { const j = idx(clamp(c + (k % 3) - 1, 0, GW - 1), clamp(r + ((k / 3) | 0) - 1, 0, GH - 1)); if (ignite(M, j)) { M.fx.push({ kind: 'arc', x: p[0], y: p[1], t: 0, T: 0.8 }); sfx('spark'); news(M, 'DOWNED POWER LINE SPARKS NEW FIRE NEAR ' + nearestPlace(M, p[0], p[1]), 2); M.stats.sparks++; break; } }
+    }
+  }
+}
+
+// ---------- UNITS: helicopters, airplanes, engines, crews, evacuation traffic ----------
+let UID = 1;
+function mkUnit(M, type, x, y) {
+  const s = SPEC[type], u = { id: UID++, type, x, y, ang: -Math.PI / 2, vx: 0, vy: 0, mode: 'idle', hp: 1, out: false, label: '' };
+  if (type === 'heli' || type === 'sky') Object.assign(u, { load: 1, tgt: null, home: { x: M.map.heli.x + (Math.random() - 0.5) * 30, y: M.map.heli.y + (Math.random() - 0.5) * 20 }, fillT: 0, rot: Math.random() * 6, dropT: 0, alt: 0 });
+  if (type === 'engine') Object.assign(u, { tank: 1, path: null, goal: -1, spray: null, sprayT: 0, lights: Math.random() });
+  if (type === 'crew') Object.assign(u, { path: null, goal: -1, cut: [], cutT: 0, repath: 0, cutting: -1 });
+  const n = M.units.filter(q => q.type === type).length + 1;
+  u.label = { heli: 'HK', sky: 'SC', engine: 'E', crew: 'C' }[type] + n;
+  M.units.push(u); return u;
+}
+const isHeli = u => u.type === 'heli' || u.type === 'sky';
+// --- helicopters ---
+function nearestWater(M, x, y, tx, ty) {
+  let best = null, bd = 1e12; const W2 = M.map.water, step = Math.max(1, Math.floor(W2.length / 900));
+  for (let k = 0; k < W2.length; k += step) { const i = W2[k], wx = cellX(i % GW), wy = cellY((i / GW) | 0), d = Math.hypot(wx - x, wy - y) + Math.hypot(wx - tx, wy - ty) * 1.2; if (d < bd) { bd = d; best = { x: wx, y: wy }; } }
+  return best || { x: M.map.heli.x, y: M.map.heli.y };
+}
+function orderHeli(M, u, x, y) { u.tgt = { x, y }; u.auto = true; u.thenHome = false; u.mode = u.load > 0.5 ? 'go' : 'water'; u.water = null; }
+function nearestBurning(M, x, y, maxCells) {
+  let best = -1, bd = maxCells * maxCells; const [c0, r0] = pxCell(x, y);
+  for (let r = Math.max(0, r0 - maxCells); r <= Math.min(GH - 1, r0 + maxCells); r++) for (let c = Math.max(0, c0 - maxCells); c <= Math.min(GW - 1, c0 + maxCells); c++) { const i = idx(c, r); if (M.st[i] === 1) { const d = (c - c0) ** 2 + (r - r0) ** 2; if (d < bd) { bd = d; best = i; } } }
+  return best;
+}
+function flyTo(u, tx, ty, spd, dt) {
+  const dx = tx - u.x, dy = ty - u.y, d = Math.hypot(dx, dy);
+  const want = Math.min(spd, d * 2.2 + 8), a = Math.atan2(dy, dx);
+  u.ang = turnTo(u.ang, a, dt * 4);
+  const v = d < 2 ? 0 : want; u.vx = lerp(u.vx, Math.cos(a) * v, Math.min(1, dt * 3)); u.vy = lerp(u.vy, Math.sin(a) * v, Math.min(1, dt * 3));
+  u.x += u.vx * dt; u.y += u.vy * dt; return d;
+}
+function updateHeli(M, u, dt) {
+  const s = SPEC[u.type]; u.rot += dt * 40;
+  if (u.mode === 'idle' || u.mode === 'home') { const d = flyTo(u, u.home.x, u.home.y, s.spd, dt); if (d < 4) u.mode = 'idle'; if (u.mode === 'idle' && u.load < 1) u.load = Math.min(1, u.load + dt * 0.2); return; }
+  if (u.mode === 'water') {
+    if (!u.water) u.water = nearestWater(M, u.x, u.y, u.tgt.x, u.tgt.y);
+    const d = flyTo(u, u.water.x, u.water.y, s.spd, dt);
+    if (d < 6) { u.mode = 'fill'; u.fillT = 0; }
+    return;
+  }
+  if (u.mode === 'fill') {
+    flyTo(u, u.water.x, u.water.y, s.spd, dt); u.load = Math.min(1, u.load + dt / s.fill);
+    if (Math.random() < dt * 20) M.parts.push({ k: 'spray', x: u.x + (Math.random() - 0.5) * 10, y: u.y + 4 + (Math.random() - 0.5) * 6, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20, t: 0, T: 0.6, s: 2 });
+    if (u.load >= 1) { u.mode = u.thenHome ? 'home' : 'go'; u.thenHome = false; u.water = null; }
+    return;
+  }
+  if (u.mode === 'go') {
+    const d = flyTo(u, u.tgt.x, u.tgt.y, s.spd, dt);
+    if (d < 7) {
+      applyWater(M, u.tgt.x / CS, u.tgt.y / CS, s.r, s.amt, 'w'); u.load = 0; M.stats.drops++;
+      dropFx(M, u.tgt.x, u.tgt.y, s.r * CS, '#cfeaff', u.ang); sfx('drop');
+      const nb = u.auto ? nearestBurning(M, u.tgt.x, u.tgt.y, 9) : -1;
+      if (nb >= 0) { u.tgt = { x: cellX(nb % GW), y: cellY((nb / GW) | 0) }; u.mode = 'water'; u.water = null; }
+      else { u.mode = 'water'; u.water = null; u.tgt = { x: u.home.x, y: u.home.y }; u.thenHome = true; }
+    }
+  }
+}
+function dropFx(M, x, y, r, col, ang) {
+  for (let k = 0; k < 26; k++) { const a = Math.random() * 6.29, d = Math.random() * r; M.parts.push({ k: 'mist', x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, vx: Math.cos(a) * 8, vy: Math.sin(a) * 8, t: 0, T: 1 + Math.random() * 0.8, s: 5 + Math.random() * 6, col }); }
+  M.fx.push({ kind: 'ring', x, y, r, t: 0, T: 0.7, col });
+}
+// --- fixed-wing line drops (scooper = water, tanker = retardant) ---
+function airReady(M, kind) { return M.air.find(a => a.kind === kind && a.cd <= 0 && !a.flying); }
+function dispatchAir(M, kind, ax, ay, bx, by) {
+  const s = SPEC[kind], a = airReady(M, kind); if (!a) return false;
+  let dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy); if (L < 6) { dx = Math.cos(M.wind.dir + Math.PI / 2); dy = Math.sin(M.wind.dir + Math.PI / 2); L = 1; bx = ax + dx * 30; by = ay + dy * 30; }
+  const ux = dx / L, uy = dy / L, maxL = s.len * CS; if (L > maxL) { bx = ax + ux * maxL; by = ay + uy * maxL; L = maxL; }
+  const pts = [];
+  if (kind === 'scoop') { const wt = nearestWater(M, ax, ay, ax, ay); const sx = wt.x - ux * 260, sy = wt.y - uy * 260; pts.push([sx - ux * 300, sy - uy * 300], [wt.x - ux * 40, wt.y - uy * 40], [wt.x + ux * 40, wt.y + uy * 40]); }
+  else pts.push([ax - ux * 900, ay - uy * 900]);
+  pts.push([ax - ux * 60, ay - uy * 60], [ax, ay], [bx, by], [bx + ux * 900, by + uy * 900]);
+  const f = { kind, pts, seg: 0, x: pts[0][0], y: pts[0][1], ang: 0, spd: kind === 'scoop' ? 230 : 260, ax, ay, bx, by, dropping: false, done: false, unit: a, scoopIdx: kind === 'scoop' ? 1 : -1, tailT: 0 };
+  a.flying = true; M.flights.push(f); sfx('radio'); later(() => sfx('plane'), 0.4);
+  return true;
+}
+function updateFlight(M, f, dt) {
+  let move = f.spd * dt;
+  while (move > 0 && f.seg < f.pts.length - 1) {
+    const [tx, ty] = f.pts[f.seg + 1], dx = tx - f.x, dy = ty - f.y, d = Math.hypot(dx, dy);
+    f.ang = Math.atan2(dy, dx);
+    if (d <= move) { f.x = tx; f.y = ty; move -= d; f.seg++; }
+    else { f.x += dx / d * move; f.y += dy / d * move; move = 0; }
+  }
+  const dropSeg = f.pts.length - 3; // segment from A to B
+  f.dropping = f.seg === dropSeg;
+  if (f.scoopIdx >= 0 && f.seg === f.scoopIdx && Math.random() < dt * 30) M.parts.push({ k: 'spray', x: f.x + (Math.random() - 0.5) * 8, y: f.y + (Math.random() - 0.5) * 6, vx: -Math.cos(f.ang) * 30, vy: -Math.sin(f.ang) * 30, t: 0, T: 0.9, s: 3 });
+  if (f.dropping) {
+    const s = SPEC[f.kind]; applyWater(M, f.x / CS, f.y / CS, s.r, s.amt * dt * 7, f.kind === 'tanker' ? 'r' : 'w');
+    if (!f.sfx) { f.sfx = true; sfx(f.kind === 'tanker' ? 'ret' : 'drop'); M.stats.drops++; }
+    for (let k = 0; k < 3; k++) M.parts.push({ k: 'mist', x: f.x + (Math.random() - 0.5) * s.r * CS * 1.6, y: f.y + (Math.random() - 0.5) * s.r * CS * 1.6, vx: Math.cos(f.ang) * 20, vy: Math.sin(f.ang) * 20, t: 0, T: 1.4, s: 6 + Math.random() * 6, col: f.kind === 'tanker' ? '#ff5aa8' : '#d8f0ff' });
+  }
+  if (f.seg >= f.pts.length - 1) { f.done = true; f.unit.flying = false; f.unit.cd = SPEC[f.kind].cd; }
+}
+// --- ground units: BFS on road (engines) or walkable ground (crews) ---
+function bfsField(M, goal, pass) {
+  const N = GW * GH, D = M.bfsBuf || (M.bfsBuf = new Int32Array(N)); D.fill(1e9); const q = [goal]; D[goal] = 0;
+  for (let qi = 0; qi < q.length; qi++) { const cur = q[qi], c = cur % GW, r = (cur / GW) | 0; for (let k = 0; k < 8; k++) { const nb = NB[k], c2 = c + nb.dc, r2 = r + nb.dr; if (!inb(c2, r2)) continue; const j = idx(c2, r2); if (D[j] <= D[cur] + 1 || !pass(j)) continue; if (nb.dc && nb.dr && (!pass(idx(c2, r)) && !pass(idx(c, r2)))) continue; D[j] = D[cur] + 1; q.push(j); } }
+  return D;
+}
+function pathFrom(M, D, start) {
+  const path = []; let cur = start, n = 0; if (D[cur] >= 1e9) return null;
+  while (D[cur] > 0 && n++ < 3000) { const c = cur % GW, r = (cur / GW) | 0; let best = cur; for (let k = 0; k < 8; k++) { const c2 = c + NB[k].dc, r2 = r + NB[k].dr; if (!inb(c2, r2)) continue; const j = idx(c2, r2); if (D[j] < D[best]) best = j; } if (best === cur) break; cur = best; path.push(cur); }
+  return path;
+}
+const roadPass = M => j => M.map.fuel[j] === F.ROAD;
+const walkPass = M => j => { const f = M.map.fuel[j]; return f !== F.WATER && f !== F.HOUSE && M.st[j] !== 1; };
+function nearestCell(M, x, y, ok, maxD) {
+  const [c0, r0] = pxCell(x, y); let best = -1, bd = 1e9;
+  for (let r = Math.max(0, r0 - maxD); r <= Math.min(GH - 1, r0 + maxD); r++) for (let c = Math.max(0, c0 - maxD); c <= Math.min(GW - 1, c0 + maxD); c++) { const i = idx(c, r); if (ok(i)) { const d = (c - c0) ** 2 + (r - r0) ** 2; if (d < bd) { bd = d; best = i; } } }
+  return best;
+}
+function orderEngine(M, u, x, y) {
+  if (u.out) return false;
+  const goal = nearestCell(M, x, y, roadPass(M), 14); if (goal < 0) return false;
+  const start = nearestCell(M, u.x, u.y, roadPass(M), 6); if (start < 0) return false;
+  const D = bfsField(M, goal, roadPass(M)), p = pathFrom(M, D, start); if (!p) return false;
+  u.path = p; u.goal = goal; u.mode = 'drive'; u.spray = null; u.retreat = false; return true;
+}
+function updateEngine(M, u, dt) {
+  if (u.out) return;
+  const s = SPEC.engine;
+  if (u.mode === 'drive' && u.path) {
+    if (!u.path.length) { u.mode = 'deploy'; u.path = null; }
+    else {
+      const n = u.path[0], tx = cellX(n % GW), ty = cellY((n / GW) | 0), dx = tx - u.x, dy = ty - u.y, d = Math.hypot(dx, dy);
+      const cars = M.carGrid[n] || 0, sp = s.spd * (cars ? 0.35 : 1) * (M.st[n] === 1 ? 0.5 : 1);
+      if (d > 0.1) { u.ang = turnTo(u.ang, Math.atan2(dy, dx), dt * 10); }
+      if (d <= sp * dt) { u.x = tx; u.y = ty; u.path.shift(); } else { u.x += dx / d * sp * dt; u.y += dy / d * sp * dt; }
+    }
+  }
+  const [c, r] = pxCell(u.x, u.y);
+  // refill at hydrants / station
+  let nearHyd = false; for (let yy = -3; yy <= 3 && !nearHyd; yy++) for (let xx = -3; xx <= 3; xx++) if (inb(c + xx, r + yy) && M.map.hyd[idx(c + xx, r + yy)]) { nearHyd = true; break; }
+  if (u.mode === 'deploy' || u.mode === 'idle') {
+    if (nearHyd) u.tank = Math.min(1, u.tank + dt / 5);
+    u.spray = null;
+    if (u.tank > 0) {
+      const b = nearestBurning(M, u.x, u.y, s.range);
+      if (b >= 0) { const bc = b % GW, br = (b / GW) | 0; u.spray = { x: cellX(bc), y: cellY(br) }; applyWater(M, bc + 0.5, br + 0.5, 1.6, dt * 2.2, 'h'); u.tank -= dt / s.tank * (nearHyd ? 0.25 : 1); u.ang = turnTo(u.ang, Math.atan2(u.spray.y - u.y, u.spray.x - u.x), dt * 3); if (Math.random() < 0.05) sfx('hose'); }
+      // structure protection: wet down homes nearby
+      for (let yy = -4; yy <= 4; yy++) for (let xx = -4; xx <= 4; xx++) { if (!inb(c + xx, r + yy)) continue; const j = idx(c + xx, r + yy); if (M.map.fuel[j] === F.HOUSE || M.map.fuel[j] === F.LAWN) { M.wet[j] = Math.min(0.9, M.wet[j] + dt * 0.22); if (M.st[j] === 1) applyWater(M, c + xx + 0.5, r + yy + 0.5, 0.8, dt * 1.2, 'h'); } }
+    }
+  }
+  // heat damage
+  let heatHere = 0; for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) if (inb(c + xx, r + yy)) heatHere = Math.max(heatHere, M.inten[idx(c + xx, r + yy)] * (M.st[idx(c + xx, r + yy)] === 1 ? 1 : 0));
+  if (heatHere > 0.5) { u.hp -= dt * 0.1 * heatHere; if (!u.warned && u.hp < 0.4) { u.warned = true; toast(u.label + ' taking heat - pulling back', '#ff9a1f'); sfx('alarm'); orderEngine(M, u, M.map.station.x, M.map.station.y); u.retreat = true; } }
+  else if (u.hp < 1 && (u.mode === 'deploy' || u.mode === 'idle') && nearHyd) { u.hp = Math.min(1, u.hp + dt * 0.03); if (u.hp > 0.6) u.warned = false; }
+  if (u.hp <= 0) { u.out = true; u.mode = 'out'; news(M, 'ENGINE BURNED OVER IN ' + nearestPlace(M, u.x, u.y) + ': CREW SHELTERS SAFELY', 2); M.stats.unitsLost++; if (M.sel === u) M.sel = null; }
+  if (u.mode === 'drive' && !u.path) u.mode = 'deploy';
+}
+function orderCrew(M, u, x, y, line) {
+  if (u.out) return false;
+  u.cut = [];
+  if (line) {
+    const [c0, r0] = pxCell(line.ax, line.ay), [c1, r1] = pxCell(line.bx, line.by), dx = c1 - c0, dy = r1 - r0, horiz = Math.abs(dx) > Math.abs(dy);
+    line4(c0, r0, c1, r1, (c, r) => { for (const [oc, or] of [[0, 0], horiz ? [0, 1] : [1, 0]]) { const c2 = c + oc, r2 = r + or; if (inb(c2, r2)) { const i = idx(c2, r2), f = M.map.fuel[i]; if (f === F.GRASS || f === F.BRUSH || f === F.TREE || f === F.LAWN || f === F.PALM) if (!u.cut.includes(i)) u.cut.push(i); } } });
+    if (u.cut.length > 70) u.cut.length = 70;
+    x = line.ax; y = line.ay; M.plans.push({ kind: 'cut', cells: u.cut, unit: u });
+  }
+  const goal = nearestCell(M, x, y, walkPass(M), 8); if (goal < 0) return false;
+  u.goal = goal; u.repath = 0; u.path = null; u.mode = 'walk'; u.retreat = false; return true;
+}
+function crewSpeed(f) { return f === F.TREE ? 0.55 : f === F.BRUSH ? 0.7 : f === F.ROAD ? 1.3 : 1; }
+function updateCrew(M, u, dt) {
+  if (u.out) return;
+  const s = SPEC.crew, [c, r] = pxCell(u.x, u.y);
+  if (u.mode === 'walk' || u.mode === 'cutting') {
+    if (u.mode === 'cutting') {
+      if (!u.cut.length) { u.mode = 'idle'; }
+      else {
+        const t = u.cut[0], tc = t % GW, tr = (t / GW) | 0, f = M.map.fuel[t];
+        if (M.st[t] !== 0 || f === F.CUT || !(f === F.GRASS || f === F.BRUSH || f === F.TREE || f === F.LAWN || f === F.PALM)) { u.cut.shift(); }
+        else {
+          const d = Math.hypot(cellX(tc) - u.x, cellY(tr) - u.y);
+          if (d > 7) { u.goal = t; u.path = null; u.repath = 0; u.mode = 'walk'; u.resume = true; }
+          else { u.cutT += dt; const need = f === F.TREE ? 1.5 : f === F.BRUSH ? 0.9 : 0.5; if (Math.random() < dt * 5) sfx('chop'); if (u.cutT >= need) { u.cutT = 0; M.map.fuel[t] = F.CUT; M.heat[t] = 0; M.stats.cut++; u.cut.shift(); for (let k = 0; k < 3; k++) M.parts.push({ k: 'dust', x: cellX(tc), y: cellY(tr), vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12, t: 0, T: 0.8, s: 3 }); } }
+        }
+      }
+    }
+    if (u.mode === 'walk') {
+      u.repath -= dt;
+      if (!u.path || u.repath <= 0) { const D = bfsField(M, u.goal, walkPass(M)), p = pathFrom(M, D, idx(c, r)); u.path = p || []; u.repath = 1.5; if (!p) { u.mode = 'idle'; } }
+      if (u.path && u.path.length) {
+        const n = u.path[0], tx = cellX(n % GW), ty = cellY((n / GW) | 0), dx = tx - u.x, dy = ty - u.y, d = Math.hypot(dx, dy), sp = s.spd * crewSpeed(M.map.fuel[n]);
+        if (d > 0.1) u.ang = Math.atan2(dy, dx);
+        if (d <= sp * dt) { u.x = tx; u.y = ty; u.path.shift(); } else { u.x += dx / d * sp * dt; u.y += dy / d * sp * dt; }
+      } else if (u.mode === 'walk') { u.mode = u.cut.length ? 'cutting' : 'idle'; u.path = null; }
+    }
+  }
+  let heatHere = 0; for (let yy = -1; yy <= 1; yy++) for (let xx = -1; xx <= 1; xx++) if (inb(c + xx, r + yy) && M.st[idx(c + xx, r + yy)] === 1) heatHere = Math.max(heatHere, M.inten[idx(c + xx, r + yy)]);
+  if (heatHere > 0.3) {
+    u.hp -= dt * 0.14 * heatHere;
+    if (u.hp < 0.45 && !u.retreat) { // safety zone: get into "the black" (already burned ground) or back to the station
+      const blk = nearestCell(M, u.x, u.y, j => M.st[j] === 2 && Math.hypot((j % GW) - c, ((j / GW) | 0) - r) > 2, 10);
+      const tgt = blk >= 0 ? blk : nearestCell(M, M.map.station.x, M.map.station.y, walkPass(M), 6);
+      u.cut = []; u.goal = tgt; u.path = null; u.repath = 0; u.mode = 'walk'; u.retreat = true; toast(u.label + ' retreating to ' + (blk >= 0 ? 'the black' : 'the station'), '#ff9a1f'); sfx('alarm');
+    }
+  } else if (u.hp < 1) { u.hp = Math.min(1, u.hp + dt * 0.02); if (u.hp > 0.7) u.retreat = false; }
+  if (u.hp <= 0) { u.out = true; u.mode = 'out'; news(M, 'HAND CREW DEPLOYS FIRE SHELTERS, ALL ACCOUNTED FOR', 2); M.stats.unitsLost++; if (M.sel === u) M.sel = null; }
+}
+// --- evacuation traffic ---
+function orderEvac(M, h) {
+  if (h.evac) return;
+  h.evac = 1; h.spawnLeft = Math.max(2, Math.ceil(h.houses.length / 2.5)); h.spawnT = 0; sfx('alarm');
+  news(M, 'LEVEL 3 "GO" EVACUATION ORDERED FOR ' + h.name, 2); M.stats.evacs++;
+}
+function updateCars(M, dt) {
+  M.carGrid = {};
+  for (const h of M.map.hoods) if (h.evac === 1) {
+    h.spawnT -= dt;
+    if (h.spawnLeft > 0 && h.spawnT <= 0) { h.spawnT = 0.7; h.spawnLeft--; const rc = h.roadCells[Math.floor(Math.random() * h.roadCells.length)]; M.cars.push({ x: cellX(rc % GW), y: cellY((rc / GW) | 0), cell: rc, col: pick(['#e8e8e8', '#3a6fd8', '#d84040', '#2a2a2e', '#c0c0c8', '#e0c040']), ang: 0, hood: h.i }); }
+    if (h.spawnLeft <= 0 && !M.cars.some(c => c.hood === h.i)) { h.evac = 2; }
+  }
+  for (const car of M.cars) {
+    const D = M.map.exitD, c = car.cell % GW, r = (car.cell / GW) | 0;
+    if (D[car.cell] === 0 || D[car.cell] >= 1e9) { car.dead = true; continue; }
+    let nxt = car.cell; for (let k = 0; k < 8; k++) { const c2 = c + NB[k].dc, r2 = r + NB[k].dr; if (!inb(c2, r2)) continue; const j = idx(c2, r2); if (D[j] < D[nxt]) nxt = j; }
+    const tx = cellX(nxt % GW), ty = cellY((nxt / GW) | 0), dx = tx - car.x, dy = ty - car.y, d = Math.hypot(dx, dy), sp = 34;
+    if (d > 0.1) car.ang = Math.atan2(dy, dx);
+    if (d <= sp * dt) { car.x = tx; car.y = ty; car.cell = nxt; } else { car.x += dx / d * sp * dt; car.y += dy / d * sp * dt; }
+    M.carGrid[car.cell] = (M.carGrid[car.cell] || 0) + 1;
+  }
+  M.cars = M.cars.filter(c => !c.dead);
+}
+
+// ---------- INCIDENT: setup, clock, wind, news desk, win / loss, AI commander ----------
+let M = null;
+const SAVE = (() => { try { return JSON.parse(LS.get('fl_save', '{}')) || {}; } catch (e) { return {}; } })();
+SAVE.stars = SAVE.stars || {}; SAVE.best = SAVE.best || {}; SAVE.red = SAVE.red || 0;
+function saveNow() { LS.set('fl_save', JSON.stringify(SAVE)); }
+function startIncident(L, opt) {
+  opt = opt || {}; if (!opt.demo) toasts = [];
+  const map = genMap(L);
+  M = { L, map, demo: !!opt.demo, t: 0, speed: 1, units: [], air: [], flights: [], parts: [], fx: [], cars: [], plans: [], carGrid: {}, sel: null, tool: null, drag: null,
+    wind: { dir: L.wind.dir, spd: L.wind.spd, gust: L.wind.gust, gustNow: 0, ev: 0 }, psps: false, pspsT: 0, over: false, result: null, fireAcc: 0, statAcc: 0, botAcc: 0,
+    stats: { acres: 0, burned: 0, cont: 0, lost: 0, saved: 0, spots: 0, drops: 0, cut: 0, evacs: 0, trapped: 0, sparks: 0, unitsLost: 0, peak: 0, contT: 0 },
+    newsQ: [], head: null, headT: 0, ticker: [], milestone: 0, contMile: 0, nextIgn: (L.ign || []).slice(), aid: (L.aid || []).slice(), events: (L.wind.events || []).slice(), nightSaid: false, dawnSaid: false, threatSaid: {} };
+  initFire(M);
+  M.base = renderBase(map);
+  M.ov = document.createElement('canvas'); M.ov.width = GW; M.ov.height = GH; M.ovg = M.ov.getContext('2d'); M.ovd = M.ovg.createImageData(GW, GH);
+  addUnits(M, L.units, true);
+  for (const k of ['scoop', 'tanker']) for (let n = 0; n < (L.units[k] || 0); n++) M.air.push({ kind: k, cd: 0, flying: false, n: n + 1 });
+  M.firefighters = crewCount(M);
+  igniteDue(M);
+  if (!opt.demo) { const pre = L.preburn != null ? L.preburn : 18; let acc = 0; while (acc < pre) { fireTick(M, 0.1); acc += 0.1; } updateEmbers(M, 0); fireStats(M); }
+  news(M, L.name + ' BREAKS OUT: ' + L.place.toUpperCase(), 3);
+  if (!M.demo) { game.state = 'play'; game.paused = false; MUS.on = true; ambStart(); sfx('news'); }
+  return M;
+}
+function crewCount(M) { return M.units.reduce((s, u) => s + (u.type === 'engine' ? 4 : u.type === 'crew' ? 20 : 3), 0) + M.air.length * 2 + 40; }
+function addUnits(M, us, initial) {
+  const st = M.map.station;
+  for (const k of ['heli', 'sky']) for (let n = 0; n < (us[k] || 0); n++) { const u = mkUnit(M, k, M.map.heli.x + n * 14 - 10, M.map.heli.y + (n % 2) * 10); if (!initial) { u.x = -30; u.y = M.map.heli.y; } }
+  for (let n = 0; n < (us.engine || 0); n++) { let x = st.x, y = st.y; if (!initial && M.map.exits.length) { const e = M.map.exits[Math.floor(Math.random() * M.map.exits.length)]; x = cellX(e % GW); y = cellY((e / GW) | 0); } const u = mkUnit(M, 'engine', x, y); u.mode = 'deploy'; if (!initial) orderEngine(M, u, st.x, st.y); }
+  for (let n = 0; n < (us.crew || 0); n++) { const c = nearestCell(M, st.x, st.y - 8, walkPass(M), 8); mkUnit(M, 'crew', cellX(c % GW) + n * 4, cellY((c / GW) | 0)); }
+}
+function igniteDue(M) {
+  M.nextIgn = M.nextIgn.filter(g => {
+    if ((g.t || 0) > M.t) return true;
+    const c = nearestCell(M, g.x * MAPW, g.y * MAPH, j => FUEL[M.map.fuel[j]].ign >= 0.5 && M.st[j] === 0, 12);
+    if (c >= 0) { const cc = c % GW, rr = (c / GW) | 0; for (let k = 0; k < 5; k++) ignite(M, idx(clamp(cc + (k % 3) - 1, 0, GW - 1), clamp(rr + ((k / 3) | 0), 0, GH - 1))); if (M.t > 1) { news(M, 'NEW START REPORTED NEAR ' + nearestPlace(M, cellX(cc), cellY(rr)), 3); sfx('alarm'); } }
+    return false;
+  });
+}
+function clockH(M) { return (M.L.start + M.t / 60) % 24; }
+function nightK(M) { const h = clockH(M); if (h >= 20 || h < 5) return 1; if (h >= 18.6) return (h - 18.6) / 1.4; if (h < 6.4) return 1 - (h - 5) / 1.4; return 0; }
+const isNight = M => nightK(M) > 0.6;
+function fmtClock(M) { const h = clockH(M), hh = Math.floor(h), mm = Math.floor((h - hh) * 60); return String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'); }
+const COMPASS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+function windFrom(M) { const a = M.wind.dir + Math.PI; return COMPASS[((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8]; }
+function nearestPlace(M, x, y) {
+  let best = null, bd = 1e9; for (const h of M.map.hoods) { const d = Math.hypot(h.cx - x, h.cy - y); if (d < bd) { bd = d; best = h; } }
+  if (best && bd < 220) return best.name;
+  return y < MAPH * 0.3 ? 'THE RIDGE' : y > MAPH * 0.7 ? 'THE COAST' : 'THE CANYON';
+}
+// --- news desk: a broadcast-style headline + ticker, generated from what is happening ---
+function news(M, s, pri) { if (M.demo && M.head && Math.random() < 0.5) return; M.newsQ.push({ s, pri: pri || 1 }); M.newsQ.sort((a, b) => b.pri - a.pri); if (M.newsQ.length > 5) M.newsQ.length = 5; }
+function newsTick(M, dt) {
+  M.headT -= dt;
+  if ((M.headT <= 0 || (M.newsQ.length && M.newsQ[0].pri >= 3 && M.headT < 3.5)) && M.newsQ.length) { M.head = M.newsQ.shift(); M.headT = 6.5; M.headIn = 0; if (!M.demo) { announce(M.head.s); if (M.head.pri >= 2) sfx('news'); } }
+  M.headIn = (M.headIn || 0) + dt;
+  const st = M.stats, a = st.acres, miles = [5, 35, 100, 200, 350, 500, 800, 1200, 2000, 3000];
+  if (M.milestone < miles.length && a >= miles[M.milestone]) { const prev = M.milestone ? miles[M.milestone - 1] : 2; while (M.milestone < miles.length && a >= miles[M.milestone]) M.milestone++; if (M.t > 2) news(M, M.L.name + ' EXPLODES FROM ' + prev + ' TO ' + miles[M.milestone - 1] + ' ACRES', 2); }
+  const cm = [0.17, 0.39, 0.6, 0.8]; if (M.contMile < cm.length && st.cont >= cm[M.contMile] && M.t > 20 && st.burned > 15) { news(M, M.L.name + ' REACHES ' + Math.round(st.cont * 100) + '% CONTAINMENT', 1); M.contMile++; }
+  const nk = nightK(M); if (nk > 0.6 && !M.nightSaid) { M.nightSaid = true; if (M.air.length) news(M, 'FIXED-WING AIRCRAFT GROUNDED AS DARKNESS FALLS; NIGHT HELICOPTERS CONTINUE', 3); else news(M, M.firefighters + ' FIREFIGHTERS BATTLE BLAZE THROUGH THE NIGHT', 2); }
+  if (nk < 0.3 && M.nightSaid && !M.dawnSaid) { M.dawnSaid = true; news(M, 'DAYBREAK: AIR TANKERS BACK IN THE FIGHT', 2); }
+  const nW = Math.round(windNow(M).spd);
+  M.ticker = [M.L.name + ': ' + st.acres.toLocaleString() + ' ACRES, ' + Math.round(st.cont * 100) + '% CONTAINED', 'WIND ' + windFrom(M) + ' ' + Math.round(M.wind.spd) + ' MPH, GUSTS ' + Math.round(M.wind.spd + M.wind.gust) + ' MPH', 'HUMIDITY ' + M.L.rh + '%',
+    M.firefighters + ' FIREFIGHTERS ASSIGNED', 'STRUCTURES DESTROYED: ' + st.lost + '  SAVED: ' + st.saved, threatenedCount(M) + ' HOMES THREATENED'];
+  if (M.psps) M.ticker.push(custOut(M).toLocaleString() + ' CUSTOMERS WITHOUT POWER (PSPS)');
+  const ev = M.map.hoods.filter(h => h.evac).map(h => h.name); if (ev.length) M.ticker.push('EVACUATION ORDERS: ' + ev.join(', '));
+  if (nW >= 40) M.ticker.push('RED FLAG WARNING IN EFFECT');
+}
+function threatenedCount(M) { let n = 0; for (const h of M.map.hoods) n += h.threat ? h.houses.filter(k => M.st[M.map.houses[k].i] === 0).length : 0; return n * 25; }
+function custOut(M) { return Math.round(M.map.houses.length * 900 + M.pspsT * 25); }
+function spotNews(M, c, r) { if (Math.random() < 0.15) news(M, 'WIND-DRIVEN EMBERS IGNITE SPOT FIRES AHEAD OF THE FRONT', 1); }
+function houseIgnited(M, i) {
+  const h = M.map.houses[M.map.houseAt[i]]; if (!h) return; const hd = M.map.hoods[h.hood]; h.state = 1;
+  if (hd && !hd.evac && !hd.trapped) { hd.trapped = true; M.stats.trapped++; news(M, 'RESIDENTS RESCUED FROM ' + hd.name + ' AFTER EVACUATION ORDER COMES TOO LATE', 3); if (!M.demo) { toast('Residents trapped in ' + hd.name + ': evacuate earlier!', '#ff3b3b', 3); sfx('alarm'); } }
+  else if (hd && !hd.warned) { hd.warned = true; news(M, 'FLAMES REACH HOMES IN ' + hd.name, 2); }
+}
+function houseLost(M, i) {
+  const h = M.map.houses[M.map.houseAt[i]]; if (!h || h.state === 2) return; h.state = 2; M.stats.lost++; const hd = M.map.hoods[h.hood]; if (hd) hd.lost++;
+  sfx('house'); game.shake = Math.max(game.shake, 0.25);
+  if (M.stats.lost === 1 || M.stats.lost % 4 === 0) news(M, M.stats.lost + (M.stats.lost === 1 ? ' HOME' : ' HOMES') + ' DESTROYED' + (hd ? ' IN ' + hd.name : ''), 2);
+}
+function houseSaved(M, i) { const h = M.map.houses[M.map.houseAt[i]]; if (!h) return; h.state = 0; h.dmg = true; M.stats.saved++; sfx('saved'); if (!M.demo && Math.random() < 0.5) toast('Home saved!', '#3cff7a', 1.2); }
+// --- main incident update (fixed step) ---
+function updateIncident(dt) {
+  if (M.over && !M.demo) { M.overT += dt; partsTick(M, dt); return; }
+  M.t += dt;
+  // wind: base + gusts + scheduled shifts
+  while (M.events.length && M.events[0].t <= M.t) { const e = M.events.shift(); M.windTo = { dir: e.dir, spd: e.spd, gust: e.gust }; news(M, e.msg, 3); if (!M.demo) { toast('WIND SHIFT: ' + e.msg, '#ffd23f', 3.5); sfx('alarm'); } }
+  if (M.windTo) { M.wind.dir = lerp(M.wind.dir, M.windTo.dir, dt * 0.3); M.wind.spd = lerp(M.wind.spd, M.windTo.spd, dt * 0.3); M.wind.gust = lerp(M.wind.gust, M.windTo.gust, dt * 0.3); }
+  M.wind.gustNow = M.wind.gust * (0.5 + 0.5 * Math.sin(M.t * 0.37) * Math.sin(M.t * 0.11 + 1)) ;
+  while (M.aid.length && M.aid[0].t <= M.t) { const a = M.aid.shift(); addUnits(M, a.units, false); M.firefighters = crewCount(M); news(M, a.msg, 3); if (!M.demo) { toast('Reinforcements arriving', '#3cff7a', 2.5); sfx('siren'); } }
+  if (M.nextIgn.length) igniteDue(M);
+  M.fireAcc += dt; while (M.fireAcc >= 0.1) { M.fireAcc -= 0.1; fireTick(M, 0.1); powerTick(M, 0.1); }
+  updateEmbers(M, dt);
+  const night = isNight(M);
+  for (const u of M.units) { if (isHeli(u)) updateHeli(M, u, dt); else if (u.type === 'engine') updateEngine(M, u, dt); else updateCrew(M, u, dt); }
+  for (const a of M.air) if (a.cd > 0) a.cd -= dt;
+  for (const f of M.flights) updateFlight(M, f, dt); M.flights = M.flights.filter(f => !f.done);
+  updateCars(M, dt);
+  M.plans = M.plans.filter(p => p.cells.length && !p.unit.out && p.unit.cut === p.cells);
+  if (M.psps) M.pspsT += dt;
+  partsTick(M, dt);
+  M.statAcc += dt; if (M.statAcc > 0.5) { M.statAcc = 0; fireStats(M); threatScan(M); M.stats.peak = Math.max(M.stats.peak, M.burning.length); }
+  newsTick(M, dt);
+  if (M.demo || M.bot) { M.botAcc += dt; if (M.botAcc > (M.botEvery || 1.2)) { M.botAcc = 0; botCommand(M, M.botSkill || 0.8); } }
+  if (M.demo) return;
+  if (night && M.tool && (M.tool === 'scoop' || M.tool === 'tanker')) M.tool = null;
+  // end conditions
+  if (M.burning.length === 0 && M.t > 3 && !M.nextIgn.length) endIncident(true);
+  else if (M.stats.lost > M.L.maxLost) endIncident(false, 'structures');
+  else if (M.L.maxAcres && M.stats.acres > M.L.maxAcres) endIncident(false, 'acres');
+  else if (M.t >= M.L.limit) endIncident(false, 'time');
+}
+function threatScan(M) {
+  for (const h of M.map.hoods) {
+    const b = nearestBurning(M, h.cx, h.cy, 16 + Math.round(h.lr / CS)); const was = h.threat; h.threat = b >= 0 ? 1 : 0;
+    if (h.threat && !was && !M.threatSaid[h.i]) { M.threatSaid[h.i] = 1; news(M, M.L.name + ' THREATENS HOMES IN ' + h.name + (h.evac ? '' : ': EVACUATION WARNING'), 2); if (!M.demo && !h.evac) { toast(h.name + ' threatened - order evacuation (6)', '#ffd23f', 3); sfx('alarm'); } }
+  }
+}
+function partsTick(M, dt) {
+  // smoke + fire particles
+  const w = windNow(M), wx = w.ux * (8 + w.spd * 0.9), wy = w.uy * (8 + w.spd * 0.9), rm = RMOTION ? 0.4 : 1;
+  const nb = M.burning.length, spawn = Math.min(nb, 60) * dt * 2.2 * rm;
+  for (let k = 0; k < spawn && M.parts.length < 520; k++) { if (Math.random() > spawn - k) break; const i = M.burning[Math.floor(Math.random() * nb)], I = M.inten[i]; M.parts.push({ k: 'smoke', x: cellX(i % GW), y: cellY((i / GW) | 0), vx: wx * 0.5, vy: wy * 0.5 - 6, t: 0, T: 4 + Math.random() * 4 * Math.min(1.5, I + 0.3), s: 6 + I * 6, rot: Math.random() * 6 }); }
+  for (const p of M.parts) {
+    p.t += dt;
+    if (p.k === 'smoke') { p.vx = lerp(p.vx, wx, dt * 0.6); p.vy = lerp(p.vy, wy - 4, dt * 0.6); p.s += dt * 7; }
+    else if (p.k === 'mist') { p.vx *= 0.96; p.vy *= 0.96; p.s += dt * 4; }
+    else { p.vx *= 0.94; p.vy *= 0.94; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+  }
+  M.parts = M.parts.filter(p => p.t < p.T);
+  for (const f of M.fx) f.t += dt; M.fx = M.fx.filter(f => f.t < f.T);
+}
+function endIncident(win, why) {
+  if (M.over) return; M.over = true; M.overT = 0; fireStats(M);
+  const L = M.L, st = M.stats, stars = win ? 1 + (st.lost <= L.stars.lost && st.trapped === 0 ? 1 : 0) + (st.acres <= L.stars.acres ? 1 : 0) : 0;
+  const saved = M.map.houses.length - st.lost;
+  const score = Math.max(0, Math.round((win ? 3000 : 600) + saved * 120 - st.lost * 260 - st.acres * 0.6 - st.trapped * 600 - Math.round(M.pspsT) * 4 - st.unitsLost * 300 + (win ? Math.max(0, L.limit - M.t) * 6 : 0) + (L.red ? (L.lvl || 0) * 800 : 0)));
+  M.result = { win, why, stars, score, saved };
+  if (L.red) { if (win) { SAVE.redRun = (SAVE.redRun || 0) + score; } SAVE.red = Math.max(SAVE.red || 0, (SAVE.redRun || 0) + (win ? 0 : score)); }
+  else { const k = L.id; SAVE.stars[k] = Math.max(SAVE.stars[k] || 0, stars); SAVE.best[k] = Math.max(SAVE.best[k] || 0, score); }
+  saveNow();
+  news(M, win ? L.name + ' 100% CONTAINED' : why === 'time' || why === 'acres' ? L.name + ' ESCAPES INITIAL ATTACK; STATE TAKES COMMAND' : L.name + ' DESTROYS ' + st.lost + ' HOMES; COMMAND TRANSFERRED', 3);
+  sfx(win ? 'win' : 'over'); announce(win ? 'Fire contained' : 'Incident lost');
+  later(() => { if (M && M.over && game.state === 'play') game.state = 'result'; }, 2.2);
+}
+// ---------- AI COMMANDER: drives the title-screen demo and the balance sims ----------
+function headCells(M, n) {
+  const w = windNow(M), out = [];
+  for (const i of M.burning) { const x = cellX(i % GW), y = cellY((i / GW) | 0); let s = x * w.ux + y * w.uy; for (const h of M.map.hoods) { const d = Math.hypot(h.cx - x, h.cy - y); if (d < 140) s += (140 - d) * 1.4; } out.push([s, i]); }
+  out.sort((a, b) => b[0] - a[0]); return out.slice(0, n).map(q => q[1]);
+}
+function botCommand(M, skill) {
+  if (!M.burning.length) return;
+  const w = windNow(M), heads = headCells(M, 30), err = (1 - skill) * 30;
+  const used = new Set();
+  for (const u of M.units) {
+    if (u.out) continue;
+    if (isHeli(u) && (u.mode === 'idle' || u.mode === 'home') && heads.length) {
+      let tgt = heads.find(i => !used.has(i)) ?? heads[0]; used.add(tgt); for (const j of heads) if (Math.abs((j % GW) - (tgt % GW)) < 5 && Math.abs(((j / GW) | 0) - ((tgt / GW) | 0)) < 5) used.add(j);
+      if (Math.random() < skill) orderHeli(M, u, cellX(tgt % GW) + (Math.random() - 0.5) * err, cellY((tgt / GW) | 0) + (Math.random() - 0.5) * err);
+    }
+    if (u.type === 'engine' && (u.mode === 'deploy' || u.mode === 'idle') && !u.retreat && Math.random() < skill * 0.6) {
+      const near = nearestBurning(M, u.x, u.y, 6);
+      if (near < 0) { let best = null, bd = 1e9; for (const h of M.map.hoods) { if (!h.threat) continue; const taken = M.units.some(q => q !== u && q.type === 'engine' && !q.out && Math.hypot(q.x - h.cx, q.y - h.cy) < 50); const d = Math.hypot(h.cx - u.x, h.cy - u.y) + (taken ? 400 : 0); if (d < bd) { bd = d; best = h; } }
+        if (best) { const hc = M.map.houses[best.houses[Math.floor(Math.random() * best.houses.length)]]; orderEngine(M, u, cellX(hc.c), cellY(hc.r)); }
+        else if (heads.length) { const t = heads[Math.floor(Math.random() * Math.min(6, heads.length))]; orderEngine(M, u, cellX(t % GW), cellY((t / GW) | 0)); } }
+    }
+    if (u.type === 'crew' && u.mode === 'idle' && !u.retreat && heads.length && Math.random() < skill * 0.5) {
+      const t = heads[Math.floor(Math.random() * heads.length)], x = cellX(t % GW) + w.ux * 40, y = cellY((t / GW) | 0) + w.uy * 40, px = -w.uy, py = w.ux, L = 40;
+      orderCrew(M, u, x, y, { ax: x - px * L, ay: y - py * L, bx: x + px * L, by: y + py * L });
+    }
+  }
+  if (!isNight(M) && heads.length) {
+    const h = heads[0], hx = cellX(h % GW), hy = cellY((h / GW) | 0), px = -w.uy, py = w.ux;
+    if (airReady(M, 'scoop') && Math.random() < skill) { const L = 70; dispatchAir(M, 'scoop', hx - px * L + w.ux * 6, hy - py * L + w.uy * 6, hx + px * L + w.ux * 6, hy + py * L + w.uy * 6); }
+    if (airReady(M, 'tanker') && Math.random() < skill) { const L = 140, ox = hx + w.ux * 50, oy = hy + w.uy * 50; dispatchAir(M, 'tanker', ox - px * L, oy - py * L, ox + px * L, oy + py * L); }
+  }
+  for (const hd of M.map.hoods) if (!hd.evac && hd.threat && Math.random() < skill) orderEvac(M, hd);
+  if (M.map.power.length && windNow(M).spd > 34 && !M.psps && Math.random() < skill * 0.3) M.psps = true;
+}
+
+// ---------- RENDER: painted map, char + water overlays, flames, smoke, aircraft, night ----------
+function updateOverlay(M, t) {
+  const d = M.ovd.data, st = M.st, fuel = M.map.fuel, f0 = M.map.fuel0;
+  for (let i = 0; i < st.length; i++) {
+    const o = i * 4; let r = 0, g = 0, b = 0, a = 0;
+    if (st[i] === 2) { const n = hash(i, 7) * 18; r = 26 + n; g = 22 + n * 0.8; b = 20 + n * 0.7; a = 228; }
+    else if (st[i] === 1) { const k = M.burnT[i] / M.burnMax[i]; r = 70 + 60 * k; g = 22; b = 10; a = 220; }
+    else if (fuel[i] === F.CUT && f0[i] !== F.CUT) { r = 150; g = 116; b = 76; a = 200; }
+    if (st[i] !== 1) {
+      const rt = M.ret[i], wt = Math.min(1, M.wet[i]);
+      if (rt > 0.02) { const k = Math.min(1, rt * 1.2) * 0.8; r = lerp(r, 236, k); g = lerp(g, 70, k); b = lerp(b, 130, k); a = Math.max(a, 200 * Math.min(1, rt * 1.5)); }
+      else if (wt > 0.05 && fuel[i] !== F.WATER) { const k = wt * 0.55; r = lerp(r || 40, 30, k); g = lerp(g || 60, 70, k); b = lerp(b || 80, 110, k); a = Math.max(a, 150 * wt); }
+    }
+    d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = a;
+  }
+  M.ovg.putImageData(M.ovd, 0, 0);
+}
+function drawWorld(t) {
+  const m = M.map, nk = nightK(M);
+  cx.save();
+  if (game.shake > 0 && !RMOTION) cx.translate((Math.random() - 0.5) * game.shake * 6, (Math.random() - 0.5) * game.shake * 6);
+  cx.beginPath(); cx.rect(0, MY, MAPW, MAPH); cx.clip();
+  cx.translate(0, MY);
+  cx.drawImage(M.base, 0, 0, MAPW, MAPH);
+  // animated sea glints
+  cx.save(); cx.globalAlpha = 0.25 * (1 - nk * 0.7); cx.strokeStyle = '#bfe8ff'; cx.lineWidth = 0.7;
+  for (let k = 0; k < 40; k++) { const i = m.water[(k * 7919) % Math.max(1, m.water.length)]; if (i == null) break; const x = cellX(i % GW) + Math.sin(t * 0.6 + k) * 4, y = cellY((i / GW) | 0); cx.beginPath(); cx.moveTo(x - 3, y); cx.lineTo(x + 3, y); cx.stroke(); }
+  cx.restore();
+  updateOverlay(M, t);
+  cx.imageSmoothingEnabled = true; cx.drawImage(M.ov, 0, 0, MAPW, MAPH);
+  // houses: burning / destroyed / saved
+  for (const h of m.houses) {
+    const x = cellX(h.c), y = cellY(h.r), s = M.st[h.i];
+    if (h.state === 2 || (s === 2)) { cx.fillStyle = '#1a1512'; cx.fillRect(x - 3, y - 2.5, 6, 5); cx.fillStyle = 'rgba(120,100,90,0.6)'; cx.fillRect(x - 2, y - 1, 1.5, 1.5); cx.fillRect(x + 0.5, y + 0.5, 1.5, 1.2); if (M.t % 1 < 2) glowAt(x, y, 4, '#ff5a1f', 0.25 + 0.15 * Math.sin(t * 5 + h.rand * 9)); }
+    else if (h.dmg) { cx.strokeStyle = 'rgba(60,255,122,0.55)'; cx.lineWidth = 0.8; cx.strokeRect(x - 3.5, y - 3, 7, 6); }
+  }
+  // cut-line plans (dashed) + crews' finished lines are in the overlay
+  for (const p of M.plans) { cx.fillStyle = 'rgba(255,210,63,0.35)'; for (const i of p.cells) cx.fillRect((i % GW) * CS + 2, ((i / GW) | 0) * CS + 2, 2, 2); }
+  // power lines
+  for (const pl of m.power) {
+    cx.strokeStyle = M.psps ? 'rgba(120,120,130,0.5)' : 'rgba(30,30,34,0.8)'; cx.lineWidth = 0.8; cx.beginPath(); pl.pts.forEach((p, k) => k ? cx.lineTo(p[0], p[1]) : cx.moveTo(p[0], p[1])); cx.stroke();
+    for (let k = 0; k < pl.cells.length; k += 7) { const p = pl.cells[k]; cx.fillStyle = '#2a2420'; cx.fillRect(p[0] - 1, p[1] - 1, 2.2, 2.2); }
+  }
+  // ground vehicles
+  for (const c of M.cars) { cx.save(); cx.translate(c.x, c.y); cx.rotate(c.ang); cx.fillStyle = 'rgba(0,0,0,0.4)'; cx.fillRect(-2, -1, 5, 3); cx.fillStyle = c.col; cx.fillRect(-2.5, -1.4, 5, 2.8); cx.fillStyle = 'rgba(150,200,255,0.6)'; cx.fillRect(0.6, -1, 1, 2); cx.restore(); }
+  for (const u of M.units) if (u.type === 'engine') drawEngine(u, t); else if (u.type === 'crew') drawCrew(u, t);
+  // flames
+  drawFlames(t, 1);
+  // embers
+  for (const e of M.embers) { glowAt(e.x, e.y, 4, '#ffb347', 0.8); cx.fillStyle = '#fff3b0'; cx.fillRect(e.x - 0.6, e.y - 0.6, 1.3, 1.3); }
+  // smoke + mist
+  for (const p of M.parts) {
+    const k = p.t / p.T;
+    if (p.k === 'smoke') { cx.globalAlpha = Math.sin(k * Math.PI) * 0.36 * (1 - nk * 0.4); cx.drawImage(SMOKE[(p.rot * 10 | 0) % 3], p.x - p.s, p.y - p.s, p.s * 2, p.s * 2); }
+    else if (p.k === 'mist') { cx.globalAlpha = (1 - k) * 0.5; cx.fillStyle = p.col || '#d8f0ff'; cx.beginPath(); cx.arc(p.x, p.y, p.s * 0.5, 0, 6.29); cx.fill(); }
+    else if (p.k === 'spray') { cx.globalAlpha = (1 - k) * 0.8; cx.fillStyle = '#e8f8ff'; cx.fillRect(p.x, p.y, p.s * 0.6, p.s * 0.6); }
+    else if (p.k === 'dust') { cx.globalAlpha = (1 - k) * 0.5; cx.fillStyle = '#c9a676'; cx.beginPath(); cx.arc(p.x, p.y, p.s * (0.5 + k), 0, 6.29); cx.fill(); }
+  }
+  cx.globalAlpha = 1;
+  // NIGHT: darken, then put the light back (flames, embers, homes, beacons, searchlights)
+  if (nk > 0) {
+    cx.fillStyle = 'rgba(6,10,30,' + (0.62 * nk) + ')'; cx.fillRect(0, 0, MAPW, MAPH);
+    drawFlames(t, nk);
+    for (const h of m.houses) if (h.state !== 2 && M.st[h.i] === 0 && !(M.map.hoods[h.hood] && M.map.hoods[h.hood].evac === 2)) glowAt(cellX(h.c), cellY(h.r), 5, '#ffd27a', 0.35 * nk);
+    for (const e of M.embers) glowAt(e.x, e.y, 5, '#ff9a3c', nk);
+    for (const c of M.cars) { glowAt(c.x + Math.cos(c.ang) * 4, c.y + Math.sin(c.ang) * 4, 6, '#fff6d0', 0.5 * nk); glowAt(c.x - Math.cos(c.ang) * 3, c.y - Math.sin(c.ang) * 3, 3, '#ff2020', 0.6 * nk); }
+    for (const u of M.units) if (u.type === 'engine' && !u.out) glowAt(u.x, u.y, 7, Math.sin(t * 12 + u.lights * 6) > 0 ? '#ff2a2a' : '#3a6aff', 0.8 * nk);
+  }
+  // fx rings / arcs
+  for (const f of M.fx) { const k = f.t / f.T; if (f.kind === 'ring') { cx.strokeStyle = rgba(f.col, (1 - k) * 0.7); cx.lineWidth = 1.5; cx.beginPath(); cx.arc(f.x, f.y, f.r * (0.5 + k * 0.7), 0, 6.29); cx.stroke(); } else if (f.kind === 'arc') { glowAt(f.x, f.y, 26 * (1 - k), '#9fd8ff', 1); cx.strokeStyle = '#e8f6ff'; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(f.x, f.y); for (let s = 0; s < 4; s++) cx.lineTo(f.x + (Math.random() - 0.5) * 14, f.y + (Math.random() - 0.5) * 14); cx.stroke(); } }
+  // aircraft (with ground shadows)
+  for (const u of M.units) if (isHeli(u)) drawHeli(u, t, nk);
+  for (const f of M.flights) drawPlane(f, t, nk);
+  drawOrders(t);
+  drawHoodLabels(t);
+  cx.restore();
+}
+function drawFlames(t, a) {
+  const B = M.burning, rm = RMOTION ? 0 : 1, big = B.length > 900;
+  cx.globalCompositeOperation = 'lighter';
+  for (let n = 0; n < B.length; n++) {
+    const i = B[n], I = M.inten[i]; if (I <= 0.02) continue;
+    const x = cellX(i % GW) + (hash(i, 3) - 0.5) * 4, y = cellY((i / GW) | 0) + (hash(i, 5) - 0.5) * 4, fl = 0.75 + 0.25 * Math.sin(t * 11 + i * 1.7) * rm, s = (4 + I * 5) * fl;
+    if (!big || n % 2 === 0) { cx.globalAlpha = 0.32 * a * Math.min(1, I + 0.2); cx.drawImage(glowOf('#ff5a14'), x - s * 2.6, y - s * 2.6, s * 5.2, s * 5.2); }
+    cx.globalAlpha = Math.min(0.75, 0.3 + I * 0.35) * a; cx.drawImage(FIRE, x - s, y - s * 1.3, s * 2, s * 2);
+    if (M.age[i] < 1.2) { cx.globalAlpha = 0.5 * a * (1 - M.age[i] / 1.2); cx.drawImage(glowOf('#ffd23f'), x - s * 0.9, y - s * 1.1, s * 1.8, s * 1.8); }
+  }
+  cx.globalAlpha = 1; cx.globalCompositeOperation = 'source-over';
+}
+function drawEngine(u, t) {
+  cx.save(); cx.translate(u.x, u.y); cx.rotate(u.ang);
+  if (u.out) { cx.fillStyle = '#222'; cx.fillRect(-5, -2.5, 10, 5); cx.restore(); return; }
+  cx.fillStyle = 'rgba(0,0,0,0.45)'; cx.fillRect(-4.5, -2, 10, 5.4);
+  cx.fillStyle = lin(cx, 0, -2.6, 0, 2.6, [[0, '#ff6a5a'], [1, '#a01818']]); rrect(cx, -5.5, -2.6, 11, 5.2, 1); cx.fill();
+  cx.fillStyle = '#e8e8ea'; cx.fillRect(2.5, -2.2, 2.4, 4.4); cx.fillStyle = Math.sin(t * 12 + u.lights * 6) > 0 ? '#ff4040' : '#5a8aff'; cx.fillRect(1.6, -2.4, 0.9, 4.8);
+  cx.restore();
+  if (u.spray) { cx.strokeStyle = 'rgba(200,235,255,0.75)'; cx.lineWidth = 1.2; cx.setLineDash([2, 2]); cx.lineDashOffset = -t * 30; cx.beginPath(); cx.moveTo(u.x, u.y); cx.quadraticCurveTo((u.x + u.spray.x) / 2, (u.y + u.spray.y) / 2 - 8, u.spray.x, u.spray.y); cx.stroke(); cx.setLineDash([]); }
+  unitBadge(u);
+}
+function drawCrew(u, t) {
+  if (u.out) return;
+  for (let k = 0; k < 5; k++) { const a = k * 1.256 + u.id, x = u.x + Math.cos(a) * 3, y = u.y + Math.sin(a) * 2.4 + (u.mode === 'cutting' ? Math.sin(t * 14 + k) * 0.6 : 0); cx.fillStyle = 'rgba(0,0,0,0.4)'; cx.beginPath(); cx.arc(x + 0.7, y + 0.8, 1.4, 0, 6.29); cx.fill(); cx.fillStyle = '#ffd23f'; cx.beginPath(); cx.arc(x, y, 1.4, 0, 6.29); cx.fill(); cx.fillStyle = '#7a5a10'; cx.fillRect(x - 0.4, y - 0.4, 0.8, 0.8); }
+  unitBadge(u);
+}
+function unitBadge(u) {
+  const sel = M.sel === u, hp = u.hp;
+  if (sel) { cx.strokeStyle = '#3cff7a'; cx.lineWidth = 1.4; cx.beginPath(); cx.arc(u.x, u.y, 9, 0, 6.29); cx.stroke(); }
+  cx.font = '800 6.5px ' + FONT; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = 'rgba(0,0,0,0.55)'; cx.fillRect(u.x - 7, u.y - 15, 14, 7); cx.fillStyle = sel ? '#3cff7a' : '#fff'; cx.fillText(u.label, u.x, u.y - 11.4);
+  if (hp < 0.99) { cx.fillStyle = 'rgba(0,0,0,0.6)'; cx.fillRect(u.x - 7, u.y - 7.8, 14, 1.8); cx.fillStyle = hp > 0.5 ? '#3cff7a' : hp > 0.3 ? '#ffd23f' : '#ff3b3b'; cx.fillRect(u.x - 7, u.y - 7.8, 14 * hp, 1.8); }
+  if (u.type === 'engine' && u.tank < 0.99) { cx.fillStyle = 'rgba(0,0,0,0.6)'; cx.fillRect(u.x - 7, u.y + 6, 14, 1.6); cx.fillStyle = '#5ac8ff'; cx.fillRect(u.x - 7, u.y + 6, 14 * Math.max(0, u.tank), 1.6); }
+}
+function drawHeli(u, t, nk) {
+  const sky = u.type === 'sky', L = sky ? 13 : 10, alt = 14;
+  // shadow on the ground
+  cx.save(); cx.translate(u.x + 7, u.y + alt); cx.rotate(u.ang); cx.fillStyle = 'rgba(0,0,0,0.25)'; cx.beginPath(); cx.ellipse(0, 0, L * 0.6, 2.6, 0, 0, 6.29); cx.fill(); cx.fillRect(-L, -0.7, L * 0.6, 1.4); cx.restore();
+  // night searchlight
+  if (nk > 0.2) { cx.save(); cx.globalCompositeOperation = 'lighter'; cx.globalAlpha = 0.18 * nk; cx.fillStyle = radg(cx, u.x, u.y + 18, 0, u.x, u.y + 18, 18, [[0, '#fffbe0'], [1, 'rgba(255,250,220,0)']]); cx.beginPath(); cx.arc(u.x, u.y + 18, 18, 0, 6.29); cx.fill(); cx.restore(); }
+  cx.save(); cx.translate(u.x, u.y); cx.rotate(u.ang);
+  const col = SPEC[u.type].col;
+  cx.fillStyle = shade(col, -0.3); cx.fillRect(-L, -0.9, L * 0.7, 1.8); cx.fillRect(-L - 1, -2.4, 1.6, 4.8);
+  cx.fillStyle = lin(cx, 0, -3, 0, 3, [[0, shade(col, 0.35)], [1, shade(col, -0.4)]]); cx.beginPath(); cx.ellipse(1, 0, L * 0.42, sky ? 2.4 : 3, 0, 0, 6.29); cx.fill();
+  cx.fillStyle = 'rgba(160,220,255,0.85)'; cx.beginPath(); cx.ellipse(L * 0.38, 0, 1.6, 1.8, 0, 0, 6.29); cx.fill();
+  if (u.load > 0.05) { cx.fillStyle = sky ? '#4a4a50' : '#e8e8e8'; cx.fillRect(-2, -1.6, 4, 3.2); }
+  // rotor disc
+  cx.globalAlpha = 0.28; cx.fillStyle = '#d0d8e0'; cx.beginPath(); cx.arc(0.5, 0, L * 0.8, 0, 6.29); cx.fill(); cx.globalAlpha = 0.8; cx.strokeStyle = 'rgba(30,30,34,0.8)'; cx.lineWidth = 0.9;
+  const ra = u.rot; cx.beginPath(); for (let k = 0; k < (sky ? 6 : 4); k++) { const a = ra + k * Math.PI * 2 / (sky ? 6 : 4); cx.moveTo(0.5, 0); cx.lineTo(0.5 + Math.cos(a) * L * 0.8, Math.sin(a) * L * 0.8); } cx.stroke();
+  cx.restore(); cx.globalAlpha = 1;
+  if (nk > 0.2) { glowAt(u.x - Math.cos(u.ang) * L, u.y - Math.sin(u.ang) * L, 4, Math.sin(t * 8 + u.id) > 0.6 ? '#ff2020' : '#000', nk); }
+  if (u.mode === 'go' && u.tgt) { /* target line drawn in drawOrders */ }
+  // bucket / tank load meter
+  cx.fillStyle = 'rgba(0,0,0,0.55)'; cx.fillRect(u.x - 7, u.y + 9, 14, 1.8); cx.fillStyle = '#5ac8ff'; cx.fillRect(u.x - 7, u.y + 9, 14 * u.load, 1.8);
+  unitBadge(u);
+}
+function drawPlane(f, t, nk) {
+  const tank = f.kind === 'tanker', L = tank ? 22 : 15, Wg = tank ? 26 : 20;
+  cx.save(); cx.translate(f.x + 14, f.y + 26); cx.rotate(f.ang); cx.fillStyle = 'rgba(0,0,0,0.22)'; cx.fillRect(-L / 2, -1.6, L, 3.2); cx.fillRect(-2, -Wg / 2, 5, Wg); cx.restore();
+  cx.save(); cx.translate(f.x, f.y); cx.rotate(f.ang);
+  const body = tank ? '#f2f2f2' : '#ffd23f', trim = tank ? '#e03030' : '#d8202a';
+  cx.fillStyle = lin(cx, 0, -Wg / 2, 0, Wg / 2, [[0, shade(body, -0.2)], [0.5, body], [1, shade(body, -0.35)]]);
+  cx.beginPath(); cx.moveTo(1, -Wg / 2); cx.lineTo(4, -Wg / 2); cx.lineTo(5, -1.5); cx.lineTo(5, 1.5); cx.lineTo(4, Wg / 2); cx.lineTo(1, Wg / 2); cx.lineTo(0, 1.5); cx.lineTo(0, -1.5); cx.closePath(); cx.fill();
+  cx.fillStyle = body; rrect(cx, -L / 2, -2, L, 4, 2); cx.fill(); cx.fillStyle = trim; cx.fillRect(-L / 2, -0.5, L, 1);
+  cx.fillStyle = body; cx.fillRect(-L / 2, -5, 2.4, 10); cx.fillStyle = trim; cx.fillRect(-L / 2, -5, 1.2, 10);
+  if (tank) { cx.fillStyle = '#9a9aa0'; for (const s of [-1, 1]) { cx.fillRect(2, s * 7 - 1, 4, 2); } cx.fillRect(-L / 2 + 1, -1, 3, 2); }
+  else { cx.fillStyle = '#d8202a'; for (const s of [-1, 1]) cx.fillRect(2.5, s * 5 - 1, 3, 2); }
+  cx.fillStyle = 'rgba(60,120,180,0.9)'; cx.fillRect(L / 2 - 2.5, -1.2, 1.6, 2.4);
+  cx.restore();
+  if (nk > 0.2) glowAt(f.x, f.y, 5, '#ff3030', nk * (Math.sin(t * 9) > 0 ? 1 : 0.2));
+}
+function drawOrders(t) {
+  const u = M.sel;
+  if (u && !u.out) {
+    let tx = null, ty = null;
+    if (isHeli(u) && u.tgt && (u.mode === 'go' || u.mode === 'water' || u.mode === 'fill') && !u.thenHome) { tx = u.tgt.x; ty = u.tgt.y; }
+    if ((u.type === 'engine' || u.type === 'crew') && u.path && u.path.length) { const g = u.path[u.path.length - 1]; tx = cellX(g % GW); ty = cellY((g / GW) | 0); }
+    if (tx != null) { cx.strokeStyle = 'rgba(60,255,122,0.6)'; cx.setLineDash([4, 4]); cx.lineDashOffset = -t * 20; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(u.x, u.y); cx.lineTo(tx, ty); cx.stroke(); cx.setLineDash([]); cx.beginPath(); cx.arc(tx, ty, 5 + Math.sin(t * 6) * 1.5, 0, 6.29); cx.stroke(); }
+    if (u.type === 'crew' && u.path && u.path.length) { cx.strokeStyle = 'rgba(255,210,63,0.4)'; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(u.x, u.y); for (const p of u.path) cx.lineTo(cellX(p % GW), cellY((p / GW) | 0)); cx.stroke(); }
+  }
+  // hover target ring for heli drops
+  const mp = mapPtr();
+  if (game.state === 'play' && mp && !M.over) {
+    if (M.sel && isHeli(M.sel)) { cx.strokeStyle = 'rgba(140,210,255,0.7)'; cx.lineWidth = 1; cx.beginPath(); cx.arc(mp.x, mp.y, SPEC[M.sel.type].r * CS, 0, 6.29); cx.stroke(); }
+    if (M.drag && M.drag.kind) drawDragLine(M.drag, t);
+  }
+}
+function drawDragLine(d, t) {
+  const s = SPEC[d.kind] || { len: 70, r: 1 }; let dx = d.bx - d.ax, dy = d.by - d.ay, L = Math.hypot(dx, dy); const maxL = (s.len || 70) * CS;
+  let bx = d.bx, by = d.by; if (L > maxL) { bx = d.ax + dx / L * maxL; by = d.ay + dy / L * maxL; }
+  const col = d.kind === 'tanker' ? '#ff4fa0' : d.kind === 'scoop' ? '#7fd4ff' : '#ffd23f';
+  cx.save(); cx.lineCap = 'round'; cx.strokeStyle = rgba(col, 0.25); cx.lineWidth = (s.r || 1) * CS * 2; cx.beginPath(); cx.moveTo(d.ax, d.ay); cx.lineTo(bx, by); cx.stroke();
+  cx.strokeStyle = col; cx.lineWidth = 1.5; cx.setLineDash([6, 4]); cx.lineDashOffset = -t * 30; cx.beginPath(); cx.moveTo(d.ax, d.ay); cx.lineTo(bx, by); cx.stroke(); cx.setLineDash([]);
+  const a = Math.atan2(by - d.ay, bx - d.ax); cx.fillStyle = col; cx.beginPath(); cx.moveTo(bx + Math.cos(a) * 7, by + Math.sin(a) * 7); cx.lineTo(bx + Math.cos(a + 2.5) * 6, by + Math.sin(a + 2.5) * 6); cx.lineTo(bx + Math.cos(a - 2.5) * 6, by + Math.sin(a - 2.5) * 6); cx.fill();
+  cx.font = '800 9px ' + FONT; cx.fillStyle = '#fff'; cx.textAlign = 'center'; cx.fillText(L > maxL ? 'MAX LENGTH' : Math.round(Math.min(L, maxL) / CS * 30) + ' m', (d.ax + bx) / 2, (d.ay + by) / 2 - 10);
+  cx.restore();
+}
+function drawHoodLabels(t) {
+  const evacMode = M.tool === 'evac';
+  for (const h of M.map.hoods) {
+    const total = h.houses.length, lost = h.lost, x = h.lx, y = h.ly - 14;
+    const col = h.evac === 2 ? '#3cff7a' : h.evac === 1 ? '#ffd23f' : h.threat ? '#ff3b3b' : '#e8e8e8';
+    const label = h.name + '  ' + (total - lost) + '/' + total, wdt = Math.max(70, label.length * 5.2 + 10);
+    if (!M.demo && (evacMode || h.threat || game.state !== 'play')) {
+      cx.save(); cx.globalAlpha = evacMode || h.threat ? 1 : 0.75; const pulse = h.threat && !h.evac ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
+      cx.fillStyle = 'rgba(8,10,16,0.78)'; rrect(cx, x - wdt / 2, y - 7, wdt, 14, 4); cx.fill(); cx.strokeStyle = rgba(col, 0.5 + pulse * 0.5); cx.lineWidth = 1 + pulse; cx.stroke();
+      cx.font = '800 7.5px ' + FONT; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = col; cx.fillText(label, x, y + 0.5);
+      const tag = h.evac === 2 ? 'EVACUATED' : h.evac === 1 ? 'EVACUATING' : evacMode ? 'CLICK: ORDER EVAC' : h.threat ? 'THREATENED' : '';
+      if (tag) { cx.font = '900 6.5px ' + FONT; cx.fillStyle = rgba(col, 0.9); cx.fillText(tag, x, y + 12); }
+      cx.restore();
+      if (game.state === 'play' && evacMode && !h.evac) UI.push({ id: 'hood' + h.i, x: x - wdt / 2, y: y - 7 + MY, w: wdt, h: 22, fn: () => { orderEvac(M, h); M.tool = null; } });
+    }
+  }
+}
+
+// ---------- UI: map input, HUD, toolbar, news chyron, menus ----------
+const TB_Y = 462, CH_Y = 514;
+function mapPtr() { if (!ptr.seen || ptr.y < MY || ptr.y > MY + MAPH) return null; return { x: ptr.x, y: ptr.y - MY }; }
+function unitAt(x, y) { let best = null, bd = 11; for (const u of M.units) { if (u.out) continue; const d = Math.hypot(u.x - x, u.y - y); if (d < bd) { bd = d; best = u; } } return best; }
+function cycleUnit(types) {
+  const list = M.units.filter(u => types.includes(u.type) && !u.out); if (!list.length) { sfx('deny'); return; }
+  const idle = list.filter(u => u.mode === 'idle' || u.mode === 'deploy' || u.mode === 'home');
+  const pool = idle.length ? idle : list, i = M.sel ? pool.indexOf(M.sel) : -1;
+  M.sel = pool[(i + 1) % pool.length]; M.tool = null; M.lineA = null; sfx('select');
+}
+function setTool(k) {
+  if ((k === 'scoop' || k === 'tanker') && isNight(M)) { toast('Fixed-wing aircraft are grounded at night', '#ff9a1f'); sfx('deny'); return; }
+  if ((k === 'scoop' || k === 'tanker') && !M.air.some(a => a.kind === k)) { toast('No ' + SPEC[k].name + ' assigned to this incident', '#ff9a1f'); sfx('deny'); return; }
+  M.tool = M.tool === k ? null : k; M.sel = null; M.lineA = null; sfx('select');
+}
+function togglePSPS() {
+  if (!M.map.power.length) { toast('No power lines in this area', '#ff9a1f'); sfx('deny'); return; }
+  M.psps = !M.psps; sfx(M.psps ? 'spark' : 'select');
+  news(M, M.psps ? custOut(M).toLocaleString() + ' CUSTOMERS LOSE POWER AS UTILITY DE-ENERGIZES LINES' : 'POWER RESTORED TO ' + custOut(M).toLocaleString() + ' CUSTOMERS', 2);
+}
+function setSpeed() { M.speed = M.speed >= 3 ? 1 : M.speed + 1; sfx('tick'); }
+function handlePlayInput() {
+  if (pressed.hold) { M.hold = !M.hold; sfx('tick'); announce(M.hold ? 'Tactical pause' : 'Resumed'); }
+  if (pressed.speed) setSpeed();
+  if (pressed.t1) cycleUnit(['heli', 'sky']);
+  if (pressed.t2) setTool('scoop');
+  if (pressed.t3) setTool('tanker');
+  if (pressed.t4) cycleUnit(['engine']);
+  if (pressed.t5) cycleUnit(['crew']);
+  if (pressed.t6) setTool('evac');
+  if (pressed.t7) togglePSPS();
+  if (pressed.tab) cycleUnit(['heli', 'sky', 'engine', 'crew']);
+  if (pressed.toolNext || pressed.toolPrev) { const order = ['h', 'scoop', 'tanker', 'e', 'c', 'evac']; M.padTool = ((M.padTool || 0) + (pressed.toolNext ? 1 : order.length - 1)) % order.length; const k = order[M.padTool]; if (k === 'h') cycleUnit(['heli', 'sky']); else if (k === 'e') cycleUnit(['engine']); else if (k === 'c') cycleUnit(['crew']); else setTool(k); }
+  if (pressed.rclick) { if (M.tool || M.sel) { M.tool = null; M.sel = null; M.lineA = null; M.drag = null; M.press = null; sfx('tick'); } }
+  const mp = mapPtr();
+  if (pressed.down && !ptr.onUI && mp) {
+    M.press = { x: mp.x, y: mp.y };
+    const dk = M.tool === 'scoop' || M.tool === 'tanker' ? M.tool : (M.sel && M.sel.type === 'crew' ? 'cut' : null);
+    M.drag = dk ? { kind: dk, ax: (M.lineA && M.lineA.x) || mp.x, ay: (M.lineA && M.lineA.y) || mp.y, bx: mp.x, by: mp.y } : null;
+    if (M.lineA) M.drag.two = true;
+  }
+  if (M.press && ptr.down && mp && M.drag) { M.drag.bx = mp.x; M.drag.by = clamp(ptr.y - MY, 0, MAPH); }
+  if (pressed.up && M.press) {
+    const p = M.press, up = { x: clamp(ptr.x, 0, MAPW), y: clamp(ptr.y - MY, 0, MAPH) }, moved = Math.hypot(up.x - p.x, up.y - p.y);
+    M.press = null; const d = M.drag; M.drag = null;
+    if (M.tool === 'scoop' || M.tool === 'tanker') {
+      if (moved > 14 || M.lineA) { const a = M.lineA || p; if (dispatchAir(M, M.tool, a.x, a.y, up.x, up.y)) { toast(SPEC[M.tool].name + ' inbound', M.tool === 'tanker' ? '#ff4fa0' : '#7fd4ff'); if (!airReady(M, M.tool)) M.tool = null; } else { toast('No ' + SPEC[M.tool].name + ' ready', '#ff9a1f'); sfx('deny'); } M.lineA = null; }
+      else { M.lineA = p; toast('Now tap the END of the drop line', '#7fd4ff', 1.6); }
+    } else if (M.tool === 'evac') {
+      let best = null, bd = 1e9; for (const h of M.map.hoods) { const dd = Math.hypot(h.cx - up.x, h.cy - up.y); if (dd < h.lr + 26 && dd < bd) { bd = dd; best = h; } }
+      if (best && !best.evac) { orderEvac(M, best); M.tool = null; } else sfx('deny');
+    } else {
+      const hit = moved < 10 ? unitAt(up.x, up.y) : null;
+      if (hit && hit !== M.sel) { M.sel = hit; sfx('select'); }
+      else if (M.sel && !M.sel.out) {
+        const u = M.sel; let ok = true;
+        if (isHeli(u)) orderHeli(M, u, up.x, up.y);
+        else if (u.type === 'engine') { ok = orderEngine(M, u, up.x, up.y); if (!ok) toast('Engines need a road: click closer to one', '#ff9a1f'); }
+        else if (u.type === 'crew') ok = moved > 14 && d ? orderCrew(M, u, 0, 0, { ax: d.ax, ay: d.ay, bx: up.x, by: up.y }) : orderCrew(M, u, up.x, up.y);
+        if (ok) { sfx('ack'); M.fx.push({ kind: 'ring', x: up.x, y: up.y, r: 10, t: 0, T: 0.5, col: '#3cff7a' }); if (u.type === 'engine' && Math.random() < 0.5) sfx('siren'); } else sfx('deny');
+      } else if (hit) { M.sel = hit; }
+    }
+  }
+}
+// ---------------- HUD ----------------
+function drawHUD(t) {
+  const st = M.stats, L = M.L, nk = nightK(M);
+  // top bar
+  cx.fillStyle = lin(cx, 0, 0, 0, MY, [[0, '#120a06'], [1, '#07060a']]); cx.fillRect(0, 0, W, MY); cx.fillStyle = 'rgba(255,140,40,0.35)'; cx.fillRect(0, MY - 1, W, 1);
+  cloverLogo(16, 15, 12);
+  txt(L.name, 32, 10.5, 12, '#fff', 'left', 900); txt(L.place, 32, 22, 8.5, 'rgba(255,255,255,0.55)', 'left', 700);
+  const chip = (x, w, lab, val, col) => { cx.fillStyle = 'rgba(255,255,255,0.05)'; rrect(cx, x, 4, w, 22, 6); cx.fill(); txt(lab, x + 7, 10.5, 7, 'rgba(255,255,255,0.5)', 'left', 800); txt(val, x + 7, 20, 11, col || '#fff', 'left', 900); };
+  chip(214, 74, 'ACRES / ' + (L.maxAcres ? (L.maxAcres / 1000).toFixed(1) + 'K' : '-'), st.acres.toLocaleString(), L.maxAcres && st.acres > L.maxAcres * 0.75 ? '#ff3b3b' : st.acres > L.stars.acres ? '#ff9a1f' : '#fff');
+  chip(292, 74, 'CONTAINED', Math.round(st.cont * 100) + '%', st.cont > 0.7 ? '#3cff7a' : st.cont > 0.35 ? '#ffd23f' : '#ff6a3c');
+  chip(370, 92, 'HOMES LOST / LIMIT', st.lost + ' / ' + L.maxLost, st.lost > L.stars.lost ? '#ff3b3b' : '#fff');
+  chip(466, 70, 'ACTIVE FIRE', M.burning.length ? Math.round(M.burning.length * 1.6) + ' ac' : 'OUT', M.burning.length > 300 ? '#ff3b3b' : '#ffb347');
+  // clock + period remaining
+  const left = Math.max(0, L.limit - M.t);
+  chip(540, 98, nk > 0.5 ? 'NIGHT OPS' : 'DAY OPS', fmtClock(M), nk > 0.5 ? '#9fb4ff' : '#ffd23f');
+  cx.fillStyle = 'rgba(255,255,255,0.1)'; cx.fillRect(546, 24, 86, 1.5); cx.fillStyle = left < 60 ? '#ff3b3b' : '#ffd23f'; cx.fillRect(546, 24, 86 * left / L.limit, 1.5);
+  if (nk > 0.5) { cx.fillStyle = '#c9d4ff'; cx.beginPath(); cx.arc(623, 13, 5, 0, 6.29); cx.fill(); cx.fillStyle = '#120a06'; cx.beginPath(); cx.arc(625.5, 11.5, 4.3, 0, 6.29); cx.fill(); } else glowAt(624, 13, 9, '#ffd23f', 0.9);
+  // wind
+  const w = windNow(M), wx = 662;
+  cx.fillStyle = 'rgba(255,255,255,0.05)'; rrect(cx, wx, 4, 150, 22, 6); cx.fill();
+  cx.save(); cx.translate(wx + 13, 15); cx.strokeStyle = 'rgba(255,255,255,0.25)'; cx.lineWidth = 1; cx.beginPath(); cx.arc(0, 0, 9, 0, 6.29); cx.stroke(); cx.rotate(M.wind.dir);
+  const wc = w.spd > 40 ? '#ff3b3b' : w.spd > 22 ? '#ffd23f' : '#7fe0e8'; cx.fillStyle = wc; cx.beginPath(); cx.moveTo(8, 0); cx.lineTo(-5, -4.5); cx.lineTo(-2, 0); cx.lineTo(-5, 4.5); cx.closePath(); cx.fill(); cx.restore();
+  txt('WIND FROM ' + windFrom(M), wx + 28, 10.5, 7, 'rgba(255,255,255,0.5)', 'left', 800); txt(Math.round(w.spd) + ' mph', wx + 28, 20, 11, wc, 'left', 900);
+  txt('RH', wx + 100, 10.5, 7, 'rgba(255,255,255,0.5)', 'left', 800); txt(L.rh + '%', wx + 100, 20, 11, L.rh < 12 ? '#ff6a3c' : '#fff', 'left', 900);
+  // menu / speed / hold
+  button('menu', W - 40, 4, 34, 22, '||', { col: '#94a3b8', size: 11, fn: () => { game.paused = true; } });
+  button('spd', W - 108, 4, 30, 22, M.speed + 'x', { col: '#ffd23f', size: 11, fn: setSpeed });
+  button('hold', W - 74, 4, 30, 22, M.hold ? '>' : 'II', { col: M.hold ? '#3cff7a' : '#7fe0e8', size: 11, hot: M.hold, fn: () => { M.hold = !M.hold; } });
+  if (M.hold) { txtS('TACTICAL PAUSE: give orders, SPACE to resume', W / 2, MY + 16, 12, '#7fe0e8', 'center', 900); }
+  drawToolbar(t);
+  drawSelPanel(t);
+  drawChyron(t);
+  if (M.tipOn !== false && L.tips && L.tips.length && !M.demo) drawTips(t);
+  if (M.over) drawOverBanner(t);
+}
+function drawToolbar(t) {
+  cx.fillStyle = lin(cx, 0, TB_Y, 0, CH_Y, [[0, 'rgba(10,10,14,0.96)'], [1, 'rgba(4,4,8,0.98)']]); cx.fillRect(0, TB_Y, W, CH_Y - TB_Y); cx.fillStyle = 'rgba(255,140,40,0.3)'; cx.fillRect(0, TB_Y, W, 1);
+  const night = isNight(M), y = TB_Y + 5, h = 43;
+  const units = k => M.units.filter(u => k.includes(u.type) && !u.out);
+  const card = (id, x, w, key, title, sub, col, active, fn, dis, fill) => {
+    const hv = hov(x, y, w, h);
+    cx.save(); if (active) { cx.shadowColor = col; cx.shadowBlur = 14; }
+    cx.fillStyle = dis ? 'rgba(30,32,38,0.9)' : lin(cx, 0, y, 0, y + h, [[0, rgba(col, active ? 0.42 : hv ? 0.28 : 0.16)], [1, 'rgba(10,10,14,0.9)']]); rrect(cx, x, y, w, h, 8); cx.fill(); cx.shadowBlur = 0;
+    cx.strokeStyle = dis ? 'rgba(255,255,255,0.1)' : rgba(col, active ? 1 : 0.5); cx.lineWidth = active ? 1.6 : 1; cx.stroke(); cx.restore();
+    txt(key, x + 7, y + 9, 8, 'rgba(255,255,255,0.45)', 'left', 900);
+    txt(title, x + 18, y + 9.5, 9, dis ? 'rgba(255,255,255,0.35)' : '#fff', 'left', 900);
+    txt(sub, x + 7, y + 25, 8.5, dis ? 'rgba(255,255,255,0.3)' : rgba(shade(col, 0.4), 0.95), 'left', 800);
+    if (fill) fill(x, y, w, h);
+    UI.push({ id, x, y, w, h, fn, dis: false });
+  };
+  let x = 6;
+  const hs = units(['heli', 'sky']); const hBusy = hs.filter(u => u.mode !== 'idle' && u.mode !== 'home').length;
+  card('h', x, 116, '1', 'HELICOPTERS', hs.length ? hBusy + '/' + hs.length + ' flying' : 'none', '#5ac8ff', M.sel && isHeli(M.sel), () => cycleUnit(['heli', 'sky']), !hs.length, (x0) => { hs.forEach((u, k) => { cx.fillStyle = 'rgba(255,255,255,0.12)'; cx.fillRect(x0 + 7 + k * 18, y + 35, 15, 3); cx.fillStyle = M.sel === u ? '#3cff7a' : '#5ac8ff'; cx.fillRect(x0 + 7 + k * 18, y + 35, 15 * u.load, 3); }); }); x += 120;
+  for (const k of ['scoop', 'tanker']) {
+    const as = M.air.filter(a => a.kind === k), ready = as.filter(a => a.cd <= 0 && !a.flying).length, col = k === 'scoop' ? '#ffd23f' : '#ff4fa0';
+    card(k, x, 116, k === 'scoop' ? '2' : '3', SPEC[k].name, !as.length ? 'not assigned' : night ? 'GROUNDED (night)' : ready + '/' + as.length + ' ready - drag line', col, M.tool === k, () => setTool(k), !as.length || night, (x0) => { as.forEach((a, n) => { const f = a.flying ? 0 : a.cd > 0 ? 1 - a.cd / SPEC[k].cd : 1; cx.fillStyle = 'rgba(255,255,255,0.12)'; cx.fillRect(x0 + 7 + n * 26, y + 35, 22, 3); cx.fillStyle = a.flying ? '#fff' : col; cx.fillRect(x0 + 7 + n * 26, y + 35, 22 * f, 3); }); }); x += 120;
+  }
+  const es = units(['engine']); card('e', x, 104, '4', 'ENGINES', es.length + ' in service', '#ff5a4a', M.sel && M.sel.type === 'engine', () => cycleUnit(['engine']), !es.length, (x0) => { es.forEach((u, k) => { cx.fillStyle = 'rgba(255,255,255,0.12)'; cx.fillRect(x0 + 7 + k * 13, y + 35, 10, 3); cx.fillStyle = M.sel === u ? '#3cff7a' : '#5ac8ff'; cx.fillRect(x0 + 7 + k * 13, y + 35, 10 * Math.max(0, u.tank), 3); }); }); x += 108;
+  const cs = units(['crew']); card('c', x, 104, '5', 'HAND CREWS', cs.length + ' on the line', '#ffd23f', M.sel && M.sel.type === 'crew', () => cycleUnit(['crew']), !cs.length); x += 108;
+  const hoods = M.map.hoods, ev = hoods.filter(h => h.evac).length;
+  card('evac', x, 104, '6', 'EVACUATE', ev + '/' + hoods.length + ' zones', '#ffd23f', M.tool === 'evac', () => setTool('evac'), !hoods.length); x += 108;
+  card('psps', x, 104, '7', 'POWER SHUTOFF', !M.map.power.length ? 'no lines here' : M.psps ? 'LINES OFF' : 'lines LIVE', M.psps ? '#7fe0e8' : '#ff9a1f', M.psps, togglePSPS, !M.map.power.length); x += 108;
+}
+function drawSelPanel(t) {
+  const u = M.sel, tool = M.tool; let title = null, lines = [];
+  if (u && !u.out) {
+    const s = SPEC[u.type]; title = u.label + '  ' + s.name;
+    if (isHeli(u)) lines = [{ idle: 'On the helibase pad', home: 'Returning to base', water: 'Heading to dip water', fill: 'Snorkeling water...', go: 'Inbound for the drop' }[u.mode] || u.mode, 'Click the fire: it drops, refills and keeps cycling nearby flames.'];
+    if (u.type === 'engine') lines = [u.mode === 'drive' ? 'Driving' : u.spray ? 'Hosing the fire' : 'Parked: protecting homes nearby', 'Tank ' + Math.round(u.tank * 100) + '% (refills at hydrants / station). Click near a road.'];
+    if (u.type === 'crew') lines = [u.mode === 'cutting' ? 'Cutting line: ' + u.cut.length + ' cells to go' : u.mode === 'walk' ? (u.retreat ? 'Retreating to safety' : 'Hiking in') : 'Standing by', 'DRAG on the map to cut a fire line. Click to move.'];
+  } else if (tool === 'scoop' || tool === 'tanker') { title = SPEC[tool].name; lines = [tool === 'scoop' ? 'Water strip. Knocks fire down where it lands.' : 'Retardant. Fire will not cross it for minutes.', 'DRAG a line on the map (or tap start, then end). Right-click cancels.']; }
+  else if (tool === 'evac') { title = 'EVACUATION ORDER'; lines = ['Click a neighborhood label to order a Level 3 GO evacuation.', 'Cars will crowd the roads for a while.']; }
+  if (!title) return;
+  const w = 330, x = 6, y = TB_Y - 46;
+  glass(x, y, w, 42, '#3cff7a', 0.82, 8); txt(title, x + 10, y + 10, 10, '#3cff7a', 'left', 900);
+  lines.forEach((l, k) => txt(l, x + 10, y + 22 + k * 11, 8.5, k ? 'rgba(255,255,255,0.6)' : '#fff', 'left', 700));
+  if (u && u.hp < 1) txt('HP ' + Math.round(u.hp * 100) + '%', x + w - 10, y + 10, 9, u.hp > 0.5 ? '#3cff7a' : '#ff3b3b', 'right', 900);
+}
+function drawChyron(t) {
+  const y = CH_Y, h = H - CH_Y;
+  cx.fillStyle = '#0a0d18'; cx.fillRect(0, y, W, h);
+  // ticker
+  cx.save(); cx.beginPath(); cx.rect(118, y + 13, W - 118, h - 13); cx.clip();
+  const tk = M.ticker.join('   \u25C6   ') + '   \u25C6   '; cx.font = '800 8.5px ' + FONT; const tw = cx.measureText(tk).width || 1; const off = (t * 45) % tw;
+  cx.fillStyle = '#ffd23f'; cx.fillRect(118, y + 13, W - 118, h - 13); cx.fillStyle = '#0a0a10'; cx.textBaseline = 'middle'; cx.textAlign = 'left';
+  for (let xx = 118 - off; xx < W; xx += tw) cx.fillText(tk, xx, y + 19.5);
+  cx.restore();
+  // headline
+  const hd = M.head; cx.fillStyle = lin(cx, 0, y, 0, y + 13, [[0, '#f4f6fa'], [1, '#d4d8e2']]); cx.fillRect(118, y, W - 118, 13);
+  if (hd) { const k = clamp(M.headIn * 3, 0, 1); cx.save(); cx.beginPath(); cx.rect(118, y, W - 118, 13); cx.clip(); txt(hd.s, 126 + (1 - k) * 40, y + 7, 9.5, '#0a0d18', 'left', 900); cx.restore(); }
+  // station bug
+  cx.fillStyle = lin(cx, 0, y, 0, H, [[0, '#e8232e'], [1, '#9a0c14']]); cx.fillRect(0, y, 118, h);
+  txt(hd && hd.pri >= 3 ? 'BREAKING' : 'LIVE', 8, y + 8, 10, '#fff', 'left', 900); txt('CLOVER NEWS 24', 8, y + 19, 7.5, 'rgba(255,255,255,0.8)', 'left', 800);
+  cx.fillStyle = Math.sin(t * 5) > 0 ? '#fff' : 'rgba(255,255,255,0.3)'; cx.beginPath(); cx.arc(108, y + 8, 3, 0, 6.29); cx.fill();
+}
+function drawTips(t) {
+  const L = M.L, k = M.tipIdx || 0; if (k >= L.tips.length) return;
+  const w = 330, x = W - w - 8, y = MY + 8, s = L.tips[k];
+  glass(x, y, w, 50, '#ffd23f', 0.88, 8); txt('TIP ' + (k + 1) + '/' + L.tips.length, x + 10, y + 10, 8.5, '#ffd23f', 'left', 900);
+  wrapTxt(s, x + 10, y + 22, w - 80, 10.5, 8.5, '#fff');
+  button('tipn', x + w - 62, y + 6, 54, 18, k + 1 < L.tips.length ? 'NEXT' : 'GOT IT', { col: '#ffd23f', size: 9, fn: () => { M.tipIdx = k + 1; } });
+}
+function wrapTxt(s, x, y, w, lh, size, col, align, weight) {
+  cx.font = (weight || 700) + ' ' + size + 'px ' + FONT; const words = s.split(' '); let line = '', yy = y;
+  for (const wd of words) { const tst = line ? line + ' ' + wd : wd; if (cx.measureText(tst).width > w && line) { txt(line, x, yy, size, col, align || 'left', weight || 700); line = wd; yy += lh; } else line = tst; }
+  if (line) txt(line, x, yy, size, col, align || 'left', weight || 700); return yy + lh;
+}
+function drawOverBanner(t) {
+  const r = M.result; if (!r) return; const k = clamp(M.overT * 2, 0, 1);
+  cx.save(); cx.globalAlpha = k; glass(W / 2 - 200, 190, 400, 70, r.win ? '#3cff7a' : '#ff3b3b', 0.9, 12);
+  txtS(r.win ? 'FIRE CONTAINED' : (r.why === 'time' ? 'OUT OF TIME' : r.why === 'acres' ? 'FIRE ESCAPED' : 'TOO MANY HOMES LOST'), W / 2, 216, 24, r.win ? '#3cff7a' : '#ff3b3b', 'center', 900);
+  txt(r.win ? '100% containment, ' + M.stats.acres + ' acres' : 'Command transferred', W / 2, 242, 11, '#fff', 'center', 700); cx.restore();
+}
+// ---------------- MENUS ----------------
+let campaignSel = 0, redLvl = 0, briefL = null;
+function bgDemo(t) {
+  if (M && M.demo) drawWorld(t); else { cx.fillStyle = '#07060a'; cx.fillRect(0, 0, W, H); }
+  cx.fillStyle = lin(cx, 0, 0, 0, H, [[0, 'rgba(5,4,10,0.65)'], [0.5, 'rgba(5,4,10,0.35)'], [1, 'rgba(5,4,10,0.85)']]); cx.fillRect(0, 0, W, H);
+}
+function fireTitle(s, x, y, size) {
+  cx.save(); cx.font = '900 ' + size + 'px ' + FONT; cx.textAlign = 'center'; cx.textBaseline = 'middle';
+  cx.shadowColor = '#ff5a1f'; cx.shadowBlur = 30; cx.fillStyle = lin(cx, 0, y - size / 2, 0, y + size / 2, [[0, '#fff6c8'], [0.35, '#ffd23f'], [0.7, '#ff7a1f'], [1, '#c8200e']]); cx.fillText(s, x, y);
+  cx.shadowBlur = 0; cx.strokeStyle = 'rgba(255,240,200,0.5)'; cx.lineWidth = 1; cx.strokeText(s, x, y); cx.restore();
+}
+function drawTitle(t) {
+  bgDemo(t);
+  cloverLogo(W / 2, 92, 26);
+  fireTitle('FIRELINE', W / 2, 160, 84);
+  txt('SANTA ANA COMMAND', W / 2, 212, 17, '#fff', 'center', 900);
+  txt('You are the incident commander. Wind, canyons, embers and night are against you.', W / 2, 236, 11, 'rgba(255,255,255,0.7)', 'center', 700);
+  const bx = W / 2 - 130;
+  button('camp', bx, 270, 260, 44, 'CAMPAIGN', { col: '#ff7a1f', size: 17, hot: true, sub: Object.keys(SAVE.stars).length ? starTotal() + ' / 24 stars' : '8 incidents', fn: () => { game.state = 'campaign'; } });
+  button('red', bx, 322, 260, 40, 'RED FLAG MODE', { col: '#ff3b3b', size: 15, sub: 'endless random incidents' + (SAVE.red ? ' - best ' + SAVE.red.toLocaleString() : ''), fn: () => { redLvl = 0; SAVE.redRun = 0; briefL = randomIncident(0, (Math.random() * 1e9) | 0); game.state = 'brief'; } });
+  button('help', bx, 370, 126, 32, 'HOW TO PLAY', { col: '#7fe0e8', size: 12, fn: () => { game.state = 'help'; } });
+  button('snd', bx + 134, 370, 126, 32, muted ? 'SOUND OFF' : 'SOUND ON', { col: '#94a3b8', size: 12, fn: () => setMute(!muted) });
+  txt('Inspired by Southern California wildfire coverage. Fire names and places in this game are fictionalized.', W / 2, H - 30, 9, 'rgba(255,255,255,0.45)', 'center', 700);
+  txt('MyClover.Tech  -  original code + art by Viktor, no external assets', W / 2, H - 16, 9, 'rgba(255,255,255,0.35)', 'center', 700);
+}
+function starTotal() { return Object.values(SAVE.stars).reduce((a, b) => a + b, 0); }
+function unlocked(i) { return i === 0 || (SAVE.stars[INCIDENTS[i - 1].id] || 0) > 0 || /[?&]unlock/.test(location.search); }
+function drawCampaign(t) {
+  bgDemo(t);
+  fireTitle('CAMPAIGN', W / 2, 52, 40);
+  txt('Contain the fire = 1 star. Few homes lost and nobody trapped = 2. Small footprint = 3.', W / 2, 84, 11, 'rgba(255,255,255,0.7)', 'center', 700);
+  INCIDENTS.forEach((L, i) => {
+    const col = i % 4, row = (i / 4) | 0, w = 214, h = 150, x = 30 + col * (w + 10), y = 106 + row * (h + 12), un = unlocked(i), hv = hov(x, y, w, h);
+    cx.save(); if (hv && un) { cx.shadowColor = '#ff7a1f'; cx.shadowBlur = 18; }
+    cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, un ? 'rgba(60,24,10,0.9)' : 'rgba(30,30,34,0.9)'], [1, 'rgba(8,8,12,0.95)']]); rrect(cx, x, y, w, h, 12); cx.fill(); cx.shadowBlur = 0;
+    cx.strokeStyle = un ? rgba('#ff7a1f', hv ? 0.9 : 0.4) : 'rgba(255,255,255,0.1)'; cx.lineWidth = 1.2; cx.stroke(); cx.restore();
+    txt('INCIDENT ' + (i + 1), x + 12, y + 16, 9, '#ff9a1f', 'left', 900);
+    txt(L.name, x + 12, y + 34, 15, un ? '#fff' : 'rgba(255,255,255,0.4)', 'left', 900);
+    txt(L.place, x + 12, y + 51, 9.5, 'rgba(255,255,255,0.6)', 'left', 700);
+    txt('Wind ' + L.wind.spd + ' mph  -  RH ' + L.rh + '%', x + 12, y + 70, 9.5, L.wind.spd > 30 ? '#ff6a3c' : '#ffd23f', 'left', 800);
+    const tags = []; if (L.start >= 18 || L.start + L.limit / 60 > 19.6) tags.push('NIGHT'); if (L.power) tags.push('POWER LINES'); if (L.units.tanker) tags.push('TANKERS'); if (L.units.scoop) tags.push('SCOOPERS'); if (L.fwy) tags.push('FREEWAY');
+    txt(tags.join('  '), x + 12, y + 88, 8, 'rgba(255,255,255,0.45)', 'left', 800);
+    for (let s = 0; s < 3; s++) star(x + 22 + s * 24, y + 118, 9, (SAVE.stars[L.id] || 0) > s);
+    if (SAVE.best[L.id]) txt(SAVE.best[L.id].toLocaleString() + ' pts', x + w - 12, y + 118, 10, '#fff', 'right', 800);
+    if (!un) txt('LOCKED', x + w - 12, y + 16, 9, 'rgba(255,255,255,0.4)', 'right', 900);
+    UI.push({ id: 'inc' + i, x, y, w, h, dis: !un, fn: () => { briefL = L; game.state = 'brief'; } });
+  });
+  button('back', 30, H - 52, 110, 34, 'BACK', { col: '#94a3b8', fn: () => { game.state = 'title'; } });
+}
+function drawBrief(t) {
+  bgDemo(t); const L = briefL; if (!L) { game.state = 'title'; return; }
+  const x = 120, y = 50, w = 720, h = 420;
+  glass(x, y, w, h, '#ff7a1f', 0.92, 14);
+  cx.fillStyle = lin(cx, 0, y, 0, y + 30, [[0, '#e8232e'], [1, '#9a0c14']]); rrect(cx, x, y, 150, 26, 8); cx.fill(); txt('BREAKING NEWS', x + 12, y + 13, 11, '#fff', 'left', 900);
+  txt(L.place.toUpperCase(), x + 162, y + 13, 10, 'rgba(255,255,255,0.6)', 'left', 800);
+  fireTitle(L.name, x + w / 2, y + 62, 40);
+  let yy = wrapTxt(L.brief, x + 30, y + 100, w - 60, 15, 12, '#fff');
+  const U = L.units, parts = []; if (U.heli) parts.push(U.heli + ' Firehawk'); if (U.sky) parts.push(U.sky + ' Skycrane'); if (U.scoop) parts.push(U.scoop + ' Super Scooper'); if (U.tanker) parts.push(U.tanker + ' Air Tanker'); if (U.engine) parts.push(U.engine + ' Engines'); if (U.crew) parts.push(U.crew + ' Hand Crews');
+  yy += 8; txt('RESOURCES', x + 30, yy, 9, '#ff9a1f', 'left', 900); yy += 15; yy = wrapTxt(parts.join('  -  '), x + 30, yy, w - 60, 14, 11, '#e8e8e8');
+  yy += 6; txt('CONDITIONS', x + 30, yy, 9, '#ff9a1f', 'left', 900); yy += 15;
+  const hh = Math.floor(L.start), mm = Math.round((L.start - hh) * 60);
+  txt('Wind ' + L.wind.spd + ' mph, gusts ' + (L.wind.spd + L.wind.gust) + '   -   Humidity ' + L.rh + '%   -   Start ' + String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0') + '   -   Operational period ' + Math.round(L.limit / 60) + ' h', x + 30, yy, 11, '#e8e8e8', 'left', 700); yy += 20;
+  txt('OBJECTIVES', x + 30, yy, 9, '#ff9a1f', 'left', 900); yy += 15;
+  [['Put the fire out before the period ends: no more than ' + L.maxLost + ' homes lost' + (L.maxAcres ? ' or ' + L.maxAcres.toLocaleString() + ' acres burned' : ''), 1], ['Lose ' + L.stars.lost + ' homes or fewer, and evacuate before flames arrive', 2], ['Keep the burn under ' + L.stars.acres + ' acres', 3]].forEach(([s, n], k) => { star(x + 38, yy, 6, true); if (n > 1) star(x + 52, yy, 6, true); if (n > 2) star(x + 66, yy, 6, true); txt(s, x + 80, yy, 10.5, '#e8e8e8', 'left', 700); yy += 16; });
+  if (L.tips && L.tips.length) { yy += 4; txt('FROM THE CHIEF', x + 30, yy, 9, '#ffd23f', 'left', 900); yy += 15; for (const tp of L.tips) yy = wrapTxt('- ' + tp, x + 30, yy, w - 60, 13, 10, 'rgba(255,255,255,0.8)'); }
+  button('go', x + w - 210, y + h - 54, 180, 40, 'TAKE COMMAND', { col: '#ff7a1f', size: 15, hot: true, fn: () => { startIncident(briefL); } });
+  button('bk', x + 30, y + h - 50, 100, 32, 'BACK', { col: '#94a3b8', fn: () => { game.state = briefL.red ? 'title' : 'campaign'; } });
+}
+function drawHelp(t) {
+  bgDemo(t); const x = 90, y = 40, w = 780, h = 450; glass(x, y, w, h, '#7fe0e8', 0.93, 14);
+  fireTitle('HOW TO COMMAND', x + w / 2, y + 36, 30);
+  const rows = [
+    ['HELICOPTERS (1)', 'Click a helicopter (or press 1), then click the fire. It dips water from the ocean or reservoir, drops on target and keeps cycling the nearest flames. Flies at night.'],
+    ['SUPER SCOOPER (2)', 'Drag a line across the fire. The plane skims the sea and lays a long water strip. Day only.'],
+    ['AIR TANKER (3)', 'Drag a long line AHEAD of the fire. Pink retardant barely puts fire out, but fire will not cross it for minutes. Day only.'],
+    ['ENGINES (4)', 'Click an engine, then near a road. Parked engines hose fire in range and wet down homes around them. Refill at hydrants in neighborhoods.'],
+    ['HAND CREWS (5)', 'Select a crew and DRAG to cut a line to bare soil. Crews retreat into the black when the heat gets close.'],
+    ['EVACUATE (6)', 'Order Level 3 evacuations before the flames arrive. Late orders mean trapped residents; evac traffic clogs roads.'],
+    ['POWER SHUTOFF (7)', 'In high wind, live lines can spark new fires. Shutting them off stops that, but costs points every second.'],
+    ['TIME', 'SPACE = tactical pause (orders still work). F = speed 1x/2x/3x. Right-click / Esc cancels. Tab cycles units.'],
+    ['FIRE', 'Fire runs fast downwind and uphill, crawls downhill and into the wind. Embers start spot fires ahead in strong wind. Hit the head, protect the homes.']];
+  let yy = y + 70; for (const [a, b] of rows) { txt(a, x + 26, yy, 10, '#ffd23f', 'left', 900); yy = wrapTxt(b, x + 176, yy, w - 210, 12.5, 10, '#e8e8e8') + 5; }
+  txt('Touch: tap a unit, tap the map; drag for lines. Gamepad: stick = cursor, A = click/drag, X = pause, Y = speed, LB/RB = tools.', x + w / 2, y + h - 52, 9.5, 'rgba(255,255,255,0.6)', 'center', 700);
+  button('bk', x + w / 2 - 60, y + h - 40, 120, 30, 'BACK', { col: '#94a3b8', fn: () => { game.state = 'title'; } });
+}
+function drawResult(t) {
+  drawWorld(t); cx.fillStyle = 'rgba(4,4,8,0.65)'; cx.fillRect(0, 0, W, H);
+  const r = M.result, L = M.L, st = M.stats, x = W / 2 - 260, y = 60, w = 520, h = 400;
+  glass(x, y, w, h, r.win ? '#3cff7a' : '#ff3b3b', 0.94, 14);
+  fireTitle(r.win ? 'CONTAINED' : 'LOST', W / 2, y + 44, 40);
+  txt(L.name + '  -  ' + L.place, W / 2, y + 80, 11, 'rgba(255,255,255,0.7)', 'center', 700);
+  for (let s = 0; s < 3; s++) star(W / 2 - 40 + s * 40, y + 114, 15, r.stars > s);
+  const rows = [['Acres burned', st.acres.toLocaleString() + (st.acres <= L.stars.acres ? '' : '  (target ' + L.stars.acres + ')')], ['Homes destroyed', st.lost + ' of ' + M.map.houses.length + '  (saved on the line: ' + st.saved + ')'], ['Trapped residents (late evac)', st.trapped ? st.trapped + ' zone(s)' : 'none'],
+    ['Spot fires from embers', st.spots], ['Water / retardant drops', st.drops], ['Fire line cut', Math.round(st.cut * 30) + ' m'], ['Power shutoff', M.pspsT ? Math.round(M.pspsT) + ' min' : 'not used'], ['Time on scene', Math.round(M.t / 60 * 10) / 10 + ' h']];
+  rows.forEach(([a, b], k) => { txt(a, x + 50, y + 152 + k * 20, 11, 'rgba(255,255,255,0.65)', 'left', 700); txt(String(b), x + w - 50, y + 152 + k * 20, 11, '#fff', 'right', 800); });
+  txt('SCORE ' + r.score.toLocaleString(), W / 2, y + 328, 20, '#ffd23f', 'center', 900);
+  const bw = 150, by = y + h - 50;
+  if (L.red) {
+    if (r.win) button('nx', W / 2 + 10, by, bw, 36, 'NEXT INCIDENT', { col: '#ff7a1f', hot: true, fn: () => { redLvl++; briefL = randomIncident(redLvl, (Math.random() * 1e9) | 0); game.state = 'brief'; } });
+    else txt('Run total: ' + ((SAVE.redRun || 0) + r.score).toLocaleString() + '  -  best ' + (SAVE.red || 0).toLocaleString(), W / 2, by - 12, 10, '#fff', 'center', 800);
+    button('mn', W / 2 - bw - 10, by, bw, 36, 'MENU', { col: '#94a3b8', fn: toTitle });
+  } else {
+    const i = INCIDENTS.indexOf(L);
+    button('rt', x + 20, by, bw, 36, 'RETRY', { col: '#ffd23f', fn: () => startIncident(L) });
+    button('mn', W / 2 - bw / 2, by, bw, 36, 'CAMPAIGN', { col: '#94a3b8', fn: () => { toTitle(); game.state = 'campaign'; } });
+    if (i < INCIDENTS.length - 1 && unlocked(i + 1)) button('nx', x + w - bw - 20, by, bw, 36, 'NEXT FIRE', { col: '#ff7a1f', hot: true, fn: () => { briefL = INCIDENTS[i + 1]; toTitle(); game.state = 'brief'; } });
+  }
+}
+function drawPause() {
+  cx.fillStyle = 'rgba(4,4,8,0.7)'; cx.fillRect(0, 0, W, H);
+  const x = W / 2 - 150, y = 130; glass(x, y, 300, 270, '#7fe0e8', 0.94, 14); fireTitle('PAUSED', W / 2, y + 36, 32);
+  button('rs', x + 40, y + 70, 220, 36, 'RESUME', { col: '#3cff7a', hot: true, fn: () => { game.paused = false; } });
+  button('rr', x + 40, y + 114, 220, 32, 'RESTART INCIDENT', { col: '#ffd23f', fn: () => { game.paused = false; startIncident(M.L); } });
+  button('mu', x + 40, y + 154, 105, 30, muted ? 'SOUND OFF' : 'SOUND ON', { col: '#94a3b8', size: 11, fn: () => setMute(!muted) });
+  button('mz', x + 155, y + 154, 105, 30, musicOn ? 'MUSIC ON' : 'MUSIC OFF', { col: '#94a3b8', size: 11, fn: () => setMusic(!musicOn) });
+  button('qt', x + 40, y + 200, 220, 32, 'QUIT TO MENU', { col: '#ff3b3b', fn: () => { game.paused = false; toTitle(); } });
+}
+function toTitle() { game.state = 'title'; ambStop(); startDemo(); }
+
+// ---------- MAIN LOOP ----------
+function startDemo() {
+  const pickL = INCIDENTS[[3, 7, 2, 5][Math.floor(Math.random() * 4)]];
+  const L = Object.assign({}, pickL, { limit: 9999 });
+  const keep = game.state; startIncident(L, { demo: true }); game.state = keep;
+  M.t = 0; for (let i = 0; i < 300; i++) updateIncident(1 / 15); // pre-burn so the title has a fire going
+}
+function update(dt) {
+  game.t += dt; pollPad(dt);
+  for (const tm of game.timers) { tm.t -= dt; if (tm.t <= 0 && !tm.fired) { tm.fired = true; tm.fn(); } } game.timers = game.timers.filter(q => !q.fired);
+  for (const m of toasts) m.t -= dt; toasts = toasts.filter(m => m.t > 0);
+  if (pressed.mute) setMute(!muted);
+  musicTick();
+  game.shake = Math.max(0, game.shake - dt * 3);
+  game.flash = Math.max(0, game.flash - dt * 2.5);
+  if (game.state === 'play') {
+    if (game.paused) { ambSet(0, 0, 0); if (pressed.pause || pressed.esc) game.paused = false; return; }
+    if (pressed.pause || (pressed.esc && !M.tool && !M.sel)) { game.paused = true; return; }
+    if (pressed.esc) { M.tool = null; M.sel = null; M.lineA = null; }
+    if (pressed.restart && !M.over) { startIncident(M.L); return; }
+    handlePlayInput();
+    MUS.int = lerp(MUS.int, clamp(M.burning.length / 500, 0.1, 1), dt * 0.5);
+    const rot = M.units.filter(u => isHeli(u) && u.mode !== 'idle').length;
+    ambSet(clamp(M.burning.length / 400, 0, 1), clamp(windNow(M).spd / 60, 0, 1), rot);
+    if (!M.hold) { const total = dt * M.speed, n = Math.max(1, Math.ceil(total / (1 / 30))); for (let i = 0; i < n; i++) updateIncident(total / n); }
+  } else {
+    MUS.on = true; MUS.int = lerp(MUS.int, 0.15, dt); ambSet(0, 0, 0);
+    if (M && M.demo) { updateIncident(dt); if (M.t > 150 || !M.burning.length) startDemo(); }
+    else if (M && game.state === 'result') updateIncident(dt);
+    if (pressed.esc && game.state !== 'title') { game.state = game.state === 'brief' && briefL && !briefL.red ? 'campaign' : 'title'; if (M && !M.demo) toTitle(); }
+  }
+}
+function render(dt) {
+  UI = [];
+  cx.setTransform(SC, 0, 0, SC, 0, 0);
+  cx.clearRect(0, 0, W, H);
+  const t = game.t;
+  if (game.state === 'play') { drawWorld(t); drawHUD(t); if (game.paused) { UI = []; drawPause(); } }
+  else if (game.state === 'title') drawTitle(t);
+  else if (game.state === 'campaign') drawCampaign(t);
+  else if (game.state === 'brief') drawBrief(t);
+  else if (game.state === 'help') drawHelp(t);
+  else if (game.state === 'result') drawResult(t);
+  toasts.forEach((tt, i) => { cx.globalAlpha = clamp(tt.t / 0.3, 0, 1); glass(W / 2 - 220, TB_Y - 82 - i * 30, 440, 24, tt.col, 0.88); txt(tt.s, W / 2, TB_Y - 70 - i * 30, 11, tt.col, 'center', 900); });
+  cx.globalAlpha = 1;
+  if (lastInput === 'pad' && ptr.seen) { cx.strokeStyle = '#ffd23f'; cx.lineWidth = 2; cx.beginPath(); cx.arc(ptr.x, ptr.y, 7, 0, 6.29); cx.moveTo(ptr.x - 11, ptr.y); cx.lineTo(ptr.x + 11, ptr.y); cx.moveTo(ptr.x, ptr.y - 11); cx.lineTo(ptr.x, ptr.y + 11); cx.stroke(); }
+  vignette();
+  UIprev = UI;
+  ptr.justDown = false; ptr.justUp = false;
+}
+function frame(dt) {
+  if (pressed.click && processClicks()) { }
+  update(dt);
+  for (const k in pressed) pressed[k] = false;
+}
+let lastT = performance.now(), MANUAL = /[?&]manual/.test(location.search);
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  frame(dt); render(dt);
+  cv.style.cursor = game.state === 'play' && !game.paused && (M.sel || M.tool) && mapPtr() ? 'crosshair' : 'default';
+  if (!MANUAL) requestAnimationFrame(loop);
+}
+startDemo();
+requestAnimationFrame(loop);
+window.__FL = { game, SAVE, get M() { return M; }, INCIDENTS, startIncident, startDemo, randomIncident, render: () => render(1 / 60), frame: dt => frame(dt || 1 / 60), ptr, pressed, setHeadless(v) { HEADLESS = v; },
+  // headless sim: AI commander plays the incident at fixed steps
+  sim(L, skill, maxT) { HEADLESS = true; startIncident(L); M.bot = true; M.botSkill = skill == null ? 0.8 : skill; const lim = maxT || L.limit + 5; while (!M.over && M.t < lim) updateIncident(1 / 15); HEADLESS = false; return { win: M.result && M.result.win, why: M.result && M.result.why, stars: M.result && M.result.stars, t: Math.round(M.t), acres: M.stats.acres, lost: M.stats.lost, houses: M.map.houses.length, trapped: M.stats.trapped, spots: M.stats.spots, peak: M.stats.peak, score: M.result && M.result.score }; },
+  nat(L, T, params) { HEADLESS = true; if (params && params.t0) L = Object.assign({}, L, { start: params.t0 }); if (params) { if (params.K) FIREK = params.K; if (params.D) DECAY = params.D; if (params.W) WINDK = params.W; } startIncident(L); M.units = []; M.air = []; const out = []; let nx = params && params.every || 30; while (M.t < T) { updateIncident(1 / 15); if (M.t >= nx) { out.push([nx, M.stats.acres, M.burning.length, M.stats.lost]); nx += params && params.every || 30; } if (M.over) break; } HEADLESS = false; return out; },
+  ft(d) { fireTick(M, d); },
+  step(n) { for (let i = 0; i < n; i++) frame(1 / 60); } };
+
+})();
+</script>
+</body>
+</html>
