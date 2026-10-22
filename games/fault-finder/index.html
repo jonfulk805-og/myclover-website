@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05040c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Crect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%230a0603%22/%3E%3Ccircle cx=%2222%22 cy=%2222%22 r=%2212%22 fill=%22%23ff3b3b%22/%3E%3Ccircle cx=%2242%22 cy=%2222%22 r=%2212%22 fill=%22%233cff7a%22/%3E%3Ccircle cx=%2222%22 cy=%2242%22 r=%2212%22 fill=%22%23ff9a1f%22/%3E%3Ccircle cx=%2242%22 cy=%2242%22 r=%2212%22 fill=%22%23ffd23f%22/%3E%3C/svg%3E">
+<title>FAULT FINDER: Circuit Repair Shop | MyClover.Tech</title>
+<meta name="description" content="FAULT FINDER: Circuit Repair Shop - a free electronics learning game. Probe real circuits with a multimeter, find the bad component and repair it. Learn Ohm's law, series and parallel circuits, diodes, transistors, relays and house wiring. From MyClover.Tech.">
+<style>
+html,body{margin:0;height:100%;background:#05040c;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+body{display:flex;align-items:center;justify-content:center}
+canvas{display:block;box-shadow:0 0 60px rgba(255,210,63,.10);outline:none}
+#rot{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#05040c;color:#fff;font:800 18px system-ui,sans-serif;text-align:center;z-index:9;padding:24px}
+#rot .ph{width:46px;height:78px;border:3px solid #ffd23f;border-radius:9px;animation:rt 1.6s ease-in-out infinite}
+@keyframes rt{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(90deg)}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (orientation:portrait) and (max-width:820px){#rot{display:flex}}
+html,body{cursor:default}
+</style>
+<script data-goatcounter="https://myclovertech.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href*="donate.stripe.com"]');if(a&&window.goatcounter&&window.goatcounter.count){window.goatcounter.count({path:'tipjar-click'+location.pathname,title:'Tip jar click',event:true});}},true);</script>
+</head>
+<body>
+<canvas id="c" tabindex="0" role="img" aria-label="FAULT FINDER circuit repair game. Click test points to probe with the multimeter, inspect and repair components. Keys: Q E R tools, 1 to 4 meter modes, Space power, T run test, H hint, Escape pause."></canvas>
+<div id="live" class="sr" aria-live="polite"></div>
+<div id="rot"><div class="ph"></div><div>Rotate your phone to landscape</div><div style="font-weight:600;font-size:13px;opacity:.65">FAULT FINDER needs the wide view</div></div>
+<script>
+(function(){
+'use strict';
+// ===== FAULT FINDER: Circuit Repair Shop =====
+// Original code + procedurally drawn art by Viktor for MyClover.Tech. No external assets.
+const W = 960, H = 540;
+const cv = document.getElementById('c');
+const cx = cv.getContext('2d');
+const TOUCH = (window.matchMedia && matchMedia('(pointer: coarse)').matches) || navigator.maxTouchPoints > 1 || /Mobi|Android|iPhone|iPad|Tablet/i.test(navigator.userAgent);
+const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
+let RMOTION = LS.get('ff_rm', null) != null ? LS.get('ff_rm') === '1' : !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+let SC = 1, CRect = null;
+function fit() {
+  const s = Math.min(innerWidth / W, innerHeight / H);
+  const cw = Math.max(1, Math.floor(W * s)), ch = Math.max(1, Math.floor(H * s));
+  cv.style.width = cw + 'px'; cv.style.height = ch + 'px';
+  SC = Math.max(1, Math.min(2, cw * (window.devicePixelRatio || 1) / W));
+  cv.width = Math.round(W * SC); cv.height = Math.round(H * SC);
+  CRect = null;
+}
+addEventListener('resize', fit); fit();
+
+// ---------- utils ----------
+const RND = (a, b) => a + Math.random() * (b - a);
+const RI = (a, b) => Math.floor(RND(a, b + 1));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const angTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+const wrapA = a => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
+const turnTo = (a, t, m) => { const d = wrapA(t - a); return a + clamp(d, -m, m); };
+const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const MONO = 'ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace';
+
+// ---------- GFX: noise, glow sprites, painted arenas ----------
+function layer(w, h, s) {
+  s = s || Math.min(2, SC);
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w * s)); c.height = Math.max(1, Math.ceil(h * s));
+  const g = c.getContext('2d'); g.scale(s, s); return [c, g];
+}
+let seed = 1337;
+const srand = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const sr = (a, b) => a + srand() * (b - a);
+function hash(x, y) { let h = Math.imul(x, 374761393) + Math.imul(y, 668265263) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+function vnoise(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, y, o) { o = o || 4; let s = 0, a = 0.5, f = 1, n = 0; for (let i = 0; i < o; i++) { s += a * vnoise(x * f, y * f); n += a; f *= 2; a *= 0.5; } return s / n; }
+const RGBC = {};
+function hexRgb(c) {
+  if (RGBC[c]) return RGBC[c];
+  let r = 255, g = 255, b = 255;
+  if (c[0] === '#') { let h = c.slice(1); if (h.length === 3) h = h.split('').map(q => q + q).join(''); const n = parseInt(h, 16); r = (n >> 16) & 255; g = (n >> 8) & 255; b = n & 255; }
+  else { const m = c.match(/\d+/g); if (m) { r = +m[0]; g = +m[1]; b = +m[2]; } }
+  return (RGBC[c] = [r, g, b]);
+}
+const SHC = {};
+function shade(c, k) { const key = c + k; if (SHC[key]) return SHC[key]; const f = v => Math.max(0, Math.min(255, Math.round(k > 0 ? v + (255 - v) * k : v * (1 + k)))); const [r, g, b] = hexRgb(c); return (SHC[key] = 'rgb(' + f(r) + ',' + f(g) + ',' + f(b) + ')'); }
+const rgba = (c, a) => { const [r, g, b] = hexRgb(c); return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')'; };
+function glowSprite(rgb, size) {
+  size = size || 128; const [c, g] = layer(size, size, 1);
+  const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gr.addColorStop(0, 'rgba(' + rgb + ',1)'); gr.addColorStop(0.22, 'rgba(' + rgb + ',0.5)'); gr.addColorStop(0.55, 'rgba(' + rgb + ',0.13)'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+  g.fillStyle = gr; g.fillRect(0, 0, size, size); return c;
+}
+const GLOWC = {};
+function glowOf(c) { return GLOWC[c] || (GLOWC[c] = glowSprite(hexRgb(c).join(','), 64)); }
+function glowAt(x, y, r, c, a, g) {
+  g = g || cx; g.globalCompositeOperation = 'lighter'; g.globalAlpha = a == null ? 1 : a;
+  g.drawImage(glowOf(c), x - r, y - r, r * 2, r * 2); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+}
+const SMOKE = [0, 1, 2].map(i => { seed = 50 + i; const size = 96, [c, g] = layer(size, size, 1);
+  for (let k = 0; k < 14; k++) { const a = srand() * 6.28, d = srand() * 22, r = 14 + srand() * 20, x = 48 + Math.cos(a) * d, y = 48 + Math.sin(a) * d, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(70,66,74,0.36)'); gr.addColorStop(1, 'rgba(70,66,74,0)'); g.fillStyle = gr; g.fillRect(0, 0, size, size); }
+  return c; });
+const FIRE = (() => { const [c, g] = layer(64, 64, 1), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,250,225,1)'); gr.addColorStop(0.25, 'rgba(255,200,90,0.9)'); gr.addColorStop(0.55, 'rgba(230,90,20,0.45)'); gr.addColorStop(1, 'rgba(120,20,0,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 64); return c; })();
+function pnoise(x, y, p) { // periodic value noise (period p cells) so grain tiles seamlessly
+  const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf), m = q => ((q % p) + p) % p;
+  const a = hash(m(xi), m(yi)), b = hash(m(xi + 1), m(yi)), c = hash(m(xi), m(yi + 1)), d = hash(m(xi + 1), m(yi + 1));
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+const NOISE = (() => { const N = 256, [c, g] = layer(N, N, 1), id = g.createImageData(N, N), d = id.data;
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let n = 0, a = 0.5, f = 8, s = 0; for (let o = 0; o < 4; o++) { n += a * pnoise(x / N * f, y / N * f, f); s += a; a *= 0.5; f *= 2; }
+    n = n / s * 0.6 + hash(x * 7 + 1, y * 13 + 5) * 0.4; const v = clamp(128 + (n - 0.5) * 220, 0, 255), i = (y * N + x) * 4; d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  g.putImageData(id, 0, 0); return c; })();
+let VIG = null;
+function vignette() {
+  if (!VIG) { const [c, g] = layer(W, H, 1), vg = g.createRadialGradient(W / 2, H * 0.52, H * 0.35, W / 2, H / 2, W * 0.66);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(0.7, 'rgba(4,3,10,0.25)'); vg.addColorStop(1, 'rgba(2,1,6,0.7)'); g.fillStyle = vg; g.fillRect(0, 0, W, H); VIG = c; }
+  cx.drawImage(VIG, 0, 0, W, H);
+}
+const lin = (g, x0, y0, x1, y1, stops) => { const gr = g.createLinearGradient(x0, y0, x1, y1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+const radg = (g, x0, y0, r0, x1, y1, r1, stops) => { const gr = g.createRadialGradient(x0, y0, r0, x1, y1, r1); stops.forEach(s => gr.addColorStop(s[0], s[1])); return gr; };
+function rrect(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function grain(g, x, y, w, h, alpha, mode) {
+  g.save(); g.globalAlpha = alpha; g.globalCompositeOperation = mode || 'overlay';
+  for (let yy = y; yy < y + h; yy += 256) for (let xx = x; xx < x + w; xx += 256) g.drawImage(NOISE, xx, yy);
+  g.restore();
+}
+
+
+// ---------- UI kit ----------
+let UI = [], UIprev = [];
+function txt(s, x, y, size, col, align, weight, font) {
+  cx.font = (weight || 800) + ' ' + size + 'px ' + (font || FONT); cx.textAlign = align || 'left'; cx.textBaseline = 'middle';
+  cx.fillStyle = col || '#fff'; cx.fillText(s, x, y);
+}
+function txtS(s, x, y, size, col, align, weight) { cx.save(); cx.shadowColor = 'rgba(0,0,0,0.85)'; cx.shadowBlur = 8; cx.shadowOffsetY = 2; txt(s, x, y, size, col, align, weight); cx.restore(); }
+function glass(x, y, w, h, accent, a, r) {
+  r = r || 12; cx.save();
+  cx.fillStyle = 'rgba(6,12,14,' + (a == null ? 0.8 : a) + ')'; rrect(cx, x, y, w, h, r); cx.fill();
+  cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, 'rgba(255,255,255,0.08)'], [0.15, 'rgba(255,255,255,0.02)'], [1, 'rgba(255,255,255,0)']]); rrect(cx, x, y, w, h, r); cx.fill();
+  cx.strokeStyle = rgba(accent || '#7fe0e8', 0.35); cx.lineWidth = 1.2; rrect(cx, x + 0.5, y + 0.5, w - 1, h - 1, r); cx.stroke();
+  cx.restore();
+}
+function hov(x, y, w, h) { return ptr.seen && ptr.type === 'mouse' && ptr.x > x && ptr.x < x + w && ptr.y > y && ptr.y < y + h; }
+function button(id, x, y, w, h, label, opt) {
+  opt = opt || {}; const hv = hov(x, y, w, h), col = opt.col || '#3cff7a', dis = opt.disabled;
+  cx.save();
+  if (!dis && (hv || opt.hot)) { cx.shadowColor = col; cx.shadowBlur = 18; }
+  cx.fillStyle = dis ? 'rgba(40,44,50,0.75)' : lin(cx, 0, y, 0, y + h, [[0, rgba(col, hv ? 0.5 : 0.32)], [1, rgba(shade(col, -0.65), hv ? 0.8 : 0.6)]]);
+  rrect(cx, x, y, w, h, Math.min(10, h / 2)); cx.fill(); cx.shadowBlur = 0;
+  cx.strokeStyle = dis ? 'rgba(255,255,255,0.15)' : rgba(col, 0.9); cx.lineWidth = 1.4; cx.stroke();
+  cx.fillStyle = 'rgba(255,255,255,0.1)'; rrect(cx, x + 3, y + 2, w - 6, h * 0.42, Math.min(8, h / 3)); cx.fill();
+  if (opt.sub) { txt(label, x + w / 2, y + h * 0.36, opt.size || 14, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900); txt(opt.sub, x + w / 2, y + h * 0.72, 10.5, dis ? 'rgba(255,255,255,0.35)' : rgba(shade(col, 0.5), 0.95), 'center', 700); }
+  else txt(label, x + w / 2, y + h / 2 + 1, opt.size || 15, dis ? 'rgba(255,255,255,0.4)' : '#fff', 'center', 900);
+  if (opt.key) { cx.fillStyle = 'rgba(0,0,0,0.45)'; rrect(cx, x + w - 22, y + 5, 17, 15, 4); cx.fill(); txt(opt.key, x + w - 13.5, y + 13, 9.5, 'rgba(255,255,255,0.7)', 'center', 900); }
+  if (opt.fill != null) { cx.fillStyle = rgba(col, 0.35); rrect(cx, x, y + h - 4, w * clamp(opt.fill, 0, 1), 4, 2); cx.fill(); }
+  cx.restore();
+  UI.push({ id, x, y, w, h, fn: opt.fn, dis });
+}
+function processClicks() {
+  if (!pressed.click) return false;
+  for (let i = UIprev.length - 1; i >= 0; i--) { const b = UIprev[i];
+    if (ptr.x > b.x && ptr.x < b.x + b.w && ptr.y > b.y && ptr.y < b.y + b.h) { if (b.dis) sfx('deny'); else if (b.fn) { sfx('select'); b.fn(); } pressed.click = false; pressed.down = false; return true; } }
+  return false;
+}
+let toasts = [];
+function toast(s, col, dur) {
+  if (toasts.length && toasts[toasts.length - 1].s === s) { toasts[toasts.length - 1].t = dur || 1.8; return; }
+  toasts.push({ s, col: col || '#fff', t: dur || 1.8, max: dur || 1.8 }); if (toasts.length > 3) toasts.shift();
+}
+const liveEl = document.getElementById('live');
+function announce(s) { if (liveEl) liveEl.textContent = s; }
+function cloverLogo(x, y, r) {
+  const cols = ['#ff3b3b', '#3cff7a', '#ff9a1f', '#ffd23f'];
+  for (let i = 0; i < 4; i++) { const a = -2.356 + i * 1.5708, lx = x + Math.cos(a) * r * 0.5, ly = y + Math.sin(a) * r * 0.5;
+    cx.fillStyle = radg(cx, lx - r * 0.15, ly - r * 0.15, 0, lx, ly, r * 0.55, [[0, '#fffbe8'], [0.3, cols[i]], [1, shade(cols[i], -0.65)]]); cx.beginPath(); cx.arc(lx, ly, r * 0.48, 0, 6.29); cx.fill();
+    cx.strokeStyle = 'rgba(255,235,170,0.8)'; cx.lineWidth = 1; cx.stroke(); }
+}
+function star(x, y, r, on) {
+  cx.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.45 : r; cx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } cx.closePath();
+  cx.fillStyle = on ? lin(cx, x, y - r, x, y + r, [[0, '#fff3b0'], [0.5, '#ffd23f'], [1, '#c07a10']]) : 'rgba(255,255,255,0.12)'; cx.fill();
+  cx.strokeStyle = on ? '#fff0a0' : 'rgba(255,255,255,0.25)'; cx.lineWidth = 1; cx.stroke();
+}
+function fmtT(s) { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+function txtGlow(s, x, y, size, col, align) { cx.save(); cx.shadowColor = col; cx.shadowBlur = 12; txt(s, x, y, size, col, align || 'right', 700, MONO); cx.restore(); }
+function bar(x, y, w, h, f, col) {
+  cx.fillStyle = 'rgba(255,255,255,0.08)'; rrect(cx, x, y, w, h, h / 2); cx.fill();
+  if (f > 0) { cx.fillStyle = lin(cx, 0, y, 0, y + h, [[0, shade(col, 0.4)], [0.5, col], [1, shade(col, -0.35)]]); rrect(cx, x, y, Math.max(h, w * clamp(f, 0, 1)), h, h / 2); cx.fill(); }
+}
+function metalTxt(s, x, y, size, align, glowCol) {
+  cx.save(); cx.font = '900 ' + size + 'px ' + FONT; cx.textAlign = align || 'left'; cx.textBaseline = 'middle';
+  if (glowCol) { cx.shadowColor = glowCol; cx.shadowBlur = size * 0.5; }
+  cx.fillStyle = lin(cx, 0, y - size / 2, 0, y + size / 2, [[0, '#ffffff'], [0.45, '#ffe9b0'], [0.52, '#a8782a'], [1, '#fff3c8']]); cx.fillText(s, x, y);
+  cx.shadowBlur = 0; cx.lineWidth = Math.max(1, size / 28); cx.strokeStyle = 'rgba(0,0,0,0.35)'; cx.strokeText(s, x, y); cx.restore();
+}
+// word wrap; returns y of the last line. '\n' forces a break.
+function wrap(s, x, y, w, size, col, lh, weight, font) {
+  cx.font = (weight || 700) + ' ' + size + 'px ' + (font || FONT); let yy = y;
+  const paras = String(s).split('\n');
+  paras.forEach((p, pi) => {
+    const words = p.split(' '); let line = '';
+    for (const wd of words) { const t = line + wd + ' '; if (cx.measureText(t).width > w && line) { txt(line, x, yy, size, col, 'left', weight || 700, font); line = wd + ' '; yy += lh; } else line = t; }
+    txt(line, x, yy, size, col, 'left', weight || 700, font); if (pi < paras.length - 1) yy += lh;
+  });
+  return yy;
+}
+function wrapH(s, w, size, lh, weight) { // measure wrapped height
+  cx.font = (weight || 700) + ' ' + size + 'px ' + FONT; let n = 0;
+  String(s).split('\n').forEach(p => { let line = ''; n++; for (const wd of p.split(' ')) { const t = line + wd + ' '; if (cx.measureText(t).width > w && line) { n++; line = wd + ' '; } else line = t; } });
+  return n * lh;
+}
+
+// ---------- global game state ----------
+const game = { state: 'title', t: 0, paused: false, timers: [], shake: 0, flash: 0, flashCol: '#fff', fox: 0, foy: 0 };
+function later(fn, d) { game.timers.push({ fn, t: d }); }
+
+// ---------- input: pointer + keyboard ----------
+const ptr = { x: W / 2, y: H / 2, down: false, type: 'mouse', seen: false, sx: 0, sy: 0, moved: 0 };
+const pressed = {}, held = {};
+function toLogical(e) {
+  if (!CRect) CRect = cv.getBoundingClientRect();
+  return { x: (e.clientX - CRect.left) / CRect.width * W, y: (e.clientY - CRect.top) / CRect.height * H };
+}
+addEventListener('scroll', () => CRect = null);
+cv.addEventListener('pointerdown', e => {
+  ensureAudio(); const p = toLogical(e); ptr.x = p.x; ptr.y = p.y; ptr.sx = p.x; ptr.sy = p.y; ptr.moved = 0;
+  ptr.down = true; ptr.type = e.pointerType; ptr.seen = true;
+  if (e.button === 2) pressed.rclick = true; else { pressed.click = true; pressed.down = true; }
+  try { cv.setPointerCapture(e.pointerId); } catch (err) { }
+  e.preventDefault();
+});
+cv.addEventListener('pointermove', e => { const p = toLogical(e); ptr.moved += Math.hypot(p.x - ptr.x, p.y - ptr.y); ptr.x = p.x; ptr.y = p.y; ptr.type = e.pointerType; ptr.seen = true; });
+const up = e => { if (ptr.down) pressed.up = true; ptr.down = false; };
+cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); addEventListener('pointerup', up);
+cv.addEventListener('contextmenu', e => e.preventDefault());
+const KM = { Space: 'fire', KeyF: 'fire', Escape: 'pause', KeyP: 'pause', Enter: 'start', KeyM: 'mute', Tab: 'cycle' };
+const HK = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', Space: 'hfire', KeyF: 'hfire' };
+addEventListener('keydown', e => {
+  ensureAudio(); const a = KM[e.code], h = HK[e.code];
+  if (a && !e.repeat) { pressed[a] = true; e.preventDefault(); }
+  if (h) { held[h] = true; ptr.kb = true; e.preventDefault(); }
+});
+addEventListener('keyup', e => { const h = HK[e.code]; if (h) held[h] = false; });
+addEventListener('blur', () => { ptr.down = false; for (const k in held) held[k] = false; if (game.state === 'play') game.paused = true; });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (game.state === 'play') game.paused = true; if (AC && AC.state === 'running') AC.suspend(); }
+  else if (AC && AC.state === 'suspended') AC.resume();
+});
+
+// ---------- AUDIO ENGINE (100% synthesized, no samples) ----------
+let AC = null, master = null, comp = null, musicBus = null, sfxBus = null, distBus = null, delay = null, noiseBuf = null;
+let muted = LS.get('ff_mute', '0') === '1', musicOn = LS.get('ff_music', '1') === '1';
+const VOL = 0.5;
+function ensureAudio() {
+  if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    comp = AC.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 6; comp.attack.value = 0.003; comp.release.value = 0.18;
+    master = AC.createGain(); master.gain.value = muted ? 0 : VOL; master.connect(comp); comp.connect(AC.destination);
+    sfxBus = AC.createGain(); sfxBus.gain.value = 1; sfxBus.connect(master);
+    musicBus = AC.createGain(); musicBus.gain.value = musicOn ? 0.55 : 0; musicBus.connect(master);
+    // distortion bus for explosions / big hits
+    distBus = AC.createWaveShaper(); const n = 1024, cu = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; cu[i] = Math.tanh(x * 4.5); } distBus.curve = cu; distBus.oversample = '2x';
+    const dg = AC.createGain(); dg.gain.value = 0.7; distBus.connect(dg); dg.connect(sfxBus);
+    // ping-pong-ish delay for arps and zaps
+    delay = AC.createDelay(1); delay.delayTime.value = 60 / 96 * 0.75; const fb = AC.createGain(); fb.gain.value = 0.34;
+    const dl = AC.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 2600;
+    delay.connect(dl); dl.connect(fb); fb.connect(delay); const dOut = AC.createGain(); dOut.gain.value = 0.5; dl.connect(dOut); dOut.connect(master);
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (err) { AC = null; }
+}
+function out(bus) { return bus === 'd' ? distBus : bus === 'm' ? musicBus : bus === 'e' ? delay : sfxBus; }
+function tone(f, d, type, v, slide, when, bus, attack) {
+  if (!AC || muted) return null;
+  const t = when || AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'square'; o.frequency.setValueAtTime(f, t);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, f + slide), t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v || 0.1, t + (attack || 0.004)); g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+  o.connect(g); g.connect(out(bus)); if (bus === 'e') g.connect(sfxBus);
+  o.start(t); o.stop(t + d + 0.03); return o;
+}
+function noise(d, v, freq, slide, type, when, q, bus) {
+  if (!AC || muted) return;
+  const t = when || AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = noiseBuf; f.type = type || 'lowpass'; f.frequency.setValueAtTime(freq || 1200, t); if (q) f.Q.value = q;
+  if (slide) f.frequency.exponentialRampToValueAtTime(Math.max(40, (freq || 1200) + slide), t + d);
+  g.gain.setValueAtTime(v || 0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  s.connect(f); f.connect(g); g.connect(out(bus)); s.start(t, Math.random() * 1.2); s.stop(t + d + 0.02);
+}
+// buzzy electrical tone: carrier with fast FM wobble (mains hum / arc)
+function arc(f, d, v, when, bus, modf) {
+  if (!AC || muted) return;
+  const t = when || AC.currentTime, o = AC.createOscillator(), m = AC.createOscillator(), mg = AC.createGain(), g = AC.createGain();
+  o.type = 'sawtooth'; o.frequency.value = f; m.type = 'square'; m.frequency.value = modf || 60; mg.gain.value = f * 0.6;
+  m.connect(mg); mg.connect(o.frequency);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.005); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  o.connect(g); g.connect(out(bus)); o.start(t); m.start(t); o.stop(t + d + 0.02); m.stop(t + d + 0.02);
+}
+function duck(amt, dur) { if (!AC || !musicBus || !musicOn) return; const t = AC.currentTime, g = musicBus.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0.55 * (1 - amt), t + 0.02); g.linearRampToValueAtTime(0.55, t + dur); }
+
+// ---------- CIRCUIT ENGINE (DOM-free, node-testable) ----------
+// Nodal analysis. Every element is a branch a->b with I_ab = g*(Va - Vb - E) + J.
+// Diodes / transistor junctions / relay contacts / bench-supply current limit are piecewise and iterated to convergence.
+const OPEN_G = 1e-10, GMIN = 1e-12, METER_G = 1e-7; // meter input = 10 Mohm
+const LED_VF = { red: 1.9, green: 2.1, yellow: 2.0, white: 3.0, blue: 3.0 };
+const PT = { // part catalog: name, cost, faults this part can suffer, actions, info
+  bat:   { name: 'Battery', cost: 4, faults: ['dead'], info: 'A battery turns chemical energy into a steady DC voltage. A tired battery can still read a little voltage with nothing connected, but sags hard under load.' },
+  psu:   { name: 'Bench power supply', cost: 0, faults: [], info: 'Bench supply: holds a set voltage (CV) until the load asks for more than its current limit, then it holds the current instead (CC) and the voltage collapses. A CC light is a big clue that something downstream is shorted.' },
+  mains: { name: 'Utility feed', cost: 0, faults: [], info: 'Utility service: 120 V AC between hot and neutral in North America. Neutral is bonded to ground ONLY at the main panel. (This game shows AC as its RMS value.)' },
+  pwr:   { name: 'Power switch', cost: 0, faults: [], info: 'Main power switch / main breaker, operated by the big POWER button. Always power down before you solder or touch conductors.' },
+  wire:  { name: 'Trace / wire', cost: 2, faults: ['open', 'cold'], info: 'Copper connection. A good wire or trace should have almost zero volts across it while current flows. If you measure a real voltage across a wire, the joint or the wire is bad.' },
+  res:   { name: 'Resistor', cost: 0.25, faults: ['open', 'drift'], info: 'Resistors limit current. Ohm\'s law: V = I x R. Their value is printed as color bands: digit, digit, multiplier (then tolerance).' },
+  led:   { name: 'LED', cost: 0.5, faults: ['open', 'rev'], info: 'Light-emitting diode. Current flows only from anode (+, long leg) to cathode (-, flat side, short leg). Needs a series resistor or it burns out. Red drops about 1.9 V, white about 3 V.' },
+  diode: { name: 'Diode', cost: 0.3, faults: ['short', 'open', 'rev'], info: 'A one-way valve for current. Forward it drops ~0.6 V. The silver band marks the cathode. In diode-test mode a good one reads ~0.5-0.7 V one way and OL the other way.' },
+  bulb:  { name: 'Lamp', cost: 3, faults: ['open'], info: 'Incandescent lamp: a tungsten filament heated until it glows. When the filament breaks, the lamp is an open circuit.' },
+  lamp:  { name: 'Table lamp (100 W)', cost: 0, faults: ['open'], info: 'A 100 W lamp plugged into the receptacle. At 120 V it draws about 0.83 A.' },
+  fuse:  { name: 'Fuse', cost: 1, faults: ['blown'], info: 'A fuse is a deliberate weak link. Too much current melts it and opens the circuit. A blown fuse is a symptom: always ask WHY it blew before replacing it. Never fit a bigger fuse.' },
+  brk:   { name: 'Circuit breaker (15 A)', cost: 0, faults: ['trip'], info: 'A breaker is a resettable fuse. It trips on overload or a short. If it trips again as soon as you reset it, there is a fault on the circuit. Do not keep resetting it.' },
+  cap:   { name: 'Capacitor', cost: 0.8, faults: ['short'], info: 'Capacitors store charge. At steady DC a healthy capacitor blocks current (reads as open once charged). A failed capacitor can short out and drag the supply rail to zero.' },
+  sw:    { name: 'Switch', cost: 2, faults: ['stuck'], info: 'Switch: closed = ~0 ohm, open = infinite. A worn switch can stay open even when you flip it. Click it with the probe tool to flip it.' },
+  btn:   { name: 'Push button', cost: 1.5, faults: ['stuck'], info: 'Momentary push button. Click it with the probe tool to hold it down, click again to let go.' },
+  motor: { name: 'DC motor', cost: 12, faults: ['open'], info: 'DC motor: speed follows the voltage across it. Worn brushes leave it open-circuit. Needs about 70% of its rated voltage to spin properly.' },
+  npn:   { name: 'NPN transistor', cost: 0.6, faults: ['open', 'short'], info: 'NPN transistor used as a switch: a small base current (B to E, ~0.7 V) lets a much bigger current flow from collector to emitter. No base current = switch open.' },
+  coil:  { name: 'Relay coil', cost: 6, faults: ['open'], info: 'Relay: an electromagnet (the coil) pulls in a separate set of contacts. A small circuit can switch a big one. Coils kick back a voltage spike when switched off, so they get a flyback diode.' },
+  contact: { name: 'Relay contacts', cost: 0, faults: [], info: 'Relay contacts close when the coil is energised. They are part of the relay; fix the coil side to fix them.' },
+  ins:   { name: 'Cable insulation', cost: 6, faults: ['short'], info: 'The insulation between the hot conductor and bare ground in NM cable. Over-driven staples or nails can crush it and short hot to ground.' }
+};
+const FAULT_TXT = {
+  dead: 'Dead / worn out', open: 'Open circuit', cold: 'Cold solder joint (high resistance)', drift: 'Value drifted out of tolerance', rev: 'Installed backwards',
+  short: 'Shorted', blown: 'Blown', trip: 'Tripped', stuck: 'Contacts worn open', burnt: 'Burnt out'
+};
+function fmtR(r) { if (r >= 1e6) return +(r / 1e6).toPrecision(3) + ' M\u03a9'; if (r >= 1000) return +(r / 1000).toPrecision(3) + ' k\u03a9'; return +r.toPrecision(3) + ' \u03a9'; }
+function specTxt(c) {
+  switch (c.type) {
+    case 'res': return fmtR(c.spec); case 'led': return c.color + ' LED'; case 'fuse': return c.spec + ' A'; case 'bat': return c.v + ' V';
+    case 'psu': return c.v + ' V / ' + c.ilim + ' A max'; case 'bulb': return c.vr + ' V lamp'; case 'motor': return c.vr + ' V motor'; case 'coil': return c.vr + ' V coil';
+    case 'cap': return (c.uf || 100) + ' \u00b5F'; case 'diode': return '1N4001'; case 'npn': return '2N2222'; case 'mains': return '120 V AC'; case 'brk': return '15 A';
+    default: return '';
+  }
+}
+
+function buildCircuit(L, opt) {
+  opt = opt || {};
+  const C = { L, nodes: [], nidx: {}, comps: [], cmap: {}, power: false, theme: L.theme || 'pcb' };
+  const addNode = (k, p) => { C.nidx[k] = C.nodes.length; C.nodes.push({ k, x: p[0], y: p[1], label: p[2] || (k === 'G' ? (C.theme === 'house' ? 'N-BAR' : 'GND') : k) }); };
+  addNode('G', L.nodes.G); for (const k in L.nodes) if (k !== 'G') addNode(k, L.nodes[k]);
+  for (const p of L.parts) {
+    const [id, type, a, b, o] = p, op = o || {};
+    const c = Object.assign({ id, type, nk: [a, b], fault: null, rev: false, lifted: false, burnt: false }, op);
+    if (type === 'npn') c.nk = [a, b, op.base];
+    if (type === 'contact') c.nk = [a, b];
+    c.n = c.nk.map(k => { if (!(k in C.nidx)) throw new Error('node ' + k + ' missing in ' + L.id + ' part ' + id); return C.nidx[k]; });
+    // defaults
+    if (type === 'res') { c.spec = op.r; c.val = op.r; c.rated = op.w || 0.25; }
+    if (type === 'led') { c.color = op.color || 'red'; c.vf = LED_VF[c.color]; c.spec = c.color; }
+    if (type === 'diode') { c.vf = 0.65; c.spec = '1N4001'; }
+    if (type === 'fuse') { c.spec = op.a; c.val = op.a; }
+    if (type === 'bulb' || type === 'lamp') { c.vr = op.vr || 12; c.r = op.r || 24; }
+    if (type === 'motor') { c.vr = op.vr || 12; c.r = op.r || 24; }
+    if (type === 'coil') { c.vr = op.vr || 12; c.r = op.r || 240; }
+    if (type === 'sw' || type === 'btn') c.on = op.on ? 1 : 0;
+    if (type === 'psu') c.ilim = op.ilim || 1;
+    C.comps.push(c); C.cmap[id] = c;
+  }
+  const faults = opt.faults || L.faults || [];
+  faults.forEach(f => applyFault(C, f));
+  return C;
+}
+function applyFault(C, f) {
+  const c = C.cmap[f[0]], k = f[1], o = f[2] || {};
+  if (!c) throw new Error('fault on missing part ' + f[0]);
+  if (k === 'rev') { c.rev = true; return; }
+  if (k === 'blown') { c.blown = true; return; }
+  if (k === 'trip') { c.trip = true; return; }
+  c.fault = k;
+  if (k === 'drift') c.val = o.r || c.spec * 3.3;
+  if (k === 'cold') c.coldR = o.r || 40;
+  if (k === 'open' && c.type === 'res' && o.burnt !== false) c.burnt = !!o.burnt;
+}
+function cloneCircuit(C) {
+  const D = { L: C.L, nodes: C.nodes, nidx: C.nidx, comps: C.comps.map(c => Object.assign({}, c)), cmap: {}, power: C.power, theme: C.theme };
+  D.comps.forEach(c => D.cmap[c.id] = c); return D;
+}
+// element list for current piecewise states
+function elems(C, st, mode) {
+  const E = [], ohm = mode === 'ohm';
+  const push = (c, a, b, g, e, j, tag) => E.push({ c, a, b, g, E: e || 0, J: j || 0, tag });
+  for (const c of C.comps) {
+    const [a, b] = c.n, s = st[c.id] || (st[c.id] = {});
+    if (c.lifted) { push(c, a, b, OPEN_G); if (c.type === 'npn') push(c, c.n[2], b, OPEN_G, 0, 0, 'be'); continue; }
+    switch (c.type) {
+      case 'wire': push(c, a, b, c.fault === 'open' ? OPEN_G : c.fault === 'cold' ? 1 / c.coldR : 100); break;
+      case 'res': push(c, a, b, (c.fault === 'open' || c.burnt) ? OPEN_G : 1 / c.val); break;
+      case 'bat': if (ohm) push(c, a, b, OPEN_G); else if (c.fault === 'dead') push(c, a, b, 1 / 9, c.v * 0.12); else push(c, a, b, 1 / 0.3, c.v); break;
+      case 'mains': if (ohm) push(c, a, b, OPEN_G); else push(c, a, b, 1 / 0.05, c.v || 120); break;
+      case 'psu': if (ohm) push(c, a, b, OPEN_G); else if (s.cc) push(c, a, b, 1e-6, 0, -c.ilim); else push(c, a, b, 1 / 0.02, c.v); break;
+      case 'pwr': push(c, a, b, C.power ? 50 : OPEN_G); break;
+      case 'sw': case 'btn': push(c, a, b, (c.on && c.fault !== 'stuck') ? 50 : OPEN_G); break;
+      case 'fuse': push(c, a, b, c.blown ? OPEN_G : 20); break;
+      case 'brk': push(c, a, b, c.trip ? OPEN_G : 50); break;
+      case 'bulb': case 'lamp': case 'motor': case 'coil': push(c, a, b, (c.fault === 'open' || c.burnt) ? OPEN_G : 1 / c.r); break;
+      case 'cap': push(c, a, b, c.fault === 'short' ? 10 : OPEN_G); break;
+      case 'ins': push(c, a, b, c.fault === 'short' ? 20 : OPEN_G); break;
+      case 'contact': { const k = C.cmap[c.coil]; push(c, a, b, s.closed ? 50 : OPEN_G); break; }
+      case 'led': case 'diode': {
+        const an = c.rev ? b : a, ca = c.rev ? a : b;
+        if (c.fault === 'open' || c.burnt) push(c, an, ca, OPEN_G);
+        else if (c.fault === 'short') push(c, an, ca, 10);
+        else if (s.on) push(c, an, ca, 1 / (c.type === 'led' ? 15 : 1), c.vf);
+        else push(c, an, ca, OPEN_G);
+        break;
+      }
+      case 'npn': {
+        const B = c.n[2];
+        if (c.fault === 'open') { push(c, a, b, OPEN_G); push(c, B, b, OPEN_G, 0, 0, 'be'); break; }
+        push(c, a, b, c.fault === 'short' ? 10 : s.ce ? 0.125 : OPEN_G);
+        push(c, B, b, s.be ? 1 / 50 : OPEN_G, s.be ? 0.7 : 0, 0, 'be');
+        break;
+      }
+    }
+  }
+  return E;
+}
+function linsolve(A, z) {
+  const n = z.length;
+  for (let i = 0; i < n; i++) {
+    let p = i, m = Math.abs(A[i][i]); for (let r = i + 1; r < n; r++) if (Math.abs(A[r][i]) > m) { m = Math.abs(A[r][i]); p = r; }
+    if (p !== i) { const t = A[i]; A[i] = A[p]; A[p] = t; const tz = z[i]; z[i] = z[p]; z[p] = tz; }
+    const d = A[i][i] || 1e-30;
+    for (let r = i + 1; r < n; r++) { const f = A[r][i] / d; if (!f) continue; for (let k = i; k < n; k++) A[r][k] -= f * A[i][k]; z[r] -= f * z[i]; }
+  }
+  const x = new Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) { let s = z[i]; for (let k = i + 1; k < n; k++) s -= A[i][k] * x[k]; x[i] = s / (A[i][i] || 1e-30); }
+  return x;
+}
+function solveOnce(C, E, inj, mp) {
+  const n = C.nodes.length - 1, A = [], z = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) { A.push(new Array(n).fill(0)); A[i][i] = GMIN; }
+  for (const e of E) {
+    const a = e.a - 1, b = e.b - 1, g = e.g, rhs = g * e.E - e.J;
+    if (a >= 0) { A[a][a] += g; z[a] += rhs; } if (b >= 0) { A[b][b] += g; z[b] -= rhs; }
+    if (a >= 0 && b >= 0) { A[a][b] -= g; A[b][a] -= g; }
+  }
+  if (mp) { const a = mp[0] - 1, b = mp[1] - 1; if (a >= 0) A[a][a] += METER_G; if (b >= 0) A[b][b] += METER_G; if (a >= 0 && b >= 0) { A[a][b] -= METER_G; A[b][a] -= METER_G; } }
+  if (inj) for (const [k, I] of inj) if (k > 0) z[k - 1] += I;
+  const x = linsolve(A, z); return [0].concat(x);
+}
+// full nonlinear solve. mode 'live' (normal) or 'ohm' (sources dead + optional test current injection)
+function solve(C, mode, inj, mp) {
+  const st = {}; let V = null, E = null;
+  for (let it = 0; it < 60; it++) {
+    E = elems(C, st, mode); V = solveOnce(C, E, inj, mp);
+    let changed = false;
+    const I = e => e.g * (V[e.a] - V[e.b] - e.E) + e.J;
+    const ibe = {};
+    for (const e of E) {
+      const c = e.c, s = st[c.id];
+      if ((c.type === 'led' || c.type === 'diode') && !c.fault && !c.burnt && !c.lifted) {
+        const vd = V[e.a] - V[e.b];
+        if (!s.on && vd > c.vf + 1e-6) { s.on = true; changed = true; } else if (s.on && I(e) < -1e-9) { s.on = false; changed = true; }
+      }
+      if (c.type === 'npn' && e.tag === 'be' && !c.fault && !c.lifted) {
+        const vd = V[e.a] - V[e.b];
+        if (!s.be && vd > 0.7 + 1e-6) { s.be = true; changed = true; } else if (s.be && I(e) < -1e-9) { s.be = false; changed = true; }
+        ibe[c.id] = s.be ? I(e) : 0;
+      }
+      if (c.type === 'psu' && mode !== 'ohm') {
+        const ib = -I(e);
+        if (!s.cc && ib > c.ilim) { s.cc = true; changed = true; } else if (s.cc && (V[e.a] - V[e.b]) > c.v) { s.cc = false; changed = true; }
+      }
+    }
+    for (const c of C.comps) {
+      const s = st[c.id];
+      if (c.type === 'npn' && !c.fault && !c.lifted) { const on = (ibe[c.id] || 0) > 2e-5; if (on !== !!s.ce) { s.ce = on; changed = true; } }
+      if (c.type === 'contact') {
+        const k = C.cmap[c.coil], ke = E.find(q => q.c === k);
+        const ik = ke ? Math.abs(I(ke)) : 0, on = !!k && !k.lifted && ik > 0.6 * (k.vr / k.r);
+        if (on !== !!s.closed) { s.closed = on; changed = true; }
+      }
+    }
+    if (!changed) break;
+  }
+  const cur = {};
+  for (const e of E) { if (e.tag === 'be') continue; const i = e.g * (V[e.a] - V[e.b] - e.E) + e.J; cur[e.c.id] = (cur[e.c.id] || 0) + i; }
+  // report currents oriented a->b of the component's own node order (diodes may be stamped reversed)
+  for (const c of C.comps) if ((c.type === 'led' || c.type === 'diode') && c.rev && !c.lifted) cur[c.id] = -cur[c.id];
+  const be = {}; for (const e of E) if (e.tag === 'be') be[e.c.id] = e.g * (V[e.a] - V[e.b] - e.E);
+  return { V, cur, st, be };
+}
+// --- derived quantities ---
+function compV(C, S, c) { return S.V[c.n[0]] - S.V[c.n[1]]; }
+function outState(C, S, c) {
+  const i = Math.abs(S.cur[c.id] || 0), v = c.r ? i * c.r : Math.abs(compV(C, S, c));
+  switch (c.type) {
+    case 'led': { const fw = (S.cur[c.id] || 0) > 0; return { on: fw && i >= 0.002, b: fw ? clamp(i / 0.016, 0, 1.4) : 0, i }; }
+    case 'bulb': case 'lamp': { const pr = c.vr * c.vr / c.r, p = v * v / c.r; return { on: p >= 0.45 * pr, b: clamp(p / pr, 0, 1.4), i }; }
+    case 'motor': return { on: v >= 0.7 * c.vr, b: clamp(v / c.vr, 0, 1.3), i };
+    case 'coil': { const k = C.comps.find(q => q.type === 'contact' && q.coil === c.id); return { on: !!(k && S.st[k.id] && S.st[k.id].closed), b: clamp(i / (c.vr / c.r), 0, 1.3), i }; }
+    default: return { on: false, b: 0, i };
+  }
+}
+// overload damage. returns list of events; mutates C. call with live solution; re-solves until stable.
+function liveSolve(C) {
+  let S = solve(C, 'live'); const ev = [];
+  for (let k = 0; k < 8; k++) {
+    let worst = null, wr = 1;
+    for (const c of C.comps) {
+      const i = Math.abs(S.cur[c.id] || 0); let r = 0;
+      if (c.type === 'fuse' && !c.blown) r = i / c.val;
+      else if (c.type === 'brk' && !c.trip) r = i / 15;
+      else if (c.type === 'led' && !c.burnt && !c.fault) r = i / 0.05;
+      else if (c.type === 'res' && !c.burnt && c.fault !== 'open') r = i * i * c.val / (c.rated * 4);
+      if (r > wr) { wr = r; worst = c; }
+    }
+    if (!worst) break;
+    if (worst.type === 'fuse') worst.blown = true;
+    else if (worst.type === 'brk') worst.trip = true;
+    else worst.burnt = true;
+    ev.push(worst);
+    S = solve(C, 'live');
+  }
+  return { S, ev };
+}
+// test vectors: returns {pass, rows:[{ok, want:[{id, want, got, ok}]}], ev}
+function runTests(C) {
+  const saved = {}; C.comps.forEach(c => { if (c.type === 'sw' || c.type === 'btn') saved[c.id] = c.on; });
+  const p0 = C.power; C.power = true;
+  const rows = [], allEv = [];
+  for (const T of C.L.tests) {
+    C.comps.forEach(c => { if (c.type === 'sw' || c.type === 'btn') c.on = (T.sw && c.id in T.sw) ? T.sw[c.id] : saved[c.id]; });
+    const { S, ev } = liveSolve(C); allEv.push(...ev);
+    const want = [];
+    for (const id in T.want) {
+      const w = T.want[id];
+      if (id[0] === '@') { const v = S.V[C.nidx[id.slice(1)]]; want.push({ id, want: w, got: v, ok: v >= w[0] && v <= w[1] }); }
+      else { const o = outState(C, S, C.cmap[id]); want.push({ id, want: w, got: o.on ? 'on' : 'off', ok: (w === 'on') === o.on }); }
+    }
+    rows.push({ T, ok: want.every(q => q.ok), want });
+  }
+  C.comps.forEach(c => { if (c.id in saved) c.on = saved[c.id]; });
+  C.power = p0;
+  const lifted = C.comps.filter(c => c.lifted);
+  return { pass: rows.every(r => r.ok) && !lifted.length, rows, ev: allEv, lifted };
+}
+// --- meter ---
+function meterRead(C, mode, red, black) {
+  const S = solve(C, 'live', null, [red, black]), dv = S.V[red] - S.V[black];
+  if (mode === 'V') return { v: dv, txt: (Math.abs(dv) < 0.0005 ? '0.000' : Math.abs(dv) >= 100 ? dv.toFixed(1) : Math.abs(dv) >= 10 ? dv.toFixed(2) : dv.toFixed(3)), unit: 'V' };
+  if (Math.abs(dv) > 0.2) return { live: true, v: dv, txt: 'LIVE', unit: '' };
+  if (red === black) return mode === 'R' ? { v: 0, txt: '0.0', unit: '\u03a9', beep: true } : { v: 0, txt: '0.000', unit: 'V', beep: true };
+  // a lifted part is tested on its own (out of circuit)
+  const iso = C.comps.find(c => c.lifted && ((c.n[0] === red && c.n[1] === black) || (c.n[1] === red && c.n[0] === black)));
+  if (iso) { C = cloneCircuit(C); C.comps.forEach(c => c.lifted = c.id !== iso.id); C.cmap[iso.id].lifted = false; }
+  if (mode === 'R') {
+    for (const I of [1e-3, 1e-5, 1e-7]) {
+      const So = solve(C, 'ohm', [[red, I], [black, -I]]), v = So.V[red] - So.V[black];
+      if (v <= 2.8) { const r = Math.max(0, v / I); return { v: r, txt: r >= 1e6 ? (r / 1e6).toFixed(2) : r >= 1000 ? (r / 1000).toFixed(r >= 1e5 ? 1 : 2) : r.toFixed(1), unit: r >= 1e6 ? 'M\u03a9' : r >= 1000 ? 'k\u03a9' : '\u03a9', beep: r < 30 }; }
+    }
+    return { v: Infinity, txt: 'OL', unit: '\u03a9' };
+  }
+  if (mode === 'D') {
+    const I = 1e-3, So = solve(C, 'ohm', [[red, I], [black, -I]]), v = So.V[red] - So.V[black];
+    if (v > 2.8) return { v: Infinity, txt: 'OL', unit: 'V' };
+    return { v, txt: v.toFixed(3), unit: 'V', beep: v < 0.05 };
+  }
+  return { txt: '----', unit: '' };
+}
+function clampRead(C, c) {
+  const S = solve(C, 'live'); let i = Math.abs(S.cur[c.id] || 0);
+  const t = i >= 1 ? i.toFixed(2) : i >= 0.001 ? (i * 1000).toFixed(1) : (i * 1000).toFixed(2);
+  return { v: i, txt: t, unit: i >= 1 ? 'A' : 'mA' };
+}
+if (typeof module !== 'undefined') module.exports = { buildCircuit, solve, liveSolve, runTests, meterRead, clampRead, outState, cloneCircuit, applyFault, PT };
+
+// ---------- SFX + music (all synthesized) ----------
+const note = (base, semi) => base * Math.pow(2, semi / 12);
+const SFX = {
+  select: () => tone(1400, 0.04, 'triangle', 0.05),
+  deny: () => { tone(150, 0.14, 'square', 0.07, -40); tone(155, 0.14, 'sawtooth', 0.04); },
+  click: () => { tone(2600, 0.02, 'square', 0.03); noise(0.02, 0.08, 4000, 0, 'highpass'); },
+  toggle: () => { const t = AC.currentTime; noise(0.03, 0.25, 3000, 0, 'bandpass', t, 3); tone(900, 0.03, 'square', 0.04, -300, t); },
+  probe: () => { const t = AC.currentTime; noise(0.015, 0.12, 6000, 0, 'highpass', t); tone(1900, 0.03, 'sine', 0.04, 0, t + 0.01); },
+  beep: () => { const t = AC.currentTime; tone(2730, 0.28, 'square', 0.035, 0, t, null, 0.002); },
+  warn: () => { const t = AC.currentTime; for (let i = 0; i < 4; i++) tone(2400, 0.06, 'square', 0.05, 0, t + i * 0.09); tone(120, 0.4, 'sawtooth', 0.08, -40, t, 'd'); },
+  inspect: () => { const t = AC.currentTime; tone(700, 0.08, 'sine', 0.05, 500, t); tone(1400, 0.1, 'sine', 0.03, 0, t + 0.06, 'e'); },
+  solder: () => { const t = AC.currentTime; noise(0.5, 0.2, 5000, -2000, 'bandpass', t, 1.5); noise(0.25, 0.12, 8000, 0, 'highpass', t + 0.1); tone(180, 0.05, 'square', 0.05, 0, t + 0.45); },
+  pop: () => { const t = AC.currentTime; duck(0.8, 0.8); noise(0.12, 0.8, 4000, -3500, 'lowpass', t, 0, 'd'); tone(220, 0.12, 'square', 0.2, -180, t, 'd'); noise(0.9, 0.08, 1500, -1000, 'bandpass', t + 0.08, 1); },
+  breaker: () => { const t = AC.currentTime; duck(1, 1.2); tone(48, 0.15, 'square', 0.35, 0, t, 'd'); noise(0.1, 0.6, 2500, -2000, 'lowpass', t, 0, 'd'); noise(0.03, 0.4, 6000, 0, 'highpass', t + 0.02); },
+  relay: () => { const t = AC.currentTime; noise(0.02, 0.4, 2500, 0, 'bandpass', t, 4); tone(400, 0.02, 'square', 0.08, 0, t); noise(0.015, 0.25, 4000, 0, 'bandpass', t + 0.012, 4); },
+  power: () => { const t = AC.currentTime; noise(0.03, 0.35, 2500, 0, 'bandpass', t, 3); tone(60, 0.5, 'sawtooth', 0.08, 0, t + 0.02, 'd'); tone(120, 0.5, 'sine', 0.06, 0, t + 0.02); tone(1200, 0.12, 'sine', 0.03, 400, t + 0.05, 'e'); },
+  poweroff: () => { const t = AC.currentTime; noise(0.03, 0.3, 2000, 0, 'bandpass', t, 3); tone(120, 0.4, 'sine', 0.06, -80, t); },
+  hint: () => { const t = AC.currentTime; [0, 7, 12].forEach((s, i) => tone(note(880, s), 0.14, 'triangle', 0.04, 0, t + i * 0.06, 'e')); },
+  testrun: () => { const t = AC.currentTime; for (let i = 0; i < 6; i++) tone(1200 + i * 180, 0.05, 'square', 0.025, 0, t + i * 0.06); },
+  win: () => { const t = AC.currentTime; duck(1, 2.4); [0, 4, 7, 12, 16, 19, 24].forEach((s, i) => tone(note(523, s), 0.45, 'triangle', 0.05, 0, t + i * 0.07, 'e')); tone(65, 1.0, 'sine', 0.3, 0, t); },
+  fail: () => { const t = AC.currentTime; [0, -3, -6].forEach((s, i) => tone(note(330, s), 0.3, 'sawtooth', 0.04, 0, t + i * 0.16, 'e')); },
+  star: k => { const t = AC.currentTime; tone(note(1047, k * 4), 0.3, 'triangle', 0.07, 0, t, 'e'); tone(note(2093, k * 4), 0.2, 'sine', 0.04, 0, t + 0.03); noise(0.08, 0.15, 8000, 0, 'highpass', t); }
+};
+const sfxLast = {};
+function sfx(n, k) {
+  if (!AC || muted || !SFX[n]) return;
+  const t = performance.now(); if (sfxLast[n] && t - sfxLast[n] < 30) return;
+  sfxLast[n] = t; SFX[n](k);
+}
+function setMute(v) { muted = v; LS.set('ff_mute', v ? '1' : '0'); if (master) master.gain.value = muted ? 0 : VOL; }
+function setMusic(v) { musicOn = v; LS.set('ff_music', v ? '1' : '0'); if (musicBus) { musicBus.gain.cancelScheduledValues(0); musicBus.gain.value = v ? 0.55 : 0; } }
+// music: slow analog lab groove in D minor; drops back while the coil is singing
+const MUS = { next: 0, step: 0, bpm: 84, inten: 0, target: 0, on: false };
+const CHORDS = [[52, 55, 59, 62], [48, 52, 55, 59], [50, 53, 57, 60], [47, 50, 55, 57]];
+const BASS = [40, 36, 38, 43];
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+function mKick(t, v) { const o = AC.createOscillator(), g = AC.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(130, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3); o.connect(g); g.connect(musicBus); o.start(t); o.stop(t + 0.32); }
+function mBass(t, f, d, cut, v) { const o = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
+  o.type = 'sawtooth'; o.frequency.value = f; fl.type = 'lowpass'; fl.Q.value = 6; fl.frequency.setValueAtTime(cut * 2, t); fl.frequency.exponentialRampToValueAtTime(cut * 0.5, t + d);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.006); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  o.connect(fl); fl.connect(g); g.connect(musicBus); o.start(t); o.stop(t + d + 0.02); }
+function mArp(t, f, d, v, bright) { const o = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
+  o.type = 'triangle'; o.frequency.value = f; fl.type = 'lowpass'; fl.frequency.value = bright;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.004); g.gain.exponentialRampToValueAtTime(0.001, t + d);
+  o.connect(fl); fl.connect(g); g.connect(musicBus); g.connect(delay); o.start(t); o.stop(t + d + 0.02); }
+function mNoise(t, d, v, f, type) { const s = AC.createBufferSource(), fl = AC.createBiquadFilter(), g = AC.createGain(); s.buffer = noiseBuf; fl.type = type; fl.frequency.value = f;
+  g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.001, t + d); s.connect(fl); fl.connect(g); g.connect(musicBus); s.start(t, Math.random()); s.stop(t + d + 0.02); }
+function mPad(t, chord, d, v) { chord.forEach(m => { [0.995, 1.005].forEach(det => { const o = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
+  o.type = 'sawtooth'; o.frequency.value = mtof(m) * det; fl.type = 'lowpass'; fl.frequency.value = 700;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + d * 0.35); g.gain.linearRampToValueAtTime(0.0001, t + d);
+  o.connect(fl); fl.connect(g); g.connect(musicBus); o.start(t); o.stop(t + d + 0.02); }); }); }
+function musicTick() {
+  if (!AC || muted || !musicOn || !MUS.on) { if (AC) MUS.next = AC.currentTime + 0.05; return; }
+  MUS.inten += (MUS.target - MUS.inten) * 0.02;
+  const I = MUS.inten, sp = 60 / MUS.bpm / 4;
+  if (MUS.next < AC.currentTime) MUS.next = AC.currentTime + 0.03;
+  while (MUS.next < AC.currentTime + 0.12) {
+    const t = MUS.next, s = MUS.step % 16, bar = Math.floor(MUS.step / 16) % 4, ch = CHORDS[bar];
+    if (s === 0) mPad(t, ch.map(m => m + 12), sp * 16, 0.011);
+    if (I > 0.3 && (s === 0 || s === 10)) mKick(t, 0.4);
+    if (I > 0.6 && s % 4 === 2) mNoise(t, 0.03, 0.07, 9000, 'highpass');
+    if (I > 0.2 && (s === 0 || s === 3 || s === 8 || s === 11 || s === 14)) mBass(t, mtof(BASS[bar]), sp * 2.2, 260 + I * 300, 0.1);
+    const seq = [0, 2, 1, 2, 0, 1, 2, 1];
+    if (s % 2 === 0 || I > 1) mArp(t, mtof(ch[seq[s % 8]] + 24), sp * 1.6, 0.022, 1400 + I * 900);
+    MUS.next += sp; MUS.step++;
+  }
+}
+
+// ---------- JOBS ----------
+// nodes: key -> [x, y, label?] in screen px (board area x 16..696, y 62..466). G is the meter's ground reference.
+// parts: [id, type, nodeA, nodeB, opts]  (bat/psu/led/diode: A = + / anode. npn: A = collector, B = emitter, opts.base = base node)
+// tests: switch settings + wanted outputs ('on'/'off', or '@NODE': [lo, hi] volts)
+const PSU = (y) => ({ P: [86, y || 140, '+V'] });
+const LEVELS = [
+{
+  id: 'flash', name: 'Dead Flashlight', client: 'Mrs. Alvarez, camping trip tonight', pay: 30, par: 3,
+  complaint: 'Flip the switch: nothing. Not even a flicker.',
+  nodes: { G: [120, 400], A: [120, 160], B: [380, 160], C: [600, 160], D: [600, 400] },
+  parts: [['BT1', 'bat', 'A', 'G', { v: 3, label: '2xAA' }], ['SW1', 'sw', 'A', 'B'], ['W1', 'wire', 'B', 'C'], ['L1', 'bulb', 'C', 'D', { vr: 3, r: 6 }], ['W2', 'wire', 'D', 'G']],
+  tests: [{ sw: { SW1: 1 }, want: { L1: 'on' } }], faults: [['BT1', 'dead']],
+  lesson: { title: 'Voltage: electrical pressure', body: 'Current only flows around a closed loop: battery -> switch -> lamp -> back to the battery. Voltage is the push that drives it, and you measure it BETWEEN two points.\nYour black probe is clipped to GND. Click any gold test point to put the red probe on it and read the voltage at that point compared with ground.', formula: 'Voltmeter: red on the point, black on GND', tip: 'Start at the source. If the battery reads far below its rating, nothing after it stands a chance.' },
+  hints: ['Turn SW1 on so the lamp is trying to draw current, then measure the battery: red probe on test point A.', 'A fresh 2xAA pack should read about 3 V. What do you see?', 'Under load it reads well under 1 V. The batteries are dead. Use the SOLDER tool (R) on BT1 and replace it.'],
+  debrief: 'Two AA cells in series give 1.5 + 1.5 = 3 V. Yours read about 0.3 V under load: worn-out cells have high internal resistance, so the voltage collapses as soon as the lamp draws current.',
+  career: 'Every electronics tech starts here: check the power first. It sounds obvious, and it still solves a big share of bench repairs.'
+},
+{
+  id: 'porch', name: 'Dark Porch Lamp', client: 'Hollow Pine Diner', pay: 40, par: 4,
+  complaint: 'Porch lamp is dead. The fuse looks fine and the switch clicks.',
+  nodes: Object.assign({ G: [86, 400], A: [230, 140], B: [400, 140], C: [600, 140], D: [600, 400] }, PSU()),
+  parts: [['PS1', 'psu', 'P', 'G', { v: 12, ilim: 2 }], ['PWR', 'pwr', 'P', 'A'], ['F1', 'fuse', 'A', 'B', { a: 2 }], ['SW1', 'sw', 'B', 'C'], ['L1', 'bulb', 'C', 'D', { vr: 12, r: 24 }], ['W1', 'wire', 'D', 'G']],
+  tests: [{ sw: { SW1: 1 }, want: { L1: 'on' } }], faults: [['L1', 'open']],
+  lesson: { title: 'Series circuits and the open', body: 'In a series loop the same current flows through every part, and the supply voltage is shared across them. When one part breaks open, current stops everywhere.\nHere is the useful trick: with no current flowing, there is no drop across the good parts, so the WHOLE supply voltage shows up across the broken one.', formula: 'Open in a series loop = full supply voltage across it', tip: 'Power on, switch on, then walk the red probe along the loop: A, B, C, D. Where does the 12 V stop?' },
+  hints: ['Press POWER, turn SW1 on, then measure A, B, C and D against GND.', 'A, B and C read 12 V and D reads 0 V. The full 12 V is across the part between C and D.', 'The lamp L1 is open: its filament broke. Power OFF, then replace L1.'],
+  debrief: 'Points A, B and C all read 12 V, so the fuse and switch are passing current fine. D read 0 V. The full supply across L1 means its filament was open. A frosted bulb can look perfect from the outside.',
+  career: '"Half-splitting": measure in the middle of the circuit and keep splitting the half that is wrong. Field techs and electricians troubleshoot this way every day.'
+},
+{
+  id: 'beacon', name: 'Backwards Beacon', client: 'Maker Club, student kit', pay: 35, par: 4,
+  complaint: 'The kid built it carefully. Battery is new. LED stays dark.',
+  nodes: Object.assign({ G: [86, 400], A: [230, 140], B: [440, 140], C: [600, 140], D: [600, 400] }, PSU()),
+  parts: [['PS1', 'psu', 'P', 'G', { v: 9, ilim: 1 }], ['PWR', 'pwr', 'P', 'A'], ['R1', 'res', 'A', 'B', { r: 470 }], ['W1', 'wire', 'B', 'C'], ['LED1', 'led', 'C', 'D', { color: 'red' }], ['W2', 'wire', 'D', 'G']],
+  tests: [{ want: { LED1: 'on' } }], faults: [['LED1', 'rev']],
+  lesson: { title: 'Diodes are one-way streets', body: 'An LED only lets current through from its anode (+) to its cathode (-). The cathode side has a flat edge on the plastic and the shorter leg.\nPut it in backwards and it blocks current completely. Nothing gets damaged at low voltage, it just stays dark. The resistor is there to limit current so the LED does not burn out.', formula: 'I = (Vsupply - V_LED) / R = (9 - 1.9) / 470 = 15 mA', tip: 'Diode-test mode (D) pushes a little current from red to black and shows the forward drop. A good LED reads about 1.5-2 V one way and OL the other way.' },
+  hints: ['With POWER on, measure C and D. How much voltage is across the LED?', 'The whole 9 V sits across LED1 and no current flows. It is blocking. Either it is dead, or it is in backwards.', 'Use INSPECT (E) on LED1: the flat cathode edge points the wrong way. Power OFF, then use SOLDER and pick "Flip".'],
+  debrief: 'The LED was reverse-biased. The full 9 V appeared across it with zero current flowing. Flipping it put the anode toward +, and it now drops ~1.9 V with ~15 mA flowing.',
+  career: 'Polarity mistakes (diodes, electrolytic caps, battery holders) are the #1 kit-building bug. Production lines use AOI cameras to catch them.'
+},
+{
+  id: 'smoked', name: 'Smoked Resistor', client: 'Riverside Print Shop', pay: 45, par: 3,
+  complaint: 'The green READY light died and there was a burning smell.',
+  nodes: Object.assign({ G: [86, 410], A: [230, 140], B: [460, 140], C: [600, 140], K1: [600, 410], A2: [230, 280], B2: [440, 280], K2: [440, 410] }, PSU()),
+  parts: [['PS1', 'psu', 'P', 'G', { v: 12, ilim: 1 }], ['PWR', 'pwr', 'P', 'A'], ['R1', 'res', 'A', 'B', { r: 680 }], ['W1', 'wire', 'B', 'C'], ['LED1', 'led', 'C', 'K1', { color: 'green' }],
+    ['W2', 'wire', 'A', 'A2'], ['R2', 'res', 'A2', 'B2', { r: 1000 }], ['LED2', 'led', 'B2', 'K2', { color: 'yellow' }], ['W3', 'wire', 'K2', 'G'], ['W4', 'wire', 'K1', 'K2']],
+  tests: [{ want: { LED1: 'on', LED2: 'on' } }], faults: [['R1', 'open', { burnt: true }]], hideValues: true,
+  lesson: { title: 'Resistor color codes', body: 'Resistors carry their value as color bands: first digit, second digit, then a multiplier (how many zeros). Black 0, brown 1, red 2, orange 3, yellow 4, green 5, blue 6, violet 7, grey 8, white 9.\nBlue-grey-brown = 6, 8, one zero = 680 ohm. The parts bin in this job only shows bands, so read them.', formula: 'Bands: digit, digit, x10^n  (680 = blue grey brown)', tip: 'Fit a smaller value and the LED gets too much current and pops. Fit a bigger one and it glows dim. The silkscreen tells you what belongs there.' },
+  hints: ['INSPECT (E) the parts near the dead LED.', 'R1 is charred and reads open. It needs a 680 ohm replacement.', '680 ohm = blue, grey, brown. Power OFF, SOLDER R1, pick that one.'],
+  debrief: 'R1 burned open, so LED1 had no current path. With 680 ohm back in, (12 - 2.1) / 680 = about 15 mA flows, which is right for a standard LED.',
+  career: 'Reading bands quickly matters on the bench, and production techs also check them against the BOM (bill of materials) during inspection.'
+},
+{
+  id: 'divider', name: 'The Drifting Divider', client: 'Clover Greenhouse controller', pay: 55, par: 5,
+  complaint: 'The sensor input should sit at 6.0 V. It reads way high and the vents never open.',
+  nodes: Object.assign({ G: [86, 410], A: [230, 140], T: [440, 140], M: [440, 280, 'VOUT'], O: [620, 280, 'ADC'], Bt: [440, 410] }, PSU()),
+  parts: [['PS1', 'psu', 'P', 'G', { v: 12, ilim: 1 }], ['PWR', 'pwr', 'P', 'A'], ['W1', 'wire', 'A', 'T'], ['R1', 'res', 'T', 'M', { r: 10000 }], ['R2', 'res', 'M', 'Bt', { r: 10000 }], ['W2', 'wire', 'Bt', 'G'], ['W3', 'wire', 'M', 'O']],
+  tests: [{ want: { '@O': [5.6, 6.4] } }], faults: [['R2', 'drift', { r: 27000 }]],
+  lesson: { title: 'Voltage dividers and the ohmmeter', body: 'Two resistors in series split the voltage in proportion to their values. Equal resistors give exactly half: 12 V in, 6 V out.\nIf the output is wrong, one of them has drifted. The voltmeter only tells you the RATIO is off. To find which part is bad, measure each one with the ohmmeter (Ohm mode).\nThe ohmmeter has its own little battery. Use it ONLY with the power OFF, or you get garbage readings and can damage the meter.', formula: 'Vout = Vin x R2 / (R1 + R2)', tip: 'Ohms across a component in-circuit also includes anything wired in parallel with it. Here each resistor is on its own path once POWER is off.' },
+  hints: ['Measure VOUT with power on: about 8.8 V instead of 6.0 V.', 'Vout is too high: either R1 dropped in value or R2 went up. Turn POWER OFF and switch the meter to Ohms.', 'Red on VOUT, black on GND reads R2 at about 27 k. It should be 10 k. Replace R2 (brown, black, orange).'],
+  debrief: 'R2 had drifted from 10 k to about 27 k, so Vout = 12 x 27 / (10 + 27) = 8.8 V. Resistors drift from heat stress and age. The voltmeter showed the symptom and the ohmmeter (power off!) found the culprit.',
+  career: 'Dividers set reference voltages in almost every sensor and power supply. Calibration techs chase drifted resistors like this all the time.'
+},
+{
+  id: 'party', name: 'Party Lights', client: 'Lakeside Pavilion, event at 6 PM', pay: 50, par: 4,
+  complaint: 'Three lamps work. Lamp 3 stays dark, and swapping in a new bulb did not help.',
+  nodes: Object.assign({ G: [86, 420], A: [180, 120], T1: [300, 120], T2: [400, 120], T3: [500, 120], T4: [610, 120], U1: [300, 200], U2: [400, 200], U3: [500, 200], U4: [610, 200], V1: [300, 340], V2: [400, 340], V3: [500, 340], V4: [610, 340], B1: [300, 420], B2: [400, 420], B3: [500, 420], B4: [610, 420] }, PSU(120)),
+  parts: [['PS1', 'psu', 'P', 'G', { v: 12, ilim: 3 }], ['PWR', 'pwr', 'P', 'A'], ['F1', 'fuse', 'A', 'T1', { a: 2 }], ['W12', 'wire', 'T1', 'T2'], ['W23', 'wire', 'T2', 'T3'], ['W34', 'wire', 'T3', 'T4'],
+    ['WA1', 'wire', 'T1', 'U1'], ['WA2', 'wire', 'T2', 'U2'], ['WA3', 'wire', 'T3', 'U3'], ['WA4', 'wire', 'T4', 'U4'],
+    ['L1', 'bulb', 'U1', 'V1', { vr: 12, r: 48 }], ['L2', 'bulb', 'U2', 'V2', { vr: 12, r: 48 }], ['L3', 'bulb', 'U3', 'V3', { vr: 12, r: 48 }], ['L4', 'bulb', 'U4', 'V4', { vr: 12, r: 48 }],
+    ['WB1', 'wire', 'V1', 'B1'], ['WB2', 'wire', 'V2', 'B2'], ['WB3', 'wire', 'V3', 'B3'], ['WB4', 'wire', 'V4', 'B4'], ['WG1', 'wire', 'B1', 'G'], ['WG2', 'wire', 'B2', 'B1'], ['WG3', 'wire', 'B3', 'B2'], ['WG4', 'wire', 'B4', 'B3']],
+  tests: [{ want: { L1: 'on', L2: 'on', L3: 'on', L4: 'on' } }], faults: [['WA3', 'open']],
+  lesson: { title: 'Parallel circuits and continuity', body: 'In parallel every branch connects straight across the supply, so each lamp gets the full 12 V and works on its own. One dead branch does not kill the others.\nIf a branch is dead but its lamp is good, the break is in that branch\'s wiring. Continuity mode beeps when two points are connected (near 0 ohm). Use it with the power OFF.', formula: 'Parallel: same voltage on every branch.  I_total = I1 + I2 + I3 + I4', tip: 'Compare the dead branch with a working one, point by point. The difference shows you where the break is.' },
+  hints: ['With power on, compare U2 (a working branch) with U3. Both should read 12 V.', 'T3 reads 12 V but U3 reads 0 V, so the trace from T3 down to U3 is broken. Power off and check continuity across it to confirm: no beep.', 'SOLDER the trace WA3 between T3 and U3 and choose "Reflow / jumper".'],
+  debrief: 'The rail at T3 had 12 V but U3 had 0 V. The short trace between them had a hairline crack, which is common where boards flex. A jumper restored the branch. The new bulb they tried was never the problem.',
+  career: 'Cracked traces and broken wires are classic intermittent faults in vehicles, appliances and stage gear. A continuity beeper is the fastest tool for them.'
+},
+{
+  id: 'fuse', name: 'The Fuse Eater', client: 'Northgate Security, keypad PSU', pay: 60, par: 5,
+  complaint: 'The fuse blew. We replaced it, and it blew again as soon as we powered up.',
+  nodes: Object.assign({ G: [86, 410], A: [230, 130], B: [400, 130], B2: [580, 130], Cb: [400, 410], X: [580, 260], Lg: [580, 410] }, PSU(130)),
+  parts: [['PS1', 'psu', 'P', 'G', { v: 12, ilim: 3 }], ['PWR', 'pwr', 'P', 'A'], ['F1', 'fuse', 'A', 'B', { a: 1 }], ['C1', 'cap', 'B', 'Cb', { uf: 470 }], ['W1', 'wire', 'B', 'B2'], ['R1', 'res', 'B2', 'X', { r: 1000 }], ['LED1', 'led', 'X', 'Lg', { color: 'green' }],
+    ['W2', 'wire', 'Cb', 'G'], ['W3', 'wire', 'Lg', 'Cb']],
+  tests: [{ want: { LED1: 'on' } }], faults: [['F1', 'blown'], ['C1', 'short']],
+  lesson: { title: 'Fuses and root cause', body: 'A fuse is a deliberate weak link. It melts before the wiring can overheat. A blown fuse is a SYMPTOM, not the disease.\nBefore you fit a new fuse, power off and measure resistance from the protected rail to ground. A healthy board shows a reasonable resistance. A dead short reads close to 0 ohm and beeps.\nAt DC a good capacitor blocks current. A failed one can short straight across the rail.', formula: 'Short circuit: R near 0, so I = V / R is enormous', tip: 'Never fit a bigger fuse to "fix" nuisance blowing. That is how fires start.' },
+  hints: ['INSPECT F1: blown. Before replacing it, find out WHY. Power OFF.', 'Ohms (or continuity) from B to GND should read high. It reads about 0.1 ohm: something is shorting the rail.', 'The only thing straight across B-GND is C1, the electrolytic cap. Replace C1, then the fuse (1 A).'],
+  debrief: 'C1 had failed short, which put roughly 0.1 ohm across the 12 V rail. The supply pushed its full 3 A limit through a 1 A fuse, so of course it blew. Replacing only the fuse just feeds the short another fuse.',
+  career: 'Shorted capacitors are the most common failure in power supplies, monitors and appliances. Repair techs measure rail-to-ground resistance before they ever power up.'
+},
+{
+  id: 'fan', name: 'Weak Fan', client: 'Server closet, Clover HQ', pay: 50, par: 4,
+  complaint: 'The cooling fan hums and barely turns. A new fan did the same thing.',
+  nodes: Object.assign({ G: [86, 410], A: [230, 140], B: [420, 140], C: [600, 140], D: [600, 320], E: [600, 410] }, PSU()),
+  parts: [['PS1', 'psu', 'P', 'G', { v: 12, ilim: 2 }], ['PWR', 'pwr', 'P', 'A'], ['SW1', 'sw', 'A', 'B'], ['W1', 'wire', 'B', 'C'], ['M1', 'motor', 'C', 'D', { vr: 12, r: 24 }], ['W2', 'wire', 'D', 'E', { joint: 1 }], ['W3', 'wire', 'E', 'G']],
+  tests: [{ sw: { SW1: 1 }, want: { M1: 'on' } }], faults: [['W2', 'cold', { r: 30 }]],
+  lesson: { title: 'Voltage drop across connections', body: 'A good wire or solder joint has almost no resistance, so it drops almost no voltage, even with current flowing through it.\nA cold solder joint (dull, grainy, not properly wetted) can behave like a resistor in series. It steals voltage from the load. The motor sees less voltage, so it turns slowly.', formula: 'V_load = Vs x R_load / (R_load + R_joint)', tip: 'Measure ACROSS a connection with the power on: put black on one side and red on the other (right-click or the BLACK button moves the black probe). More than a few tenths of a volt means a bad joint.' },
+  hints: ['With power and SW1 on, measure across the motor: red on C, black on D. Only about 5 V.', 'Where did the other 7 V go? Measure across W2: black on E, red on D.', 'About 7 V across a wire! INSPECT W2: a cold joint. Power off and Reflow it.'],
+  debrief: 'The cold joint on the motor lead had about 30 ohm of resistance, in series with a 24 ohm motor, so it took more than half the supply. The motor only saw 5.3 V. Reflowing the joint put the full 12 V back across the motor.',
+  career: 'IPC J-STD-001 is the soldering certification many electronics employers want. Spotting a cold joint by eye is part of the test.'
+},
+{
+  id: 'touch', name: 'Touch Lamp', client: 'Bedside lamp, Mr. Okafor', pay: 55, par: 5,
+  complaint: 'Press the button: nothing. The LED and the transistor were already replaced.',
+  nodes: Object.assign({ G: [86, 420], A: [200, 120], T: [560, 120], Ua: [560, 210], Qc: [560, 300], Qe: [560, 380], Qb: [520, 340], Ab: [200, 340], S: [320, 340], Ge: [560, 420] }, PSU(120)),
+  parts: [['PS1', 'psu', 'P', 'G', { v: 9, ilim: 1 }], ['PWR', 'pwr', 'P', 'A'], ['W1', 'wire', 'A', 'T'], ['R2', 'res', 'T', 'Ua', { r: 470 }], ['LED1', 'led', 'Ua', 'Qc', { color: 'white' }], ['Q1', 'npn', 'Qc', 'Qe', { base: 'Qb', at: [560, 340] }],
+    ['W2', 'wire', 'A', 'Ab'], ['S1', 'btn', 'Ab', 'S'], ['R1', 'res', 'S', 'Qb', { r: 10000 }], ['W3', 'wire', 'Qe', 'Ge'], ['W4', 'wire', 'Ge', 'G']],
+  tests: [{ sw: { S1: 1 }, want: { LED1: 'on' } }, { sw: { S1: 0 }, want: { LED1: 'off' } }], faults: [['R1', 'open']],
+  lesson: { title: 'The transistor as a switch', body: 'An NPN transistor is a current-controlled switch. A small current into the base (B), out through the emitter (E), lets a big current flow from the collector (C) to E.\nWhen it is working, the base sits about 0.7 V above the emitter. If the base reads 0 V, the transistor is not getting its drive signal. Look upstream of the base.', formula: 'V_BE about 0.7 V when ON.  Ib = (9 - 0.7) / 10k = 0.8 mA', tip: 'The button is momentary: click S1 with the probe tool to hold it down while you measure.' },
+  hints: ['Hold S1 down (click it), power on, and measure the base Qb against GND.', 'The base reads 0 V instead of ~0.7 V. Check S, the other side of R1: it reads 9 V. The full 9 V is across R1.', 'R1 is open. Power off, confirm with Ohms (OL across R1), then replace it with 10 k (brown black orange).'],
+  debrief: 'With S1 held, S read 9 V and the base read 0 V. All the voltage was across R1, which had gone open internally (no visible damage). No base current means no collector current. Replacing the LED and transistor could never fix it.',
+  career: 'Transistor switch stages are everywhere: relays, LED drivers, motor controllers. Checking V_BE is a 5-second test every tech should know.'
+},
+{
+  id: 'relay', name: 'Clicky Relay', client: 'Fern Hollow Farm, irrigation pump', pay: 70, par: 6,
+  complaint: 'Flip the pump switch: no relay click, the supply shows way too much current and Q1 gets hot.',
+  nodes: Object.assign({ G: [70, 420], A: [170, 110], Dt: [300, 110], Kt: [420, 110], T2: [590, 110], Db: [300, 250], Kc: [420, 250], Qc: [420, 290], Qb: [380, 330], Qe: [420, 370], Ge: [420, 420], As: [170, 330], Sb: [270, 330], Mt: [590, 250], Mb: [590, 420] }, { P: [70, 110, '+V'] }),
+  parts: [['PS1', 'psu', 'P', 'G', { v: 12, ilim: 2 }], ['PWR', 'pwr', 'P', 'A'], ['W1', 'wire', 'A', 'Dt'], ['W2', 'wire', 'Dt', 'Kt'], ['K1', 'coil', 'Kt', 'Kc', { vr: 12, r: 240 }], ['D1', 'diode', 'Db', 'Dt'], ['W3', 'wire', 'Db', 'Kc'],
+    ['W4', 'wire', 'Kc', 'Qc'], ['Q1', 'npn', 'Qc', 'Qe', { base: 'Qb', at: [420, 330] }], ['W5', 'wire', 'Qe', 'Ge'], ['W6', 'wire', 'A', 'As'], ['S1', 'sw', 'As', 'Sb'], ['R1', 'res', 'Sb', 'Qb', { r: 1000 }],
+    ['W7', 'wire', 'Kt', 'T2'], ['K1c', 'contact', 'T2', 'Mt', { coil: 'K1' }], ['M1', 'motor', 'Mt', 'Mb', { vr: 12, r: 30 }], ['W8', 'wire', 'Mb', 'Ge'], ['W9', 'wire', 'Ge', 'G']],
+  tests: [{ sw: { S1: 1 }, want: { K1: 'on', M1: 'on' } }, { sw: { S1: 0 }, want: { M1: 'off' } }], faults: [['D1', 'short']],
+  lesson: { title: 'Relays, flyback diodes and lifting a leg', body: 'A relay coil is an electromagnet. Energise it and it pulls in contacts that switch a separate circuit, here the pump. When a coil switches off it kicks back a voltage spike, so a flyback diode sits across it, reverse-biased, to soak up that spike.\nProblem: parts wired in parallel read as ONE part on the ohmmeter. To test one of them alone, power off and LIFT ONE LEG (Solder tool). That isolates it. Then resolder the leg when you are done.', formula: 'Coil current = 12 V / 240 ohm = 50 mA', tip: 'If the coil and the diode both seem to read 0 ohm, lift a leg of one of them and measure it again.' },
+  hints: ['Turn S1 on with power on: the supply jumps to ~1.5 A (a 240 ohm coil should take 50 mA) and the coil (Kt to Kc) has almost 0 V across it. Something is shorting the coil.', 'Power off. Ohms across the coil reads ~0, but the diode is in parallel with it. Lift one leg of D1 (Solder tool) and measure each part separately.', 'With D1 lifted the coil reads 240 ohm (good) and D1 reads 0 V both ways in diode mode: it is shorted. Replace D1.'],
+  debrief: 'The flyback diode D1 had failed short, which shorted out the relay coil. When Q1 switched on, current poured through D1 instead of the coil. The supply current shot up to about 1.5 A and the coil never got enough current to pull in. Lifting a leg separated the two parallel parts so each could be tested alone.',
+  career: 'Industrial maintenance techs and PLC electricians troubleshoot relay and contactor circuits daily. Lifting leads to isolate parts is standard practice.'
+},
+{
+  id: 'garden', name: 'Night Shift', client: 'Clover Park path lights', pay: 80, par: 8,
+  complaint: 'Both light strings are dead. There might be more than one problem.',
+  nodes: Object.assign({ G: [80, 430], A: [190, 120], T: [330, 120], Ta: [440, 120], Ra: [440, 210], Rb: [440, 300], Rc: [440, 380], Ga: [440, 430], Tb: [610, 120], Sa: [610, 210], Sb: [610, 300], Sc: [610, 380], Gb: [610, 430] }, { P: [80, 120, '+V'] }),
+  parts: [['PS1', 'psu', 'P', 'G', { v: 12, ilim: 1 }], ['PWR', 'pwr', 'P', 'A'], ['F1', 'fuse', 'A', 'T', { a: 1 }], ['W1', 'wire', 'T', 'Ta'], ['R1', 'res', 'Ta', 'Ra', { r: 330 }], ['LED1', 'led', 'Ra', 'Rb', { color: 'white' }], ['LED2', 'led', 'Rb', 'Rc', { color: 'white' }], ['W2', 'wire', 'Rc', 'Ga', { joint: 1 }],
+    ['W3', 'wire', 'Ta', 'Tb'], ['R2', 'res', 'Tb', 'Sa', { r: 330 }], ['LED3', 'led', 'Sa', 'Sb', { color: 'white' }], ['LED4', 'led', 'Sb', 'Sc', { color: 'white' }], ['W4', 'wire', 'Sc', 'Gb', { joint: 1 }], ['W5', 'wire', 'Gb', 'Ga'], ['W6', 'wire', 'Ga', 'G']],
+  tests: [{ want: { LED1: 'on', LED2: 'on', LED3: 'on', LED4: 'on' } }], faults: [['W2', 'cold', { r: 5000 }], ['LED3', 'open']],
+  lesson: { title: 'Two faults at once', body: 'Real jobs often have more than one fault. Fix the first one, test again, then keep going. Do not assume you are done.\nSeries LED strings: two white LEDs drop about 3 V each, the resistor takes the rest. (12 - 6) / 330 = 18 mA. An open LED looks just like an open wire from far away. Measure across each part to see where the voltage piles up.', formula: 'Series string: V_R + V_LED1 + V_LED2 + V_joint = 12 V', tip: 'An open part in a dead string has the full voltage across it. A bad joint in a string that is barely lit has a partial voltage across it.' },
+  hints: ['Treat each string separately. In string 2, measure Sa and Sb with power on.', 'String 2: Sa reads 12 V and Sb reads 0 V, so LED3 is open. String 1 has some current but too little: look for a voltage across something that should drop 0 V.', 'W2 (Rc to Ga) has about 5 V across it: cold joint, reflow it. Then replace LED3.'],
+  debrief: 'String 2 had an open LED3: the full 12 V appeared across it. String 1 had a cold joint of about 5 k in its return lead, which left only ~1 mA, nowhere near enough to light. Two faults, two repairs, and you tested after each one.',
+  career: 'Multi-fault boards separate good techs from great ones. Fix, retest and repeat is how pros avoid the "it\'s still broken" callback.'
+},
+// ---------- HOUSE WIRING ----------
+HOUSE('outlets', 'Dead Outlets', 'Rental unit 4B', 90, 5, 'Living room: the first two outlets work, the last two are dead. The breaker has not tripped.', [['H23', 'open']], {
+  lesson: { title: 'Daisy-chained receptacles', body: 'Household receptacles are usually wired in a chain. Hot (black), neutral (white) and ground (bare/green) run from the panel to outlet 1, then on to outlet 2, and so on. One loose connection kills every outlet after it.\nThe classic culprit is a "backstab" push-in connection that loosens over the years.\nRule: find the LAST outlet that works and the FIRST one that does not. The fault is between them.', formula: 'Good outlet: hot to neutral = 120 V, hot to ground = 120 V, neutral to ground ~0 V', tip: 'REAL LIFE: mains voltage can kill. Only qualified people should work in live panels and boxes. Here your meter is safe to play with.' },
+  hints: ['Measure each outlet\'s hot terminal against the neutral bar: O1H, O2H, O3H, O4H.', 'O2H reads 120 V, O3H reads 0 V. The hot conductor between outlet 2 and outlet 3 has lost contact.', 'Turn the MAIN off (POWER), then SOLDER the hot wire between O2 and O3 and pick "Re-terminate".'],
+  debrief: 'Outlets 1 and 2 had 120 V. The hot feed to outlet 3 read 0 V: the backstab connection at outlet 2 that feeds downstream had worked loose. Moving the wire to the screw terminal (or a pigtail) fixes it for good.',
+  career: 'Electricians start as apprentices (typically 4-5 years with classroom hours) before taking the journeyman exam. Troubleshooting dead outlets is a day-one skill.'
+}),
+HOUSE('neutral', 'Half-Live Kitchen', 'Duplex on Birch St.', 100, 6, 'Kitchen outlets 2 to 4 are dead, but the tenant\'s cheap tester says "hot" on them!', [['N12', 'open']], {
+  lesson: { title: 'The open neutral', body: 'Current has to come BACK on the neutral. Lose the neutral and the circuit stops, even though the hot is still live.\nWorse: anything plugged in connects the hot to the floating neutral, so the neutral itself can read 120 V to ground. Always measure all three pairs: hot-neutral, hot-ground and neutral-ground.', formula: 'Open neutral: H-N = 0 V, H-G = 120 V, N-G = 120 V (!)', tip: 'Move the black probe to the outlet\'s own neutral (N) or ground (E) terminal: right-click it, or toggle BLACK and click.' },
+  hints: ['At outlet 3, put black on O3N (right-click) and red on O3H. Then try black on O3E.', 'H-N = 0 V, but H-ground = 120 V and N-ground = 120 V. The neutral is open somewhere upstream.', 'O1N reads normal, O2N floats. Main OFF, then re-terminate the neutral between O1 and O2.'],
+  debrief: 'Hot to ground read 120 V everywhere, but downstream of outlet 1 hot to neutral read 0 V and the neutral itself sat at 120 V. With the neutral open there was no return path. Lamps were dark, and the "neutral" was live. That is why pros check neutral-to-ground too.',
+  career: 'Open neutrals cause shocks, fried electronics and fires. Recognising them is one reason licensing exams test meter skills so heavily.'
+}),
+HOUSE('staple', 'Breaker Keeps Tripping', 'New addition, Clover Lane', 120, 6, 'The bedroom breaker trips the instant it is reset. The drywallers just finished.', [['CB1', 'trip'], ['INS', 'short']], {
+  staple: true,
+  lesson: { title: 'Ground faults and damaged cable', body: 'If a breaker trips again the moment you reset it, there is a SHORT on the circuit. Do not keep resetting it.\nTurn the main OFF and measure resistance from hot to ground. It should read open (OL) with nothing plugged in... except our lamps, which read as their own resistance between hot and NEUTRAL, never to ground. A near-0 ohm reading from hot to ground means a fault.\nNew construction clue: staples or drywall screws driven through the cable.', formula: 'Healthy: H-to-ground = OL.  Short: H-to-ground ~ 0 ohm', tip: 'Measure H-to-ground at each outlet with the main off. The cable segment where the reading jumps is the damaged one. INSPECT anything suspicious along that run.' },
+  hints: ['Resetting CB1 (Solder tool on the breaker) just trips it again. Main OFF, Ohms, red on O1H, black on O1E.', 'About 0 ohm from hot to ground: a short. The run between O2 and O3 has a staple. INSPECT it.', 'The staple crushed the cable. Replace that cable section (Solder tool on the staple), then reset CB1 and test.'],
+  debrief: 'A staple driven too hard cut through the insulation and shorted the hot conductor to the bare ground. Every reset sent hundreds of amps into the short, so the breaker tripped instantly, exactly as designed. The fix is a new cable section, never a bigger breaker.',
+  career: 'NEC rules say how NM cable must be secured, including staple spacing and not damaging the jacket. Inspectors and electricians know them by heart.'
+})
+];
+function HOUSE(id, name, client, pay, par, complaint, faults, xo) {
+  const X = [270, 400, 530, 650], nodes = { G: [62, 238, 'N-BAR'], H0: [62, 120, 'SVC'], Hm: [140, 120, 'MAIN'], H1: [190, 120, 'CB'], E: [110, 330, 'GND-BAR'] };
+  const parts = [['SRC', 'mains', 'H0', 'G', { v: 120 }], ['PWR', 'pwr', 'H0', 'Hm'], ['CB1', 'brk', 'Hm', 'H1'], ['BOND', 'wire', 'E', 'G', { kind: 'gnd', pts: [[110, 238]] }]];
+  const tests = { want: {} };
+  X.forEach((x, i) => {
+    const k = i + 1; nodes['O' + k + 'H'] = [x - 18, 222]; nodes['O' + k + 'N'] = [x + 18, 222]; nodes['O' + k + 'E'] = [x, 276];
+    const ph = i ? 'O' + i + 'H' : 'H1', pn = i ? 'O' + i + 'N' : 'G', pe = i ? 'O' + i + 'E' : 'E';
+    const px = i ? X[i - 1] : 0;
+    const hid = 'H' + i + k, nid = 'N' + i + k, eid = 'E' + i + k;
+    if (xo.staple && i === 2) {
+      const mx = (px + x) / 2; nodes.Mh = [mx, 186, 'SH']; nodes.Mg = [mx, 300, 'SG'];
+      parts.push([hid + 'a', 'wire', ph, 'Mh', { kind: 'hot', pts: [[px - 18, 186]] }], [hid, 'wire', 'Mh', 'O' + k + 'H', { kind: 'hot', pts: [[x - 18, 186]] }]);
+      parts.push([eid + 'a', 'wire', pe, 'Mg', { kind: 'gnd', pts: [[px, 300]] }], [eid, 'wire', 'Mg', 'O' + k + 'E', { kind: 'gnd', pts: [[x, 300]] }]);
+      parts.push(['INS', 'ins', 'Mh', 'Mg']);
+    } else {
+      parts.push([hid, 'wire', ph, 'O' + k + 'H', { kind: 'hot', pts: i ? [[px - 18, 186], [x - 18, 186]] : [[190, 186], [x - 18, 186]] }]);
+      parts.push([eid, 'wire', pe, 'O' + k + 'E', { kind: 'gnd', pts: i ? [[px, 300], [x, 300]] : [[110, 300], [x, 300]] }]);
+    }
+    parts.push([nid, 'wire', pn, 'O' + k + 'N', { kind: 'neu', pts: i ? [[px + 18, 252], [x + 18, 252]] : [[62, 252], [x + 18, 252]] }]);
+    parts.push(['LP' + k, 'lamp', 'O' + k + 'H', 'O' + k + 'N', { vr: 120, r: 144, at: [x, 116] }]);
+    tests.want['LP' + k] = 'on';
+  });
+  return Object.assign({ id, name, client, pay, par, complaint, theme: 'house', nodes, parts, tests: [tests], faults }, xo);
+}
+// endless shift: circuits from these jobs get a random fault (validated by the solver)
+const SHIFT_POOL = ['porch', 'beacon', 'smoked', 'divider', 'party', 'fan', 'touch', 'relay', 'garden', 'outlets'];
+const SHIFT_LEN = 5;
+function randomJob(n) {
+  for (let tries = 0; tries < 200; tries++) {
+    const pid = pick(SHIFT_POOL), base = LEVELS.find(l => l.id === pid);
+    const cands = [];
+    base.parts.forEach(p => { const t = p[1]; (PT[t].faults || []).forEach(f => { if (t === 'wire' && f === 'cold' && base.theme === 'house') return; cands.push([p[0], f]); }); });
+    const nw = cands.filter(q => !/^(W|H|N|E)\d/.test(q[0]) || base.theme === 'house'), f = (Math.random() < 0.75 && nw.length) ? pick(nw) : pick(cands), fo = f[1] === 'cold' ? { r: pick([30, 60, 2000]) } : f[1] === 'drift' ? { r: 0 } : f[1] === 'open' ? { burnt: Math.random() < 0.4 } : {};
+    if (f[1] === 'drift') { const sp = base.parts.find(p => p[0] === f[0])[4].r; fo.r = Math.round(sp * pick([0.18, 0.3, 3.3, 4.7])); }
+    const faults = [[f[0], f[1], fo]];
+    const J = Object.assign({}, base, { id: 'shift' + n, faults, shift: true, name: 'Shift job ' + (n + 1) + ': ' + base.name, pay: Math.round(base.pay * 0.8), par: base.par + 1, hints: null, debrief: null });
+    try { const C = buildCircuit(J); const R = runTests(cloneCircuit(C)); if (!R.pass) {
+      const bad = []; R.rows.forEach(r => r.want.forEach(q => { if (!q.ok) { const c = C.cmap[q.id]; const nm = q.id[0] === '@' ? '' : ({ led: 'LED ', bulb: 'lamp ', lamp: 'the lamp on outlet ', motor: 'motor ' }[c.type] || ''), id = c && c.type === 'lamp' ? q.id.slice(2) : q.id;
+          const s = q.id[0] === '@' ? q.id.slice(1) + ' reads the wrong voltage' : c.type === 'motor' ? nm + id + (q.want === 'on' ? ' will not spin' : ' will not stop') : c.type === 'coil' ? 'relay ' + id + ' never clicks' : nm + id + (q.want === 'on' ? ' stays dark' : ' will not turn off'); if (!bad.includes(s)) bad.push(s); } }));
+      J.complaint = bad.slice(0, 3).join(', ').replace(/^./, m => m.toUpperCase()) + '.'; J.client = pick(['walk-in customer', 'warranty return', 'rush job', 'regular customer', 'shop drop-off']); return J; } } catch (e) { }
+  }
+  return LEVELS[1];
+}
+if (typeof module !== 'undefined') module.exports = { LEVELS, randomJob };
+
+// ---------- ART: boards, components, probes ----------
+const BX = 16, BY = 62, BW = 680, BH = 404;
+const BAND = ['#151515', '#7a4a1e', '#d8302a', '#ff7f1e', '#ffd21f', '#2fae55', '#2f6ae0', '#9246e0', '#8f8f96', '#f2f2f2'];
+const BAND_N = ['black', 'brown', 'red', 'orange', 'yellow', 'green', 'blue', 'violet', 'grey', 'white'];
+function bandsOf(v) {
+  let e = Math.floor(Math.log10(v)) - 1; let d = Math.round(v / Math.pow(10, e));
+  if (d >= 100) { d = Math.round(d / 10); e++; }
+  return [BAND[Math.floor(d / 10)], BAND[d % 10], e >= 0 ? BAND[e] : '#c8a040'];
+}
+function bandNames(v) { let e = Math.floor(Math.log10(v)) - 1; let d = Math.round(v / Math.pow(10, e)); if (d >= 100) { d = Math.round(d / 10); e++; } return BAND_N[Math.floor(d / 10)] + ' ' + BAND_N[d % 10] + ' ' + (e >= 0 ? BAND_N[e] : 'gold'); }
+const npos = (C, k) => C.nodes[typeof k === 'number' ? k : C.nidx[k]];
+function compPath(C, c) {
+  const a = C.nodes[c.n[0]], b = C.nodes[c.n[1]];
+  const pts = [[a.x, a.y]]; if (c.pts) c.pts.forEach(p => pts.push(p)); pts.push([b.x, b.y]); return pts;
+}
+function compCenter(C, c) {
+  if (c.at) return { x: c.at[0], y: c.at[1] };
+  const P = compPath(C, c);
+  if (P.length > 2) { // longest segment midpoint
+    let best = 0, bi = 0; for (let i = 0; i < P.length - 1; i++) { const l = Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]); if (l > best) { best = l; bi = i; } }
+    return { x: (P[bi][0] + P[bi + 1][0]) / 2, y: (P[bi][1] + P[bi + 1][1]) / 2 };
+  }
+  return { x: (P[0][0] + P[1][0]) / 2, y: (P[0][1] + P[1][1]) / 2 };
+}
+function compAng(C, c) { const a = C.nodes[c.n[0]], b = C.nodes[c.n[1]]; return Math.atan2(b.y - a.y, b.x - a.x); }
+function polyD(P, x, y) {
+  let m = 1e9; for (let i = 0; i < P.length - 1; i++) { const [x1, y1] = P[i], [x2, y2] = P[i + 1], dx = x2 - x1, dy = y2 - y1, l2 = dx * dx + dy * dy || 1;
+    const t = clamp(((x - x1) * dx + (y - y1) * dy) / l2, 0, 1); m = Math.min(m, Math.hypot(x - x1 - dx * t, y - y1 - dy * t)); } return m;
+}
+function polyLen(P) { let s = 0; for (let i = 0; i < P.length - 1; i++) s += Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]); return s; }
+function polyAt(P, d) {
+  for (let i = 0; i < P.length - 1; i++) { const l = Math.hypot(P[i + 1][0] - P[i][0], P[i + 1][1] - P[i][1]); if (d <= l || i === P.length - 2) { const t = l ? clamp(d / l, 0, 1) : 0; return [P[i][0] + (P[i + 1][0] - P[i][0]) * t, P[i][1] + (P[i + 1][1] - P[i][1]) * t]; } d -= l; }
+  return P[P.length - 1];
+}
+// ---- bake static board ----
+function bakeBoard(C) {
+  const [cvs, g] = layer(W, H);
+  if (C.theme === 'house') bakeHouse(C, g); else bakePCB(C, g);
+  return cvs;
+}
+function benchBG(g) {
+  g.fillStyle = lin(g, 0, 0, 0, H, [[0, '#14110d'], [1, '#0a0806']]); g.fillRect(0, 0, W, H);
+  // wooden bench top
+  seed = 77; for (let i = 0; i < 26; i++) { g.strokeStyle = 'rgba(120,80,40,' + sr(0.03, 0.08) + ')'; g.lineWidth = sr(1, 3); g.beginPath(); const y = sr(0, H); g.moveTo(0, y); g.bezierCurveTo(W * 0.3, y + sr(-8, 8), W * 0.7, y + sr(-8, 8), W, y + sr(-6, 6)); g.stroke(); }
+  grain(g, 0, 0, W, H, 0.18);
+}
+function bakePCB(C, g) {
+  benchBG(g);
+  g.save(); g.shadowColor = 'rgba(0,0,0,0.7)'; g.shadowBlur = 24; g.shadowOffsetY = 8; g.fillStyle = '#0b3a22'; rrect(g, BX, BY, BW, BH, 14); g.fill(); g.restore();
+  g.save(); rrect(g, BX, BY, BW, BH, 14); g.clip();
+  g.fillStyle = lin(g, BX, BY, BX + BW, BY + BH, [[0, '#13623a'], [0.5, '#0e4f2f'], [1, '#0a3d24']]); g.fillRect(BX, BY, BW, BH);
+  const id = g.getImageData ? null : null;
+  for (let i = 0; i < 140; i++) { const x = BX + hash(i, 3) * BW, y = BY + hash(i, 9) * BH, r = 20 + hash(i, 5) * 60; g.fillStyle = radg(g, x, y, 0, x, y, r, [[0, 'rgba(40,140,80,0.06)'], [1, 'rgba(40,140,80,0)']]); g.fillRect(x - r, y - r, r * 2, r * 2); }
+  grain(g, BX, BY, BW, BH, 0.22);
+  // via grid
+  g.fillStyle = 'rgba(160,220,170,0.07)'; for (let x = BX + 20; x < BX + BW; x += 20) for (let y = BY + 20; y < BY + BH; y += 20) if (hash(x, y) > 0.93) { g.beginPath(); g.arc(x, y, 2.2, 0, 7); g.fill(); }
+  // traces (raised copper under mask)
+  const tr = (P, w) => { g.lineCap = 'round'; g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = w + 3; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0], p[1] + 1.5) : g.moveTo(p[0], p[1] + 1.5)); g.stroke();
+    g.strokeStyle = '#2e9a58'; g.lineWidth = w; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.stroke();
+    g.strokeStyle = 'rgba(190,255,200,0.22)'; g.lineWidth = w * 0.3; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0] - 0.8, p[1] - 1) : g.moveTo(p[0] - 0.8, p[1] - 1)); g.stroke(); };
+  C.comps.forEach(c => { if (c.type === 'npn') { const at = c.at; [0, 1, 2].forEach(k => { const n = C.nodes[c.n[k]]; tr([[n.x, n.y], k === 2 ? [at[0] - 12, at[1]] : [at[0], at[1] + (k ? 12 : -12)]], 6); }); } else tr(compPath(C, c), c.type === 'wire' ? 7 : 6); });
+  // mounting holes
+  [[BX + 18, BY + 18], [BX + BW - 18, BY + 18], [BX + 18, BY + BH - 18], [BX + BW - 18, BY + BH - 18]].forEach(([x, y]) => {
+    g.fillStyle = radg(g, x - 2, y - 2, 0, x, y, 9, [[0, '#fff2b0'], [0.6, '#d6a640'], [1, '#7a5a1a']]); g.beginPath(); g.arc(x, y, 9, 0, 7); g.fill();
+    g.fillStyle = '#0a0806'; g.beginPath(); g.arc(x, y, 4.5, 0, 7); g.fill(); });
+  // silkscreen
+  g.fillStyle = 'rgba(235,245,235,0.6)'; g.font = '800 10px ' + MONO; g.textAlign = 'left'; g.textBaseline = 'middle';
+  g.fillText('CLOVER CIRCUIT CO.  //  ' + C.L.name.toUpperCase() + '  //  REV C', BX + 36, BY + BH - 14);
+  g.textAlign = 'right'; g.fillText('MADE BY HUMANS + VIKTOR', BX + BW - 34, BY + 14);
+  g.strokeStyle = 'rgba(235,245,235,0.25)'; g.lineWidth = 1; g.setLineDash([4, 4]); rrect(g, BX + 8, BY + 8, BW - 16, BH - 16, 10); g.stroke(); g.setLineDash([]);
+  // silk labels of parts
+  C.comps.forEach(c => {
+    if (c.type === 'wire' || c.type === 'contact' && false) return;
+    const p = compCenter(C, c), a = c.type === 'npn' ? 0 : compAng(C, c), vert = Math.abs(Math.sin(a)) > 0.7;
+    let lx = p.x + (vert ? 30 : 0), ly = p.y + (vert ? 0 : -26), al = vert ? 'left' : 'center';
+    if (c.type === 'npn') { lx = p.x + 18; ly = p.y; al = 'left'; }
+    if (c.type === 'psu') { lx = p.x; ly = p.y - 72; al = 'center'; }
+    if (c.type === 'bulb' || c.type === 'motor') { if (vert) lx = p.x + 30; else ly = p.y - 34; }
+    g.textAlign = al; g.fillStyle = 'rgba(240,250,240,0.85)'; g.font = '900 11px ' + MONO; g.fillText(c.id, lx, ly - 6);
+    g.fillStyle = 'rgba(240,250,240,0.55)'; g.font = '700 9.5px ' + MONO; g.fillText(specTxt(c), lx, ly + 6);
+  });
+  g.restore();
+}
+function bakeHouse(C, g) {
+  // drywall
+  g.fillStyle = lin(g, 0, 0, 0, H, [[0, '#cfc6b6'], [1, '#b5ab99']]); g.fillRect(0, 0, W, H); grain(g, 0, 0, W, H, 0.25);
+  // cutaway into the wall cavity
+  g.save(); g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 18; g.fillStyle = '#3b2c1e'; rrect(g, BX, BY, BW, BH, 6); g.fill(); g.restore();
+  g.save(); rrect(g, BX, BY, BW, BH, 6); g.clip();
+  g.fillStyle = lin(g, 0, BY, 0, BY + BH, [[0, '#2a2018'], [1, '#1a130d']]); g.fillRect(BX, BY, BW, BH);
+  // insulation-ish texture + studs
+  for (let i = 0; i < 60; i++) { const x = BX + hash(i, 1) * BW, y = BY + hash(i, 2) * BH, r = 30 + hash(i, 3) * 50; g.fillStyle = radg(g, x, y, 0, x, y, r, [[0, 'rgba(200,140,90,0.05)'], [1, 'rgba(0,0,0,0)']]); g.fillRect(x - r, y - r, r * 2, r * 2); }
+  [335, 465, 595].forEach(x => { g.fillStyle = lin(g, x - 18, 0, x + 18, 0, [[0, '#8a6236'], [0.5, '#b88a52'], [1, '#7a5530']]); g.fillRect(x - 18, BY, 36, BH);
+    g.strokeStyle = 'rgba(70,40,15,0.35)'; for (let k = 0; k < 7; k++) { g.lineWidth = 1; g.beginPath(); const xx = x - 14 + k * 4.5; g.moveTo(xx, BY); g.bezierCurveTo(xx + 3, BY + 120, xx - 3, BY + 260, xx + 2, BY + BH); g.stroke(); } });
+  grain(g, BX, BY, BW, BH, 0.2);
+  // panel
+  g.save(); g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 14; g.fillStyle = lin(g, 30, 0, 222, 0, [[0, '#6c737a'], [0.5, '#9aa3ab'], [1, '#5c636a']]); rrect(g, 30, 80, 196, 290, 8); g.fill(); g.restore();
+  g.fillStyle = '#20262c'; rrect(g, 38, 88, 180, 274, 5); g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.55)'; g.font = '900 10px ' + MONO; g.textAlign = 'left'; g.fillText('LOAD CENTER 100A', 46, 352);
+  // neutral bar + ground bar
+  g.fillStyle = lin(g, 0, 232, 0, 244, [[0, '#e8e8e8'], [1, '#8d8d8d']]); rrect(g, 46, 232, 74, 12, 3); g.fill();
+  g.fillStyle = lin(g, 0, 324, 0, 336, [[0, '#d9b070'], [1, '#8a6a30']]); rrect(g, 80, 324, 74, 12, 3); g.fill();
+  // outlet boxes
+  [270, 400, 530, 650].forEach((x, i) => {
+    g.save(); g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 10; g.fillStyle = lin(g, x - 40, 0, x + 40, 0, [[0, '#1f4fae'], [0.5, '#2f6ad0'], [1, '#1a43a0']]); rrect(g, x - 40, 198, 80, 96, 6); g.fill(); g.restore();
+    g.fillStyle = '#123070'; rrect(g, x - 34, 204, 68, 84, 4); g.fill();
+    // receptacle device
+    g.fillStyle = lin(g, x - 11, 0, x + 11, 0, [[0, '#d8d0bc'], [0.5, '#f4eedd'], [1, '#c8bfa8']]); rrect(g, x - 11, 206, 22, 80, 4); g.fill();
+    [226, 258].forEach(y => { g.fillStyle = '#3a3428'; g.fillRect(x - 6, y - 5, 3, 9); g.fillRect(x + 3, y - 6, 3, 11); g.beginPath(); g.arc(x, y + 9, 2.2, Math.PI, 0); g.fill(); });
+    g.fillStyle = 'rgba(255,255,255,0.7)'; g.font = '900 10px ' + MONO; g.textAlign = 'center'; g.fillText('OUTLET ' + (i + 1), x, 306);
+  });
+  // cables: grey NM jacket underlay along the lanes
+  // legend
+  g.fillStyle = 'rgba(10,8,6,0.72)'; rrect(g, 246, 352, 430, 98, 10); g.fill(); g.strokeStyle = 'rgba(255,210,63,0.35)'; g.lineWidth = 1; rrect(g, 246, 352, 430, 98, 10); g.stroke();
+  g.font = '900 10px ' + MONO; g.textAlign = 'left'; g.fillStyle = '#ffd23f'; g.fillText('NM-B CABLE COLOR CODE', 262, 370);
+  [['#1b1b1d', 'BLACK = HOT (120 V from the breaker)'], ['#eeeeea', 'WHITE = NEUTRAL (return path to the panel)'], ['#c87a3a', 'BARE = GROUND (safety path, carries no current normally)']].forEach(([col, s], i) => {
+    const y = 390 + i * 19; g.strokeStyle = col; g.lineWidth = 5; g.lineCap = 'round'; g.beginPath(); g.moveTo(264, y); g.lineTo(300, y); g.stroke(); g.fillStyle = 'rgba(255,255,255,0.85)'; g.font = '800 10.5px ' + FONT; g.fillText(s, 312, y + 0.5); });
+  // static wire drawing happens live (so faults/repairs show), labels here
+  C.comps.forEach(c => {
+    if (c.type === 'lamp' || c.type === 'wire') return;
+    const p = compCenter(C, c); let lx = p.x, ly = p.y - 34;
+    if (c.type === 'mains') { lx = 62; ly = 96; } if (c.type === 'pwr') { lx = 101; ly = 100; } if (c.type === 'brk') { lx = 165; ly = 100; } if (c.type === 'ins') { lx = p.x; ly = 336; }
+    g.textAlign = 'center'; g.fillStyle = 'rgba(255,255,255,0.85)'; g.font = '900 10px ' + MONO; g.fillText(c.id === 'PWR' ? 'MAIN' : c.id, lx, ly);
+  });
+  g.restore();
+}
+// ---- live drawing ----
+function drawWire(C, c, sel) {
+  const P = compPath(C, c), g = cx;
+  if (C.theme === 'house') {
+    const col = c.kind === 'hot' ? '#1b1b1d' : c.kind === 'neu' ? '#eeeeea' : '#c87a3a', w = c.kind === 'gnd' ? 3.5 : 5;
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    g.strokeStyle = 'rgba(0,0,0,0.45)'; g.lineWidth = w + 3; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0], p[1] + 2) : g.moveTo(p[0], p[1] + 2)); g.stroke();
+    g.strokeStyle = col; g.lineWidth = w; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.stroke();
+    g.strokeStyle = c.kind === 'hot' ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.6)'; g.lineWidth = 1.2; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0] - 1, p[1] - 1.4) : g.moveTo(p[0] - 1, p[1] - 1.4)); g.stroke();
+    if (c.fixed) { const p = P[P.length - 1]; g.fillStyle = '#ffb020'; g.beginPath(); g.arc(p[0], p[1] - 9, 4, 0, 7); g.fill(); }
+  } else {
+    if (c.fixed && c.fixedHow === 'jumper') { // jumper wire over the trace
+      const a = P[0], b = P[P.length - 1], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2 - 18;
+      g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 5; g.beginPath(); g.moveTo(a[0], a[1] + 3); g.quadraticCurveTo(mx, my + 6, b[0], b[1] + 3); g.stroke();
+      g.strokeStyle = '#e8402a'; g.lineWidth = 3.4; g.beginPath(); g.moveTo(a[0], a[1]); g.quadraticCurveTo(mx, my, b[0], b[1]); g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,0.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(a[0], a[1] - 1); g.quadraticCurveTo(mx, my - 1, b[0], b[1] - 1); g.stroke();
+    }
+    if (c.joint) { // solder fillet at the far end
+      const p = P[P.length - 1], dull = c.fault === 'cold' && B && B.inspected[c.id];
+      g.fillStyle = dull ? radg(g, p[0] - 2, p[1] - 3, 0, p[0], p[1], 9, [[0, '#a8a8a0'], [1, '#55554e']]) : radg(g, p[0] - 2, p[1] - 3, 0, p[0], p[1], 9, [[0, '#ffffff'], [0.4, '#d8dde2'], [1, '#6f7880']]);
+      g.beginPath(); g.arc(p[0], p[1], 9, 0, 7); g.fill();
+      if (dull) { g.strokeStyle = 'rgba(30,30,30,0.7)'; g.lineWidth = 1; g.beginPath(); g.arc(p[0], p[1], 6, 0.4, 2.6); g.stroke(); }
+    }
+  }
+  if (sel) { g.save(); g.strokeStyle = 'rgba(255,220,90,0.8)'; g.lineWidth = 2; g.setLineDash([5, 4]); g.beginPath(); P.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.stroke(); g.restore(); }
+}
+function drawPad(C, n, hot) {
+  const g = cx, house = C.theme === 'house';
+  if (house) {
+    const col = /H$/.test(n.k) || n.k === 'H1' || n.k === 'Hm' || n.k === 'H0' ? '#e0b048' : /E$/.test(n.k) || n.k === 'E' || n.k === 'Mg' ? '#3fae5a' : '#d8d8d8';
+    g.fillStyle = radg(g, n.x - 2, n.y - 2, 0, n.x, n.y, 7, [[0, '#fff'], [0.35, col], [1, shade(col, -0.6)]]); g.beginPath(); g.arc(n.x, n.y, 6.5, 0, 7); g.fill();
+    g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(n.x - 4, n.y); g.lineTo(n.x + 4, n.y); g.stroke();
+  } else {
+    g.fillStyle = radg(g, n.x - 2.5, n.y - 2.5, 0, n.x, n.y, 8, [[0, '#fff6c0'], [0.45, '#e2b24a'], [1, '#8a6214']]); g.beginPath(); g.arc(n.x, n.y, 7.5, 0, 7); g.fill();
+    g.fillStyle = '#1a1206'; g.beginPath(); g.arc(n.x, n.y, 2.6, 0, 7); g.fill();
+  }
+  if (hot) { g.save(); g.shadowColor = '#ffe27a'; g.shadowBlur = 12; g.strokeStyle = '#ffe27a'; g.lineWidth = 2; g.beginPath(); g.arc(n.x, n.y, 11, 0, 7); g.stroke(); g.restore(); }
+  // label
+  const lab = n.label; g.font = '900 9.5px ' + MONO; const tw = g.measureText(lab).width;
+  const lx = n.x + 10, ly = n.y - 12;
+  g.fillStyle = house ? 'rgba(0,0,0,0.55)' : 'rgba(5,30,15,0.55)'; rrect(g, lx - 3, ly - 6, tw + 6, 12, 3); g.fill();
+  g.fillStyle = house ? '#ffe9a8' : 'rgba(235,250,235,0.92)'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(lab, lx, ly + 0.5);
+}
+function drawComp(C, c, o) {
+  const g = cx, p = compCenter(C, c), a = compAng(C, c), t = game.t;
+  g.save(); g.translate(p.x, p.y);
+  const rot = () => g.rotate(a);
+  switch (c.type) {
+    case 'res': { rot(); const burnt = c.burnt;
+      g.fillStyle = 'rgba(0,0,0,0.35)'; rrect(g, -23, -6, 46, 15, 7); g.fill();
+      g.fillStyle = burnt ? lin(g, 0, -7, 0, 7, [[0, '#4a3a2a'], [0.5, '#1e1610'], [1, '#0e0a06']]) : lin(g, 0, -7, 0, 7, [[0, '#f2dcae'], [0.45, '#d8b984'], [1, '#9a7a4a']]);
+      rrect(g, -23, -7, 46, 14, 7); g.fill();
+      if (!burnt) { const bd = bandsOf(c.type === 'res' ? (c.shownVal || c.spec) : 1); [-12, -5, 2].forEach((x, i) => { g.fillStyle = bd[i]; g.fillRect(x, -7, 4, 14); }); g.fillStyle = '#c8a040'; g.fillRect(13, -7, 3, 14);
+        g.fillStyle = 'rgba(255,255,255,0.3)'; rrect(g, -20, -6, 40, 4, 2); g.fill(); }
+      else { g.strokeStyle = 'rgba(255,140,60,0.5)'; g.lineWidth = 1; g.beginPath(); g.moveTo(-6, -6); g.lineTo(-2, 0); g.lineTo(-7, 6); g.stroke(); }
+      break; }
+    case 'led': { const st = o.out || {}, col = { red: '#ff3030', green: '#30ff6a', yellow: '#ffd21f', white: '#e8f4ff', blue: '#3a8aff' }[c.color] || '#ff3030';
+      rot(); const flip = c.rev ? -1 : 1;
+      if (st.b > 0.02) { glowAt(0, 0, 26 + st.b * 30, col, Math.min(1, st.b) * 0.9); }
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(1, 3, 12, 0, 7); g.fill();
+      g.fillStyle = c.burnt ? '#2a2420' : rgba(col, 0.55); g.beginPath(); g.arc(0, 0, 12, 0, 7); g.fill();
+      g.fillStyle = radg(g, -3, -4, 0, 0, 0, 12, [[0, 'rgba(255,255,255,' + (0.5 + (st.b || 0) * 0.5) + ')'], [0.5, st.b > 0.02 ? rgba(shade(col, 0.5), 0.9) : rgba(col, 0.35)], [1, rgba(shade(col, -0.5), 0.6)]]); g.beginPath(); g.arc(0, 0, 11, 0, 7); g.fill();
+      // flat cathode edge
+      g.fillStyle = '#0d2a18'; g.fillRect(10 * flip - (flip > 0 ? 0 : 4), -12, 4, 24);
+      g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(10 * flip, -10); g.lineTo(10 * flip, 10); g.stroke();
+      if (c.burnt) { g.strokeStyle = 'rgba(0,0,0,0.6)'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(-5, -4); g.lineTo(3, 5); g.stroke(); }
+      break; }
+    case 'diode': { rot(); const flip = c.rev ? -1 : 1;
+      g.fillStyle = 'rgba(0,0,0,0.35)'; rrect(g, -15, -4, 30, 12, 5); g.fill();
+      g.fillStyle = lin(g, 0, -6, 0, 6, [[0, '#4a4a50'], [0.4, '#1a1a1e'], [1, '#050506']]); rrect(g, -15, -6, 30, 12, 5); g.fill();
+      g.fillStyle = '#d8dde0'; g.fillRect(flip > 0 ? 8 : -12, -6, 4, 12);
+      g.fillStyle = 'rgba(255,255,255,0.18)'; rrect(g, -13, -5, 26, 3, 1.5); g.fill(); break; }
+    case 'bulb': case 'lamp': {
+      const st = o.out || {}, b = st.b || 0;
+      if (c.type === 'lamp') { drawLamp(C, c, b); break; }
+      if (b > 0.03) glowAt(0, 0, 40 + b * 50, '#ffcf70', Math.min(1, b));
+      g.fillStyle = lin(g, -9, 0, 9, 0, [[0, '#8a8a8a'], [0.5, '#e8e8e8'], [1, '#7a7a7a']]); g.fillRect(-8, 10, 16, 10);
+      g.fillStyle = b > 0.03 ? radg(g, 0, -2, 0, 0, 0, 18, [[0, 'rgba(255,250,220,1)'], [0.5, rgba('#ffd890', 0.6 + b * 0.3)], [1, 'rgba(255,200,120,0.25)']]) : radg(g, -5, -6, 0, 0, 0, 18, [[0, 'rgba(255,255,255,0.6)'], [0.6, 'rgba(220,230,240,0.3)'], [1, 'rgba(160,180,200,0.35)']]);
+      g.beginPath(); g.arc(0, -2, 16, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 1; g.stroke();
+      g.strokeStyle = b > 0.03 ? '#fff6d0' : '#7a6a50'; g.lineWidth = b > 0.03 ? 2 : 1.2; g.beginPath(); g.moveTo(-5, 8); g.lineTo(-5, -2);
+      for (let i = 0; i < 5; i++) g.lineTo(-4 + i * 2, i % 2 ? -6 : -2); g.lineTo(5, -2); g.lineTo(5, 8); g.stroke();
+      break; }
+    case 'fuse': { rot();
+      g.fillStyle = 'rgba(0,0,0,0.35)'; rrect(g, -21, -5, 42, 14, 4); g.fill();
+      g.fillStyle = c.blown ? 'rgba(60,50,40,0.75)' : 'rgba(210,235,255,0.35)'; rrect(g, -14, -6, 28, 12, 4); g.fill();
+      g.strokeStyle = c.blown ? '#555' : '#e8e8e8'; g.lineWidth = 1.3; g.beginPath(); if (c.blown) { g.moveTo(-14, 0); g.lineTo(-4, 1); g.moveTo(4, -1); g.lineTo(14, 0); } else { g.moveTo(-14, 0); g.lineTo(14, 0); } g.stroke();
+      [-1, 1].forEach(s => { g.fillStyle = lin(g, 0, -7, 0, 7, [[0, '#fff'], [0.5, '#b8b8b8'], [1, '#6a6a6a']]); rrect(g, s * 17 - 4, -7, 8, 14, 2); g.fill(); });
+      g.fillStyle = 'rgba(255,255,255,0.5)'; g.fillRect(-12, -5, 24, 1.5); break; }
+    case 'cap': { rot();
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.beginPath(); g.arc(2, 4, 16, 0, 7); g.fill();
+      g.fillStyle = radg(g, -5, -5, 0, 0, 0, 16, [[0, '#6aa8ff'], [0.6, '#1f4fae'], [1, '#0d2a6a']]); g.beginPath(); g.arc(0, 0, 15, 0, 7); g.fill();
+      g.fillStyle = 'rgba(230,240,255,0.75)'; g.beginPath(); g.arc(0, 0, 15, 2.2, 4.1); g.lineTo(0, 0); g.fill();
+      g.fillStyle = radg(g, -2, -2, 0, 0, 0, 9, [[0, '#f0f0f0'], [1, '#8a8a8a']]); g.beginPath(); g.arc(0, 0, 8, 0, 7); g.fill();
+      g.strokeStyle = 'rgba(40,40,40,0.6)'; g.lineWidth = 1; g.beginPath(); g.moveTo(-5, 0); g.lineTo(5, 0); g.moveTo(0, -5); g.lineTo(0, 5); g.stroke();
+      if (c.fault === 'short' && B && B.inspected[c.id]) { g.fillStyle = 'rgba(120,70,30,0.5)'; g.beginPath(); g.arc(3, 3, 4, 0, 7); g.fill(); }
+      break; }
+    case 'sw': case 'btn': case 'pwr': {
+      rot(); const on = c.type === 'pwr' ? C.power : c.on;
+      g.fillStyle = 'rgba(0,0,0,0.4)'; rrect(g, -19, -10, 38, 24, 5); g.fill();
+      g.fillStyle = lin(g, 0, -11, 0, 11, [[0, '#3a3e44'], [1, '#14161a']]); rrect(g, -19, -11, 38, 22, 5); g.fill();
+      g.restore(); g.save(); g.translate(p.x, p.y);
+      if (c.type === 'btn') {
+        g.fillStyle = on ? radg(g, 0, 0, 0, 0, 0, 9, [[0, '#ff7a6a'], [1, '#8a1a10']]) : radg(g, -2, -3, 0, 0, 0, 9, [[0, '#ff9a8a'], [1, '#c02a1a']]);
+        g.beginPath(); g.arc(0, on ? 1 : 0, on ? 7.5 : 8.5, 0, 7); g.fill(); g.strokeStyle = 'rgba(255,255,255,0.4)'; g.lineWidth = 1; g.stroke();
+      } else if (c.type === 'pwr') {
+        g.fillStyle = '#0a0a0a'; rrect(g, -12, -4, 24, 8, 3); g.fill();
+        g.fillStyle = lin(g, 0, -6, 0, 6, [[0, '#f0f0f0'], [1, '#909090']]); rrect(g, on ? 0 : -12, -6, 12, 12, 2); g.fill();
+        glowAt(14, -12, 9, on ? '#3cff7a' : '#ff3030', 0.9); g.fillStyle = on ? '#3cff7a' : '#ff3030'; g.beginPath(); g.arc(14, -12, 2.6, 0, 7); g.fill();
+      } else {
+        const la = on ? -0.55 : 0.55; g.fillStyle = radg(g, 0, 0, 0, 0, 0, 7, [[0, '#d8d8d8'], [1, '#6a6a6a']]); g.beginPath(); g.arc(0, 0, 6, 0, 7); g.fill();
+        g.strokeStyle = lin(g, 0, 0, 0, -16, [[0, '#8a8a8a'], [1, '#f0f0f0']]); g.lineWidth = 5; g.lineCap = 'round'; g.beginPath(); g.moveTo(0, 0); g.lineTo(Math.sin(la) * 15, -Math.cos(la) * 15); g.stroke();
+        txt(on ? 'ON' : 'OFF', 0, 17, 8.5, on ? '#7dffa0' : 'rgba(255,255,255,0.5)', 'center', 900, MONO);
+      }
+      break; }
+    case 'motor': { const st = o.out || {}, sp = st.b || 0;
+      if (!c.ang) c.ang = 0; c.ang += (sp > 0.25 ? sp * sp * 24 : sp * 3) * o.dt;
+      g.fillStyle = 'rgba(0,0,0,0.4)'; g.beginPath(); g.arc(2, 4, 24, 0, 7); g.fill();
+      g.fillStyle = lin(g, -22, -22, 22, 22, [[0, '#5a5f66'], [0.5, '#2a2e33'], [1, '#15181b']]); rrect(g, -22, -22, 44, 44, 6); g.fill();
+      g.fillStyle = '#0b0c0e'; g.beginPath(); g.arc(0, 0, 19, 0, 7); g.fill();
+      g.save(); g.rotate(c.ang);
+      for (let i = 0; i < 7; i++) { g.rotate(Math.PI * 2 / 7); g.fillStyle = sp > 0.6 ? 'rgba(150,160,170,0.35)' : '#3a4048'; g.beginPath(); g.moveTo(0, -4); g.quadraticCurveTo(12, -10, 17, -2); g.lineTo(4, 2); g.closePath(); g.fill(); }
+      g.restore(); if (sp > 0.6) { g.fillStyle = 'rgba(160,170,180,0.15)'; g.beginPath(); g.arc(0, 0, 17, 0, 7); g.fill(); }
+      g.fillStyle = radg(g, -2, -2, 0, 0, 0, 6, [[0, '#ffe08a'], [1, '#8a6a20']]); g.beginPath(); g.arc(0, 0, 5, 0, 7); g.fill();
+      break; }
+    case 'coil': { const st = o.out || {}; rot();
+      g.fillStyle = 'rgba(0,0,0,0.4)'; rrect(g, -24, -14, 48, 32, 4); g.fill();
+      g.fillStyle = lin(g, 0, -16, 0, 16, [[0, '#4a86e8'], [1, '#1a3e8a']]); rrect(g, -24, -16, 48, 32, 4); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.18)'; rrect(g, -21, -14, 42, 6, 3); g.fill();
+      g.restore(); g.save(); g.translate(p.x, p.y);
+      txt('RELAY', 0, -3, 8.5, 'rgba(255,255,255,0.85)', 'center', 900, MONO); txt(c.vr + 'VDC', 0, 7, 7.5, 'rgba(255,255,255,0.6)', 'center', 800, MONO);
+      if (st.on) glowAt(0, 0, 30, '#6aa8ff', 0.25 + 0.1 * Math.sin(t * 20));
+      break; }
+    case 'contact': { rot(); const closed = o.closed;
+      g.strokeStyle = '#d8d8d8'; g.lineWidth = 3; g.lineCap = 'round';
+      g.fillStyle = '#e0b048'; g.beginPath(); g.arc(-14, 0, 4, 0, 7); g.arc(14, 0, 4, 0, 7); g.fill();
+      g.beginPath(); g.moveTo(-14, 0); g.lineTo(closed ? 14 : 10, closed ? 0 : -12); g.stroke();
+      g.restore(); g.save(); g.translate(p.x, p.y);
+      g.strokeStyle = 'rgba(160,200,255,0.5)'; g.setLineDash([3, 4]); g.lineWidth = 1.2; const k = C.cmap[c.coil], kp = compCenter(C, k);
+      g.beginPath(); g.moveTo(-6, -2); g.lineTo(kp.x - p.x + 24, kp.y - p.y - 20); g.stroke(); g.setLineDash([]);
+      break; }
+    case 'npn': {
+      g.fillStyle = 'rgba(0,0,0,0.4)'; g.beginPath(); g.arc(2, 3, 14, 0, 7); g.fill();
+      g.fillStyle = lin(g, -12, 0, 12, 0, [[0, '#3a3a40'], [0.5, '#16161a'], [1, '#050506']]); g.beginPath(); g.arc(0, 0, 13, -Math.PI / 2 - 1.1, Math.PI / 2 + 1.1, true); g.closePath(); g.fill();
+      g.fillStyle = '#1e1e22'; g.fillRect(-6, -12, 6, 24);
+      txt('C', 7, -16, 8, '#ffe9a8', 'center', 900, MONO); txt('E', 7, 17, 8, '#ffe9a8', 'center', 900, MONO); txt('B', -20, -8, 8, '#ffe9a8', 'center', 900, MONO);
+      break; }
+    case 'psu': { const st = o.psu || { v: 0, i: 0, cc: false };
+      g.fillStyle = 'rgba(0,0,0,0.5)'; rrect(g, -34, -58, 70, 120, 8); g.fill();
+      g.fillStyle = lin(g, 0, -60, 0, 60, [[0, '#3a3f46'], [1, '#14171b']]); rrect(g, -34, -60, 68, 120, 8); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,0.15)'; g.lineWidth = 1; rrect(g, -33.5, -59.5, 67, 119, 8); g.stroke();
+      g.fillStyle = '#071008'; rrect(g, -27, -50, 54, 42, 4); g.fill();
+      txtGlowL(C.power ? st.v.toFixed(st.v >= 10 ? 1 : 2) + 'V' : '--.-V', 23, -38, 13, '#ff6a3a');
+      txtGlowL(C.power ? st.i.toFixed(2) + 'A' : '-.--A', 23, -20, 13, '#3cff7a');
+      txt('CV', -17, 4, 8, C.power && !st.cc ? '#3cff7a' : 'rgba(255,255,255,0.25)', 'center', 900, MONO); txt('CC', 17, 4, 8, C.power && st.cc ? '#ff3030' : 'rgba(255,255,255,0.25)', 'center', 900, MONO);
+      if (C.power && st.cc) glowAt(17, 4, 12, '#ff3030', 0.6 + 0.3 * Math.sin(t * 10));
+      [[-14, 34, '#e83030', '+'], [14, 34, '#202020', '-']].forEach(([x, y, col, s]) => { g.fillStyle = radg(g, x - 2, y - 2, 0, x, y, 8, [[0, shade(col, 0.5)], [1, col]]); g.beginPath(); g.arc(x, y, 7, 0, 7); g.fill(); txt(s, x, y + 14, 9, '#fff', 'center', 900); });
+      txt('BENCH PSU', 0, -56 + 2, 0.1, '#fff');
+      break; }
+    case 'bat': {
+      const vert = Math.abs(Math.sin(a)) > 0.7;
+      g.rotate(vert ? 0 : Math.PI / 2);
+      [-1, 1].forEach(s => { const y = s * 22;
+        g.fillStyle = 'rgba(0,0,0,0.4)'; rrect(g, -12, y - 19, 26, 40, 5); g.fill();
+        g.fillStyle = lin(g, -12, 0, 12, 0, [[0, '#7a5a10'], [0.4, '#ffd23f'], [0.6, '#e8b020'], [1, '#6a4a08']]); rrect(g, -12, y - 20, 24, 40, 5); g.fill();
+        g.fillStyle = lin(g, -12, 0, 12, 0, [[0, '#2a2a2a'], [0.5, '#5a5a5a'], [1, '#1a1a1a']]); g.fillRect(-12, y - 2, 24, 22);
+        g.fillStyle = '#c8c8c8'; g.fillRect(-4, y - 23, 8, 3);
+        txt('AA', 0, y + 9, 8, '#ffd23f', 'center', 900, MONO); });
+      break; }
+    case 'mains': {
+      g.fillStyle = 'rgba(0,0,0,0.5)'; g.beginPath(); g.arc(2, 4, 26, 0, 7); g.fill();
+      g.fillStyle = radg(g, -8, -8, 0, 0, 0, 26, [[0, '#f4f8ff'], [0.6, '#aab8c8'], [1, '#4a5868']]); g.beginPath(); g.arc(0, 0, 24, 0, 7); g.fill();
+      g.fillStyle = '#10161c'; rrect(g, -15, -6, 30, 12, 2); g.fill(); txt(C.power ? '120V~' : '120V~', 0, 0.5, 8.5, '#7dffa0', 'center', 900, MONO);
+      g.save(); g.rotate(t * (C.power ? 2 : 0.2)); g.fillStyle = '#222'; g.fillRect(-1, 9, 2, 10); g.restore();
+      break; }
+    case 'brk': {
+      g.fillStyle = 'rgba(0,0,0,0.5)'; rrect(g, -13, -18, 28, 40, 4); g.fill();
+      g.fillStyle = lin(g, -12, 0, 12, 0, [[0, '#0e0e10'], [0.5, '#2a2a2e'], [1, '#0a0a0c']]); rrect(g, -13, -20, 26, 40, 4); g.fill();
+      const pos = c.trip ? 0 : -9; g.fillStyle = lin(g, 0, pos - 6, 0, pos + 6, [[0, '#4a4a50'], [1, '#18181c']]); rrect(g, -6, pos - 6, 12, 14, 2); g.fill();
+      if (c.trip) { g.fillStyle = '#ff3030'; g.fillRect(-10, 10, 20, 4); }
+      txt('15', 0, 14 - (c.trip ? 9 : 0) + (c.trip ? 9 : 0), 7, '#fff', 'center', 900, MONO);
+      break; }
+    case 'ins': { // staple over cable bundle
+      g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 6; g.beginPath(); g.moveTo(-14, 30); g.lineTo(-14, -10); g.lineTo(14, -10); g.lineTo(14, 30); g.stroke();
+      g.strokeStyle = lin(g, -14, 0, 14, 0, [[0, '#8a8f96'], [0.5, '#f0f4f8'], [1, '#7a7f86']]); g.lineWidth = 4; g.beginPath(); g.moveTo(-14, 28); g.lineTo(-14, c.fault === 'short' ? -2 : -12); g.lineTo(14, c.fault === 'short' ? -2 : -12); g.lineTo(14, 28); g.stroke();
+      if (c.fault === 'short' && B && B.inspected[c.id]) { glowAt(0, 0, 18, '#ff6030', 0.35); }
+      break; }
+  }
+  g.restore();
+  if (c.lifted) { const q = compCenter(C, c); txt('LIFTED', q.x, q.y + 22, 8.5, '#ffb020', 'center', 900, MONO); }
+}
+function txtGlowL(s, x, y, size, col) { cx.save(); cx.shadowColor = col; cx.shadowBlur = 8; txt(s, x, y, size, col, 'right', 800, MONO); cx.restore(); }
+function drawLamp(C, c, b) {
+  const g = cx; g.restore(); g.save();
+  const [x, y] = c.at, h = C.nodes[c.n[0]], n = C.nodes[c.n[1]];
+  // cord from the receptacle face up to the lamp
+  g.strokeStyle = '#e8e2d0'; g.lineWidth = 3; g.beginPath(); g.moveTo(x, 238); g.bezierCurveTo(x - 30, 200, x + 26, 190, x, y + 44); g.stroke();
+  g.fillStyle = '#e8e2d0'; rrect(g, x - 6, 232, 12, 14, 2); g.fill();
+  // base
+  g.fillStyle = lin(g, x - 18, 0, x + 18, 0, [[0, '#5a4a30'], [0.5, '#b8a070'], [1, '#4a3a20']]); rrect(g, x - 16, y + 38, 32, 8, 3); g.fill(); g.fillRect(x - 2, y + 8, 4, 32);
+  if (b > 0.03) glowAt(x, y + 4, 50 + b * 50, '#ffcf70', Math.min(1, b));
+  g.fillStyle = b > 0.03 ? radg(g, x, y + 6, 0, x, y + 6, 10, [[0, '#fffbe8'], [1, '#ffcf70']]) : '#cfcab8'; g.beginPath(); g.arc(x, y + 6, 7, 0, 7); g.fill();
+  // shade
+  g.fillStyle = b > 0.03 ? lin(g, 0, y - 22, 0, y + 6, [[0, '#ffe7b0'], [1, '#f2b860']]) : lin(g, 0, y - 22, 0, y + 6, [[0, '#d8ccb0'], [1, '#8a7a5a']]);
+  g.beginPath(); g.moveTo(x - 14, y - 22); g.lineTo(x + 14, y - 22); g.lineTo(x + 24, y + 4); g.lineTo(x - 24, y + 4); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(0,0,0,0.3)'; g.lineWidth = 1; g.stroke();
+}
+// current-flow dots
+function drawFlow(C, S) {
+  const g = cx; g.save(); g.globalCompositeOperation = 'lighter';
+  for (const c of C.comps) {
+    let i = S.cur[c.id] || 0; if (Math.abs(i) < 2e-4 || c.type === 'contact' && false) continue;
+    let P;
+    if (c.type === 'npn') { const C0 = C.nodes[c.n[0]], E0 = C.nodes[c.n[1]]; P = [[C0.x, C0.y], [c.at[0], c.at[1]], [E0.x, E0.y]]; }
+    else if (c.type === 'lamp') { const h = C.nodes[c.n[0]], n = C.nodes[c.n[1]]; P = [[h.x, h.y], [h.x, h.y - 8], [n.x, n.y - 8], [n.x, n.y]]; }
+    else P = compPath(C, c);
+    if (c.type === 'psu' || c.type === 'bat' || c.type === 'mains') { i = -i; }
+    const len = polyLen(P), sp = clamp(Math.log10(Math.abs(i) / 1e-4) * 22, 8, 110), dir = i > 0 ? 1 : -1, gap = 16;
+    const off = ((game.t * sp) % gap);
+    for (let d = 0; d < len; d += gap) { const dd = dir > 0 ? d + off : len - d - off; if (dd < 0 || dd > len) continue; const [x, y] = polyAt(P, dd); g.fillStyle = 'rgba(255,230,120,0.85)'; g.beginPath(); g.arc(x, y, 1.8, 0, 7); g.fill(); g.drawImage(glowOf('#ffd060'), x - 6, y - 6, 12, 12); }
+  }
+  g.restore();
+}
+// probes
+function drawProbe(x, y, col, jx, jy, parked, clip) {
+  const g = cx, ang = -1.0, L = 64, ex = x + Math.cos(ang) * L, ey = y + Math.sin(ang) * L;
+  // cable
+  g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 4.5; g.beginPath(); g.moveTo(ex, ey + 3); g.bezierCurveTo(ex + 60, ey + 80, jx - 40, jy + 90, jx, jy + 3); g.stroke();
+  g.strokeStyle = col === 'red' ? '#c0201a' : '#1a1a1c'; g.lineWidth = 3.2; g.beginPath(); g.moveTo(ex, ey); g.bezierCurveTo(ex + 60, ey + 77, jx - 40, jy + 87, jx, jy); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,0.18)'; g.lineWidth = 1; g.beginPath(); g.moveTo(ex, ey - 1); g.bezierCurveTo(ex + 60, ey + 76, jx - 40, jy + 86, jx, jy - 1); g.stroke();
+  g.save(); g.translate(x, y); g.rotate(ang);
+  if (clip) { // alligator clip
+    g.fillStyle = col === 'red' ? '#d02a20' : '#222'; rrect(g, 6, -6, 34, 12, 4); g.fill();
+    g.fillStyle = lin(g, 0, -5, 0, 5, [[0, '#f0f0f0'], [1, '#8a8a8a']]); g.beginPath(); g.moveTo(0, 0); g.lineTo(8, -6); g.lineTo(8, 6); g.closePath(); g.fill();
+  } else {
+    g.strokeStyle = lin(g, 0, 0, 16, 0, [[0, '#ffffff'], [1, '#9aa0a8']]); g.lineWidth = 2; g.beginPath(); g.moveTo(0, 0); g.lineTo(16, 0); g.stroke();
+    g.fillStyle = col === 'red' ? lin(g, 0, -6, 0, 6, [[0, '#ff6a5a'], [0.5, '#d02a20'], [1, '#701008']]) : lin(g, 0, -6, 0, 6, [[0, '#5a5a60'], [0.5, '#222226'], [1, '#050506']]);
+    rrect(g, 16, -5, 48, 10, 4); g.fill(); g.fillRect(14, -7, 5, 14);
+    g.fillStyle = 'rgba(255,255,255,0.25)'; rrect(g, 20, -4, 40, 2.5, 1); g.fill();
+  }
+  g.restore();
+}
+
+// ---------- BENCH: probing, inspecting, repairing ----------
+const KP = {};
+addEventListener('keydown', e => { KP[e.code] = true; if (e.code === 'Space' || e.code === 'Tab') e.preventDefault(); });
+const save = (() => { try { return Object.assign({ stars: {}, bank: 0, bestShift: 0 }, JSON.parse(LS.get('ff_save', '{}'))); } catch (e) { return { stars: {}, bank: 0, bestShift: 0 }; } })();
+function persist() { LS.set('ff_save', JSON.stringify(save)); }
+const totalStars = () => LEVELS.reduce((s, l) => s + (save.stars[l.id] || 0), 0);
+const levelOpen = i => i === 0 || !!save.stars[LEVELS[i - 1].id] || !!save.stars[LEVELS[i].id];
+let B = null;
+const isFaulty = c => !!(c.fault || c.burnt || c.blown || c.rev || c.trip);
+const MODES = [['V', 'V\u2393', 'Volts DC'], ['R', '\u03a9', 'Ohms'], ['D', '\u25b6|', 'Diode / beep'], ['A', 'A', 'Clamp amps']];
+function openJob(L, shift) {
+  const C = buildCircuit(L);
+  B = { L, C, img: bakeBoard(C), tool: 'probe', mode: 'V', red: null, black: C.nidx.G, placeBlack: false, clampC: null, reading: null, log: [], meas: 0, strikes: 0, spent: 0, wasted: 0, wrong: 0, damage: 0,
+    hintsUsed: 0, hintIdx: -1, hintShow: false, popup: { kind: 'lesson' }, flow: false, inspected: {}, fx: [], S: null, psu: null, prevContacts: {}, t: 0, shift: shift || null, hover: null };
+  B.hints = L.hints || shiftHints(L);
+  refresh(true);
+  game.state = 'bench'; MUS.target = 0.35;
+}
+function shiftHints(L) {
+  const f = L.faults[0], c = buildCircuit(L).cmap[f[0]];
+  return ['Reproduce the symptom: POWER on (flip any switches the job needs) and see which outputs are dead.', 'Follow the voltage from the supply toward the dead output. Where does it stop, or where does a part that should drop ~0 V drop a lot?', 'The fault is ' + f[0] + ' (' + (PT[c.type].name) + '): ' + FAULT_TXT[f[1]].toLowerCase() + '.'];
+}
+function refresh(silent) {
+  const C = B.C, r = liveSolve(C); B.S = r.S;
+  r.ev.forEach(c => {
+    const p = compCenter(C, c);
+    if (c.type === 'brk') { sfx('breaker'); toast('CB1 TRIPPED! There is a short on the circuit.', '#ff6a5a', 2.6); }
+    else { B.damage++; sfx('pop'); game.shake = 6; for (let i = 0; i < 14; i++) B.fx.push({ x: p.x, y: p.y, vx: RND(-60, 60), vy: RND(-90, 10), life: RND(0.3, 0.7), max: 0.7, type: 'spark' });
+      for (let i = 0; i < 6; i++) B.fx.push({ x: p.x + RND(-6, 6), y: p.y, vx: RND(-8, 8), vy: RND(-30, -14), life: RND(1.6, 2.6), max: 2.6, type: 'smoke', r: RND(8, 14) });
+      toast(c.id + (c.type === 'fuse' ? ' BLEW!' : ' BURNED OUT!') + (c.type === 'led' ? ' Too much current.' : ''), '#ff6a5a', 2.6); B.log.unshift({ s: c.id + ' failed: overload', col: '#ff6a5a' }); }
+  });
+  const ps = C.comps.find(c => c.type === 'psu');
+  if (ps) B.psu = { v: B.S.V[ps.n[0]] - B.S.V[ps.n[1]], i: Math.max(0, -(B.S.cur[ps.id] || 0)), cc: !!(B.S.st[ps.id] && B.S.st[ps.id].cc) };
+  C.comps.forEach(c => { if (c.type === 'contact') { const on = !!(B.S.st[c.id] && B.S.st[c.id].closed); if (!silent && on !== !!B.prevContacts[c.id]) sfx('relay'); B.prevContacts[c.id] = on; } });
+  remeasure(false);
+}
+function logReading(s, col) { B.log.unshift({ s, col: col || '#cfe' }); if (B.log.length > 30) B.log.pop(); }
+function remeasure(count) {
+  const C = B.C;
+  if (B.mode === 'A') {
+    if (!B.clampC) { B.reading = null; return; }
+    B.reading = clampRead(C, B.clampC);
+    if (count) { B.meas++; logReading('A  ' + B.clampC.id + '   ' + B.reading.txt + ' ' + B.reading.unit); sfx('probe'); }
+    return;
+  }
+  if (B.red == null) { B.reading = null; return; }
+  B.reading = meterRead(C, B.mode, B.red, B.black);
+  if (count) {
+    B.meas++;
+    const lab = C.nodes[B.red].label + ' \u2192 ' + C.nodes[B.black].label, R = B.reading;
+    if (R.live) { B.strikes++; sfx('warn'); game.flash = 0.6; game.flashCol = '#ff3020'; toast('VOLTAGE PRESENT! ' + (B.mode === 'R' ? 'Ohms' : 'Diode test') + ' only works with the power OFF.', '#ff6a5a', 3); logReading(B.mode + '  ' + lab + '   LIVE! (strike)', '#ff6a5a'); }
+    else { logReading(B.mode + '  ' + lab + '   ' + R.txt + ' ' + R.unit); if (R.beep && B.mode !== 'V') sfx('beep'); else sfx('probe'); }
+    announce('Meter reads ' + R.txt + ' ' + R.unit);
+  }
+}
+function setMode(m) { if (B.mode === m) return; B.mode = m; sfx('click'); if (m !== 'A') B.clampC = null; if ((B.red != null && m !== 'A')) remeasure(true); else remeasure(false); }
+function setPower(v) {
+  if (B.C.power === v) return; B.C.power = v; sfx(v ? 'power' : 'poweroff'); refresh(); if (B.C.theme === 'house') toast(v ? 'MAIN breaker ON' : 'MAIN breaker OFF', v ? '#ffd23f' : '#9ad');
+}
+function hitPad(x, y) { let best = null, bd = 14; B.C.nodes.forEach((n, i) => { const d = Math.hypot(n.x - x, n.y - y); if (d < bd) { bd = d; best = i; } }); return best; }
+function hitComp(x, y) {
+  const C = B.C; let best = null, bd = 1e9;
+  for (const c of C.comps) {
+    if (c.type === 'wire') continue;
+    const p = c.type === 'lamp' ? { x: c.at[0], y: c.at[1] } : compCenter(C, c);
+    const r = c.type === 'psu' ? 40 : c.type === 'lamp' ? 30 : c.type === 'motor' || c.type === 'mains' || c.type === 'coil' ? 26 : c.type === 'ins' ? 22 : 20;
+    const d = Math.hypot(p.x - x, p.y - y); if (d < r && d < bd) { bd = d; best = c; }
+  }
+  if (best) return best;
+  for (const c of C.comps) { if (c.type !== 'wire') continue; const d = polyD(compPath(C, c), x, y); if (d < 8 && d < bd) { bd = d; best = c; } }
+  return best;
+}
+const inBoard = (x, y) => x > BX && x < BX + BW && y > BY && y < BY + BH;
+function boardClick(x, y, right) {
+  const C = B.C;
+  if (B.tool === 'probe') {
+    if (B.mode === 'A') { const c = hitComp(x, y); if (c && c.type !== 'psu' && c.type !== 'mains') { B.clampC = c; remeasure(true); } else if (c) toast('Clamp a part or wire, not the supply.', '#9ad'); return; }
+    const n = hitPad(x, y);
+    if (n != null) {
+      if (right || B.placeBlack) { B.black = n; if (B.placeBlack && !right) B.placeBlack = false; } else B.red = n;
+      remeasure(B.red != null); return;
+    }
+    const c = hitComp(x, y);
+    if (c && (c.type === 'sw' || c.type === 'btn')) { c.on = c.on ? 0 : 1; sfx(c.type === 'btn' ? 'click' : 'toggle'); refresh(); if (c.fault === 'stuck' && c.on) { } return; }
+    if (c && c.type === 'pwr') { setPower(!C.power); return; }
+    if (c) toast('Probe the gold test points. Use INSPECT (E) or SOLDER (R) on parts.', '#9ad', 2);
+  } else if (B.tool === 'inspect') {
+    const c = hitComp(x, y); if (c) { B.popup = { kind: 'inspect', c }; B.inspected[c.id] = true; sfx('inspect'); }
+  } else if (B.tool === 'solder') {
+    const c = hitComp(x, y); if (c) { if (['psu', 'mains', 'pwr', 'contact'].includes(c.type)) { toast(c.type === 'contact' ? 'Contacts are part of relay ' + c.coil + '. Work on the coil side.' : 'Nothing to repair on the ' + PT[c.type].name.toLowerCase() + '.', '#9ad'); return; } B.popup = { kind: 'solder', c }; sfx('select'); }
+  }
+}
+function observe(c) {
+  const house = B.C.theme === 'house';
+  switch (c.type) {
+    case 'res': return c.burnt ? 'Charred and cracked. It smells burnt.' : 'Looks normal. Bands read ' + bandNames(c.shownVal || c.spec) + ' (' + fmtR(c.shownVal || c.spec) + ').';
+    case 'led': return c.burnt ? 'The dome is cloudy and darkened: cooked.' : c.rev ? 'The flat edge (cathode) points toward the + side. It is in BACKWARDS.' : 'Looks normal. Flat edge (cathode) is on the correct side.';
+    case 'diode': return c.rev ? 'The silver cathode band is on the opposite side to the silkscreen marking.' : 'Looks normal. Band matches the silkscreen.';
+    case 'bulb': return 'Frosted glass. You cannot see the filament from outside.';
+    case 'lamp': return 'Bulb is snug, switch on the lamp is ON.';
+    case 'fuse': return c.blown ? 'The glass is smoky and the element is broken: BLOWN.' : 'Element intact, glass clear.';
+    case 'brk': return c.trip ? 'The handle sits in the middle (TRIPPED) position.' : 'Handle is firmly ON.';
+    case 'cap': return 'No bulging and no leaks. (Shorted caps often show no outside damage.)';
+    case 'wire': if (c.fault === 'cold') return 'Dull, grainy, with a cracked ring around the pin. That is a COLD SOLDER JOINT.';
+      if (c.fixed) return 'Freshly repaired.';
+      return house ? 'The connection is inside the box behind the device. You cannot see it from here.' : 'Looks fine to the eye. (Hairline cracks can be invisible.)';
+    case 'sw': case 'btn': return 'Moves and clicks normally.';
+    case 'motor': return 'Shaft spins freely by hand.';
+    case 'npn': return 'Looks normal. TO-92 package: C, B, E.';
+    case 'coil': return 'No scorch marks. The relay case is intact.';
+    case 'ins': return c.fault === 'short' ? 'This staple was hammered in hard. It has CRUSHED the cable jacket.' : 'Staple is snug but not crushing the cable.';
+    case 'bat': return 'Label says 1.5 V x 2. The date code has rubbed off.';
+    case 'psu': return 'Set to ' + c.v + ' V, current limit ' + c.ilim + ' A.';
+    case 'mains': return 'Service is live. Meter disc is turning.';
+    case 'pwr': return 'Main switch.';
+    case 'contact': return 'Sealed inside the relay.';
+  }
+  return 'Looks normal.';
+}
+function actionsFor(c) {
+  const A = [], house = B.C.theme === 'house';
+  if (c.type === 'wire') A.push(['reflow', house ? 'Re-terminate connection' : 'Reflow joint / add jumper', '$2 labor']);
+  else if (c.type === 'brk') A.push(['reset', 'Reset breaker', 'free']);
+  else if (c.type === 'ins') A.push(['replace', 'Replace damaged cable section', '$' + (PT.ins.cost + 2) + '']);
+  else if (c.type === 'lamp') A.push(['replace', 'Swap in a known-good lamp', '$2 labor']);
+  else A.push(['replace', 'Replace ' + PT[c.type].name.toLowerCase(), '$' + (PT[c.type].cost + 2).toFixed(2).replace('.00', '')]);
+  if (c.type === 'led' || c.type === 'diode') A.push(['flip', 'Flip orientation', '$2 labor']);
+  if (['res', 'led', 'diode', 'cap', 'coil', 'bulb', 'motor'].includes(c.type)) A.push(c.lifted ? ['resolder', 'Resolder the lifted leg', 'free'] : ['lift', 'Lift one leg (test it alone)', 'free']);
+  return A;
+}
+function pickOptions(c) {
+  if (c.type === 'res') {
+    const E = [10, 15, 22, 33, 47, 68], s = c.spec, set = new Set([s]);
+    const near = v => { const d = Math.pow(10, Math.floor(Math.log10(v))), m = v / d; let b = E[0]; E.forEach(e => { if (Math.abs(e / 10 - m) < Math.abs(b / 10 - m)) b = e; }); return Math.round(b / 10 * d); };
+    [s / 10, s * 10, near(s * 0.47), near(s * 2.2), near(s * 0.22)].forEach(v => { if (v >= 10 && v <= 1e6) set.add(Math.round(v)); });
+    return [...set].sort((a, b) => a - b).slice(0, 6);
+  }
+  if (c.type === 'fuse') return [0.5, 1, 2, 5, 15].filter(v => true);
+  return null;
+}
+function doAction(c, act, val) {
+  const C = B.C, house = C.theme === 'house';
+  if (act !== 'reset' && C.power && !(act === 'replace' && c.type === 'lamp')) {
+    B.strikes++; sfx('warn'); game.flash = 0.5; game.flashCol = '#ff3020';
+    toast(house ? 'Turn the MAIN off before you touch conductors! (strike)' : 'Power OFF before you solder! (strike)', '#ff6a5a', 2.8); B.popup = null; return;
+  }
+  const faulty = isFaulty(c);
+  if (act === 'replace') {
+    const cost = (c.type === 'lamp' ? 0 : PT[c.type].cost) + 2; B.spent += cost;
+    if (!faulty) B.wasted++;
+    if (val != null && val !== c.spec) { B.wrong++; }
+    c.fault = null; c.burnt = false; c.blown = false; c.rev = false; c.lifted = false; c.trip = false;
+    if (c.type === 'res') { c.val = val || c.spec; c.shownVal = c.val; } if (c.type === 'fuse') c.val = val || c.spec;
+    logReading('Replaced ' + c.id + (val != null ? ' with ' + (c.type === 'res' ? fmtR(val) : val + ' A') : '') + '  -$' + cost.toFixed(2), '#ffd23f');
+    if (val != null && val !== c.spec) toast('Heads up: that is not the value on the silkscreen (' + specTxt(c) + ').', '#ffb020', 2.6);
+    sfx('solder');
+  } else if (act === 'flip') { B.spent += 2; if (!c.rev) B.wasted++; c.rev = !c.rev; logReading('Flipped ' + c.id + '  -$2', '#ffd23f'); sfx('solder'); }
+  else if (act === 'reflow') { B.spent += 2; if (c.fault === 'open' || c.fault === 'cold') { c.fixed = true; c.fixedHow = c.fault === 'open' && !house ? 'jumper' : 'reflow'; c.fault = null; } else B.wasted++; logReading((house ? 'Re-terminated ' : 'Reflowed ') + c.id + '  -$2', '#ffd23f'); sfx(house ? 'click' : 'solder'); }
+  else if (act === 'lift') { c.lifted = true; logReading('Lifted a leg of ' + c.id, '#9ad'); sfx('solder'); toast(c.id + ' is isolated. Probe its two pads to test it on its own.', '#9ad', 2.6); }
+  else if (act === 'resolder') { c.lifted = false; logReading('Resoldered ' + c.id, '#9ad'); sfx('solder'); }
+  else if (act === 'reset') { c.trip = false; logReading('Reset ' + c.id, '#9ad'); sfx('toggle'); }
+  B.popup = null; refresh();
+}
+function runTest() {
+  const R = runTests(B.C); sfx('testrun');
+  if (R.ev.length) { R.ev.forEach(c => { if (c.type !== 'brk') B.damage++; }); }
+  refresh(true);
+  B.popup = { kind: 'test', R, t: 0 };
+  if (R.pass) later(() => sfx('win'), 0.5); else later(() => sfx('fail'), 0.4);
+}
+function finishJob() {
+  const s2 = B.wasted === 0 && B.wrong === 0 && B.damage === 0, s3 = B.meas >= 1 && B.meas <= B.L.par && B.strikes === 0;
+  const stars = 1 + (s2 ? 1 : 0) + (s3 ? 1 : 0), earn = Math.max(0, B.L.pay - B.spent - B.hintsUsed * 5);
+  B.end = { stars, earn, s2, s3, t: 0 };
+  if (!B.shift) { save.stars[B.L.id] = Math.max(save.stars[B.L.id] || 0, stars); }
+  else { B.shift.earned += earn; B.shift.stars += stars; B.shift.done++; }
+  save.bank += earn; persist();
+  B.popup = { kind: 'end', t: 0 };
+  later(() => sfx('star', 0), 0.5); if (stars > 1) later(() => sfx('star', 1), 0.85); if (stars > 2) later(() => sfx('star', 2), 1.2);
+}
+function nextAfterEnd() {
+  if (B.shift) {
+    if (B.shift.done >= SHIFT_LEN) { save.bestShift = Math.max(save.bestShift, B.shift.earned); persist(); B.popup = { kind: 'shiftEnd' }; return; }
+    openJob(randomJob(B.shift.done), B.shift); B.popup = null; return;
+  }
+  const i = LEVELS.indexOf(B.L); if (LEVELS[i + 1]) openJob(LEVELS[i + 1]); else game.state = 'map';
+}
+function useHint() {
+  if (!B.hints) return;
+  if (B.hintIdx < B.hints.length - 1) { B.hintIdx++; B.hintsUsed++; sfx('hint'); }
+  B.hintShow = true;
+}
+// ---------- update ----------
+function updateBench(dt) {
+  B.t += dt;
+  B.fx.forEach(f => { f.life -= dt; f.x += f.vx * dt; f.y += f.vy * dt; if (f.type === 'spark') f.vy += 300 * dt; else { f.r += 10 * dt; f.vx *= 0.98; } });
+  B.fx = B.fx.filter(f => f.life > 0);
+  if (B.popup && B.popup.t != null) B.popup.t += dt;
+  const P = B.popup;
+  if (pressed.pause || KP.Escape) { if (P && (P.kind === 'inspect' || P.kind === 'solder' || P.kind === 'lesson')) B.popup = null; else if (P && P.kind === 'test' && !P.R.pass) B.popup = null; else if (!P) game.paused = true; return; }
+  if (P) {
+    if ((pressed.start || KP.Space) && P.kind === 'lesson') B.popup = null;
+    else if (pressed.start && P.kind === 'test') { if (P.R.pass) finishJob(); else B.popup = null; }
+    else if (pressed.start && P.kind === 'end' && P.t > 1) nextAfterEnd();
+    if (pressed.click && (P.kind === 'inspect' || P.kind === 'solder') && !ptr.consumed) { const r = P.rect; if (r && !(ptr.x > r.x && ptr.x < r.x + r.w && ptr.y > r.y && ptr.y < r.y + r.h)) B.popup = null; }
+    return;
+  }
+  // keys
+  if (KP.KeyQ) setTool('probe'); if (KP.KeyE) setTool('inspect'); if (KP.KeyR) setTool('solder');
+  if (KP.Digit1) setMode('V'); if (KP.Digit2) setMode('R'); if (KP.Digit3) setMode('D'); if (KP.Digit4) setMode('A');
+  if (KP.Space) setPower(!B.C.power); if (KP.KeyT) runTest(); if (KP.KeyH) useHint(); if (KP.KeyF) B.flow = !B.flow; if (KP.KeyB) B.placeBlack = !B.placeBlack;
+  if (KP.KeyG) { B.black = B.C.nidx.G; remeasure(false); }
+  if (KP.KeyL) B.popup = { kind: 'lesson' };
+  B.hover = null;
+  if (inBoard(ptr.x, ptr.y)) {
+    const n = B.tool === 'probe' && B.mode !== 'A' ? hitPad(ptr.x, ptr.y) : null;
+    B.hover = n != null ? { pad: n } : (() => { const c = hitComp(ptr.x, ptr.y); return c ? { c } : null; })();
+    if ((pressed.click && !ptr.consumed) || pressed.rclick) boardClick(ptr.x, ptr.y, !!pressed.rclick);
+  }
+}
+function setTool(t) { if (B.tool !== t) { B.tool = t; sfx('click'); } }
+
+// ---------- BENCH RENDER ----------
+const MX = 708, MY = 62, MW = 240;
+function drawBench(dt) {
+  const C = B.C, S = B.S;
+  cx.save();
+  if (game.shake > 0 && !RMOTION) { cx.translate(RND(-game.shake, game.shake), RND(-game.shake, game.shake)); game.shake = Math.max(0, game.shake - dt * 30); }
+  cx.drawImage(B.img, 0, 0, W, H);
+  cx.save(); rrect(cx, BX, BY, BW, BH, 12); cx.clip();
+  const hc = B.hover && B.hover.c;
+  C.comps.forEach(c => { if (c.type === 'wire') drawWire(C, c, hc === c || (B.popup && B.popup.c === c) || B.clampC === c); });
+  C.comps.forEach(c => { if (c.type !== 'wire') {
+    const o = { dt, out: outState(C, S, c), psu: B.psu, closed: c.type === 'contact' && S.st[c.id] && S.st[c.id].closed };
+    drawComp(C, c, o);
+    if (hc === c || (B.popup && B.popup.c === c) || B.clampC === c) { const p = c.type === 'lamp' ? { x: c.at[0], y: c.at[1] } : compCenter(C, c); cx.save(); cx.strokeStyle = B.clampC === c ? 'rgba(120,200,255,0.9)' : 'rgba(255,220,90,0.85)'; cx.lineWidth = 2; cx.setLineDash([5, 4]); cx.beginPath(); cx.arc(p.x, p.y, c.type === 'psu' ? 66 : 28, 0, 7); cx.stroke(); cx.restore(); }
+  } });
+  if (B.flow && C.power) drawFlow(C, S);
+  C.nodes.forEach((n, i) => drawPad(C, n, B.hover && B.hover.pad === i));
+  // fx
+  B.fx.forEach(f => { if (f.type === 'smoke') { cx.globalAlpha = clamp(f.life / f.max, 0, 1) * 0.8; cx.drawImage(SMOKE[0], f.x - f.r, f.y - f.r, f.r * 2, f.r * 2); } else { glowAt(f.x, f.y, 6, '#ffb040', clamp(f.life * 2, 0, 1)); } }); cx.globalAlpha = 1;
+  cx.restore();
+  // probes
+  const jr = { x: MX + 168, y: MY + 286 }, jb = { x: MX + 72, y: MY + 286 };
+  if (B.mode === 'A') { if (B.clampC) { const p = B.clampC.type === 'lamp' ? { x: B.clampC.at[0], y: B.clampC.at[1] } : compCenter(C, B.clampC); drawClamp(p.x, p.y + (B.clampC.type === 'wire' ? 0 : 0)); } }
+  else {
+    const bn = C.nodes[B.black]; drawProbe(bn.x, bn.y, 'black', jb.x, jb.y, false, B.black === C.nidx.G);
+    if (B.red != null) { const rn = C.nodes[B.red]; drawProbe(rn.x, rn.y, 'red', jr.x, jr.y); }
+  }
+  drawTopBar(); drawMeter(); drawBottomBar();
+  if (B.hintShow && B.hintIdx >= 0) drawHint();
+  // hover tooltip
+  if (!B.popup && B.hover) {
+    let s = null;
+    if (B.hover.pad != null) { const n = C.nodes[B.hover.pad]; s = 'Test point ' + n.label + '  \u00b7  click = red probe, right-click = black'; }
+    else if (B.hover.c) { const c = B.hover.c; s = c.id + '  \u00b7  ' + PT[c.type].name + (specTxt(c) ? '  \u00b7  ' + specTxt(c) : '') + (B.tool === 'probe' && (c.type === 'sw' || c.type === 'btn') ? '  \u00b7  click to ' + (c.type === 'btn' ? (c.on ? 'release' : 'hold down') : 'flip') : B.tool === 'inspect' ? '  \u00b7  click to inspect' : B.tool === 'solder' ? '  \u00b7  click to repair' : B.mode === 'A' ? '  \u00b7  click to clamp' : ''); }
+    if (s) { cx.font = '800 11px ' + FONT; const w = cx.measureText(s).width + 16, x = clamp(ptr.x + 14, 8, W - w - 8), y = ptr.y + 22 > H - 70 ? ptr.y - 34 : ptr.y + 18; glass(x, y, w, 22, '#ffd23f', 0.92, 6); txt(s, x + 8, y + 11.5, 11, '#fff', 'left', 800); }
+  }
+  drawPopup();
+  cx.restore();
+}
+function drawClamp(x, y) {
+  const g = cx; g.save(); g.translate(x, y);
+  g.strokeStyle = 'rgba(0,0,0,0.4)'; g.lineWidth = 9; g.beginPath(); g.arc(1, 3, 22, -0.3, Math.PI + 0.3, true); g.stroke();
+  g.strokeStyle = lin(g, -20, 0, 20, 0, [[0, '#ff9a1f'], [0.5, '#ffd23f'], [1, '#c06a10']]); g.lineWidth = 7; g.beginPath(); g.arc(0, 0, 22, -0.3, Math.PI + 0.3, true); g.stroke();
+  g.fillStyle = '#ffd23f'; rrect(g, -8, -50, 16, 30, 4); g.fill(); txt('A', 0, -36, 11, '#222', 'center', 900);
+  g.restore();
+}
+function drawTopBar() {
+  const L = B.L;
+  glass(BX, 6, BW, 50, '#ffd23f', 0.85, 10);
+  const idx = B.shift ? 'SHIFT ' + (B.shift.done + 1) + '/' + SHIFT_LEN : 'JOB ' + String(LEVELS.indexOf(L) + 1).padStart(2, '0');
+  txt(idx, BX + 12, 21, 11, '#ffd23f', 'left', 900, MONO);
+  cx.font = '900 11px ' + MONO; const iw = cx.measureText(idx).width;
+  txt(B.shift ? L.name.replace(/^Shift job \d+: /, '') : L.name, BX + 20 + iw, 21, 15, '#fff', 'left', 900);
+  { let cs = '\u201c' + L.complaint + '\u201d  \u2014 ' + L.client, fs = 11; const mw = BW - 170; cx.font = '600 ' + fs + 'px ' + FONT;
+    while (cx.measureText(cs).width > mw && fs > 9) { fs -= 0.5; cx.font = '600 ' + fs + 'px ' + FONT; }
+    if (cx.measureText(cs).width > mw) { cs = '\u201c' + L.complaint + '\u201d'; while (cx.measureText(cs + '\u2026').width > mw) cs = cs.slice(0, -1); cs += '\u2026'; }
+    txt(cs, BX + 12, 42, fs, 'rgba(255,255,255,0.72)', 'left', 600); }
+  // stats
+  const x0 = BX + BW - 10, mcol = B.meas > L.par ? '#ffb020' : '#7dffa0';
+  txt('$' + Math.max(0, L.pay - B.spent - B.hintsUsed * 5).toFixed(0), x0, 21, 15, '#ffd23f', 'right', 900, MONO);
+  txt('job pays', x0 - 44, 21, 9, 'rgba(255,255,255,0.45)', 'right', 800);
+  txt('readings ' + B.meas + '/' + L.par + (B.strikes ? '   \u26a0 ' + B.strikes : ''), x0, 42, 10.5, B.strikes ? '#ff8a6a' : mcol, 'right', 800, MONO);
+  // right column buttons
+  button('lesson', MX, 8, 74, 22, 'LESSON', { col: '#7fe0e8', size: 10, fn: () => { B.popup = { kind: 'lesson' }; } });
+  button('hint', MX + 80, 8, 74, 22, B.hintIdx >= (B.hints || []).length - 1 ? 'HINT' : 'HINT -$5', { col: '#ffd23f', size: 10, fn: useHint });
+  button('menu', MX + 160, 8, 80, 22, '\u2759\u2759 MENU', { col: '#ff9a6a', size: 10, fn: () => { game.paused = true; } });
+  button('flow', MX, 34, 117, 22, B.flow ? 'Flow: ON' : 'Show current flow', { col: '#ffd060', size: 10, fn: () => { B.flow = !B.flow; }, hot: B.flow });
+  button('gnd', MX + 123, 34, 117, 22, 'Black \u2192 GND', { col: '#9aa0a8', size: 10, fn: () => { B.black = B.C.nidx.G; remeasure(false); } });
+}
+function drawMeter() {
+  const x = MX, y = MY, R = B.reading;
+  // holster
+  cx.save(); cx.shadowColor = 'rgba(0,0,0,0.7)'; cx.shadowBlur = 20; cx.shadowOffsetY = 6;
+  cx.fillStyle = lin(cx, x, 0, x + MW, 0, [[0, '#b87a08'], [0.12, '#ffc21f'], [0.88, '#f0b010'], [1, '#a86a04']]); rrect(cx, x, y, MW, 318, 26); cx.fill(); cx.restore();
+  cx.fillStyle = 'rgba(255,255,255,0.15)'; rrect(cx, x + 6, y + 4, MW - 12, 20, 14); cx.fill();
+  cx.fillStyle = lin(cx, 0, y + 14, 0, y + 304, [[0, '#2c3036'], [1, '#121418']]); rrect(cx, x + 14, y + 14, MW - 28, 290, 16); cx.fill();
+  txt('CLOVER CM-17', x + MW / 2, y + 26, 9, 'rgba(255,210,63,0.8)', 'center', 900, MONO);
+  // LCD
+  const lx = x + 24, ly = y + 36, lw = MW - 48, lh = 74;
+  cx.fillStyle = lin(cx, 0, ly, 0, ly + lh, [[0, '#a9b89a'], [1, '#8c9c7e']]); rrect(cx, lx, ly, lw, lh, 6); cx.fill();
+  cx.fillStyle = 'rgba(0,0,0,0.12)'; rrect(cx, lx + 2, ly + 2, lw - 4, 6, 3); cx.fill();
+  const modeName = MODES.find(m => m[0] === B.mode)[2];
+  txt(modeName.toUpperCase(), lx + 8, ly + 11, 8.5, 'rgba(20,30,15,0.7)', 'left', 900, MONO);
+  if (B.C.power) txt('PWR ON', lx + lw - 8, ly + 11, 8.5, 'rgba(120,20,10,0.8)', 'right', 900, MONO);
+  let big = '- - - -', unit = '';
+  if (R) { big = R.txt; unit = R.unit; }
+  else if (B.mode === 'A') big = 'CLAMP';
+  const live = R && R.live;
+  cx.save(); if (live) { cx.globalAlpha = 0.6 + 0.4 * Math.sin(game.t * 14); }
+  txt(big, lx + lw - 36, ly + 44, big.length > 6 ? 26 : 34, live ? '#801010' : 'rgba(15,22,12,0.92)', 'right', 800, MONO);
+  cx.restore();
+  txt(unit, lx + lw - 8, ly + 48, 15, 'rgba(15,22,12,0.85)', 'right', 900, MONO);
+  if (R && R.beep && B.mode !== 'V' && B.mode !== 'A') txt('\u266a BEEP', lx + 8, ly + lh - 10, 9, 'rgba(15,22,12,0.85)', 'left', 900, MONO);
+  if (B.mode !== 'A') txt(B.red != null ? 'RED ' + B.C.nodes[B.red].label + '  BLK ' + B.C.nodes[B.black].label : 'BLK ' + B.C.nodes[B.black].label + '  (click a test point)', lx + lw - 8, ly + lh - 10, 8.5, 'rgba(15,22,12,0.7)', 'right', 800, MONO);
+  else txt(B.clampC ? 'JAW ON ' + B.clampC.id : 'click any part or wire', lx + lw - 8, ly + lh - 10, 8.5, 'rgba(15,22,12,0.7)', 'right', 800, MONO);
+  // dial
+  const dx = x + MW / 2, dy = y + 190, dr = 38;
+  const angs = { V: -2.36, R: -0.79, D: 0.79, A: 2.36 };
+  cx.fillStyle = radg(cx, dx - 10, dy - 12, 0, dx, dy, dr + 10, [[0, '#4a4f56'], [1, '#0e1012']]); cx.beginPath(); cx.arc(dx, dy, dr + 8, 0, 7); cx.fill();
+  cx.fillStyle = radg(cx, dx - 8, dy - 10, 0, dx, dy, dr, [[0, '#5a6068'], [0.7, '#24272c'], [1, '#121418']]); cx.beginPath(); cx.arc(dx, dy, dr - 4, 0, 7); cx.fill();
+  const ka = angs[B.mode] - Math.PI / 2;
+  cx.strokeStyle = '#ffd23f'; cx.lineWidth = 5; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(dx + Math.cos(ka) * 8, dy + Math.sin(ka) * 8); cx.lineTo(dx + Math.cos(ka) * (dr - 8), dy + Math.sin(ka) * (dr - 8)); cx.stroke();
+  MODES.forEach(([m, lab, name], i) => {
+    const a = angs[m] - Math.PI / 2, px = dx + Math.cos(a) * (dr + 26), py = dy + Math.sin(a) * (dr + 22), on = B.mode === m, hv = hov(px - 26, py - 16, 52, 32);
+    if (on) glowAt(px, py, 22, '#ffd23f', 0.35);
+    txt(lab, px, py - 3, on ? 18 : 15, on ? '#ffd23f' : hv ? '#fff' : 'rgba(255,255,255,0.65)', 'center', 900);
+    txt((i + 1) + '', px, py + 12, 8, 'rgba(255,255,255,0.4)', 'center', 800, MONO);
+    UI.push({ id: 'mode' + m, x: px - 26, y: py - 16, w: 52, h: 32, fn: () => setMode(m) });
+  });
+  // jacks
+  [[x + 72, 'COM', '#1a1a1a'], [x + 168, 'V\u03a9mA', '#d02a20']].forEach(([jx, lab, col]) => {
+    const jy = y + 286; cx.fillStyle = '#050506'; cx.beginPath(); cx.arc(jx, jy, 9, 0, 7); cx.fill(); cx.strokeStyle = col; cx.lineWidth = 3; cx.stroke();
+    txt(lab, jx + (jx < x + 120 ? -16 : 16), jy, 8.5, 'rgba(255,255,255,0.6)', jx < x + 120 ? 'right' : 'left', 900, MONO); });
+  // probe placement toggle (touch friendly)
+  button('pb', x, y + 326, 117, 26, B.placeBlack ? 'Next tap: BLACK' : 'Next tap: RED', { col: B.placeBlack ? '#9aa0a8' : '#ff5a4a', size: 10.5, fn: () => { B.placeBlack = !B.placeBlack; }, key: 'B' });
+  button('clr', x + 123, y + 326, 117, 26, 'Lift red probe', { col: '#ff5a4a', size: 10.5, fn: () => { B.red = null; remeasure(false); } });
+  // log
+  glass(x, y + 358, MW, 46, '#7fe0e8', 0.8, 8);
+  B.log.slice(0, 3).forEach((l, i) => txt(l.s, x + 8, y + 368 + i * 13, 9.5, i ? rgba(l.col, 0.55) : l.col, 'left', 800, MONO));
+  if (!B.log.length) txt('Readings show up here.', x + 8, y + 381, 9.5, 'rgba(255,255,255,0.4)', 'left', 800, MONO);
+}
+function drawBottomBar() {
+  const y = 474, h = 54;
+  const tools = [['probe', 'PROBE', 'Q', 'measure', '#ff5a4a'], ['inspect', 'INSPECT', 'E', 'look closely', '#7fe0e8'], ['solder', 'SOLDER', 'R', 'repair / replace', '#ffb020']];
+  tools.forEach(([id, lab, k, sub, col], i) => button('tool' + id, BX + i * 112, y, 106, h, lab, { col, size: 15, sub: sub, key: k, hot: B.tool === id, fn: () => setTool(id) }));
+  cx.save(); B.tool && tools.forEach(([id], i) => { if (B.tool === id) { cx.strokeStyle = '#fff'; cx.lineWidth = 2; rrect(cx, BX + i * 112 - 2, y - 2, 110, h + 4, 12); cx.stroke(); } }); cx.restore();
+  const on = B.C.power, house = B.C.theme === 'house', hasPwr = B.C.comps.some(c => c.type === 'pwr');
+  if (hasPwr) button('power', BX + 350, y, 170, h, on ? (house ? 'MAIN: ON' : 'POWER: ON') : (house ? 'MAIN: OFF' : 'POWER: OFF'), { col: on ? '#3cff7a' : '#ff5a4a', size: 17, sub: 'Space to toggle', hot: on, fn: () => setPower(!on) });
+  else txt('Battery powered: use SW1', BX + 435, y + h / 2, 11, 'rgba(255,255,255,0.5)', 'center', 800);
+  button('test', BX + 530, y, 150, h, 'RUN TEST', { col: '#ffd23f', size: 17, sub: 'check the repair (T)', fn: runTest });
+  // psu/house state readout
+  const tip = B.tool === 'probe' ? (B.mode === 'A' ? 'Click any part or wire to clamp the current through it.' : 'Click a test point: red probe. Right-click: black probe.') : B.tool === 'inspect' ? 'Click a part to look at it closely. Free.' : 'Click a part to repair it. Power must be OFF.';
+  glass(MX, y, MW, h, '#ffd23f', 0.75, 10);
+  wrap(tip, MX + 10, y + 16, MW - 20, 10.5, 'rgba(255,255,255,0.75)', 14, 700);
+}
+function drawHint() {
+  const s = B.hints[B.hintIdx], w = 520, hh = Math.max(56, wrapH(s, w - 90, 12, 16, 700) + 30), x = BX + (BW - w) / 2, y = BY + BH - hh - 10;
+  glass(x, y, w, hh, '#ffd23f', 0.94, 12);
+  // Doc Ohm avatar
+  const ax = x + 32, ay = y + hh / 2; cx.fillStyle = radg(cx, ax - 6, ay - 6, 0, ax, ay, 22, [[0, '#fff3b0'], [0.5, '#ffd23f'], [1, '#8a6a10']]); cx.beginPath(); cx.arc(ax, ay, 20, 0, 7); cx.fill();
+  txt('\u03a9', ax, ay + 1, 22, '#3a2a00', 'center', 900);
+  txt('DOC OHM  \u00b7  hint ' + (B.hintIdx + 1) + '/' + B.hints.length, x + 64, y + 14, 9.5, '#ffd23f', 'left', 900, MONO);
+  wrap(s, x + 64, y + 32, w - 90, 12, '#fff', 16, 700);
+  button('hx', x + w - 26, y + 6, 20, 20, '\u00d7', { col: '#9aa0a8', size: 12, fn: () => { B.hintShow = false; } });
+}
+function modal(w, h, accent) { cx.fillStyle = 'rgba(2,4,6,0.6)'; cx.fillRect(0, 0, W, H); const x = (W - w) / 2, y = (H - h) / 2; cx.save(); cx.shadowColor = 'rgba(0,0,0,0.8)'; cx.shadowBlur = 30; glass(x, y, w, h, accent || '#ffd23f', 0.96, 16); cx.restore(); return { x, y, w, h }; }
+function drawPopup() {
+  const P = B.popup; if (!P) return; const L = B.L;
+  if (P.kind === 'lesson') {
+    const le = L.lesson, lh = (B.shift || !le) ? 330 : Math.min(500, 190 + wrapH(le.body, 584, 12.5, 18, 600) + wrapH('TIP: ' + le.tip, 584, 11.5, 16, 700) + 70);
+    const r = modal(640, lh, '#7fe0e8');
+    if (B.shift || !le) {
+      metalTxt('REPAIR SHIFT', r.x + 28, r.y + 40, 28, 'left', 'rgba(255,200,60,0.5)');
+      txt('Board ' + (B.shift.done + 1) + ' of ' + SHIFT_LEN + '  \u00b7  earned so far $' + B.shift.earned.toFixed(0), r.x + 28, r.y + 72, 12, '#7fe0e8', 'left', 800, MONO);
+      wrap('A random fault has been planted somewhere on this board. No lesson card and no guided hints, just your meter and your head. Doc Ohm will still help if you ask, for $5.', r.x + 28, r.y + 108, r.w - 56, 13, 'rgba(255,255,255,0.85)', 19, 600);
+    } else {
+      txt('JOB ' + String(LEVELS.indexOf(L) + 1).padStart(2, '0') + '  \u00b7  ' + L.name.toUpperCase(), r.x + 28, r.y + 28, 11, '#7fe0e8', 'left', 900, MONO);
+      metalTxt(le.title, r.x + 28, r.y + 58, 26, 'left', 'rgba(255,200,60,0.4)');
+      let yy = wrap(le.body, r.x + 28, r.y + 96, r.w - 56, 12.5, 'rgba(255,255,255,0.86)', 18, 600);
+      yy += 26; cx.fillStyle = 'rgba(255,210,63,0.1)'; rrect(cx, r.x + 24, yy - 14, r.w - 48, 30, 8); cx.fill(); cx.strokeStyle = 'rgba(255,210,63,0.4)'; cx.lineWidth = 1; rrect(cx, r.x + 24, yy - 14, r.w - 48, 30, 8); cx.stroke();
+      txt(le.formula, r.x + r.w / 2, yy + 1, 12.5, '#ffd23f', 'center', 800, MONO);
+      yy += 32; wrap('TIP: ' + le.tip, r.x + 28, yy, r.w - 56, 11.5, '#9fe8ff', 16, 700);
+    }
+    txt('Customer: \u201c' + L.complaint + '\u201d', r.x + 28, r.y + r.h - 66, 11, 'rgba(255,255,255,0.6)', 'left', 600);
+    button('go', r.x + r.w - 220, r.y + r.h - 50, 196, 36, 'TO THE BENCH \u2192', { col: '#3cff7a', size: 14, hot: true, fn: () => { B.popup = null; }, key: '\u21b5' });
+    txt('Controls: Q/E/R tools \u00b7 1-4 meter modes \u00b7 Space power \u00b7 T test \u00b7 H hint', r.x + 28, r.y + r.h - 32, 9.5, 'rgba(255,255,255,0.45)', 'left', 700);
+  }
+  else if (P.kind === 'inspect' || P.kind === 'solder') {
+    const c = P.c, p = c.type === 'lamp' ? { x: c.at[0], y: c.at[1] } : compCenter(B.C, c);
+    const opts = P.kind === 'solder' ? (P.pick ? pickOptions(c) : actionsFor(c)) : null;
+    const w = P.pick ? 330 : 300, info = PT[c.type].info, obs = P.kind === 'inspect' ? observe(c) : null;
+    let h = P.kind === 'inspect' ? 70 + wrapH(obs, w - 28, 12, 16, 800) + wrapH(info, w - 28, 10.5, 14, 600) + 14 : P.pick ? 96 + Math.ceil(opts.length / 2) * 40 + 34 : 56 + opts.length * 36;
+    let x = p.x + 40, y = p.y - h / 2; if (x + w > 948) x = p.x - 40 - w; x = clamp(x, 10, W - w - 10); y = clamp(y, 64, H - h - 10);
+    P.rect = { x, y, w, h };
+    cx.save(); cx.shadowColor = 'rgba(0,0,0,0.8)'; cx.shadowBlur = 24; glass(x, y, w, h, P.kind === 'inspect' ? '#7fe0e8' : '#ffb020', 0.97, 12); cx.restore();
+    txt(c.id + '  \u00b7  ' + PT[c.type].name, x + 14, y + 18, 13, '#fff', 'left', 900);
+    txt(specTxt(c), x + 14, y + 36, 10.5, P.kind === 'inspect' ? '#7fe0e8' : '#ffb020', 'left', 800, MONO);
+    button('px', x + w - 28, y + 8, 20, 20, '\u00d7', { col: '#9aa0a8', size: 12, fn: () => { B.popup = null; } });
+    if (P.kind === 'inspect') {
+      let yy = wrap(obs, x + 14, y + 60, w - 28, 12, '#ffe9a8', 16, 800);
+      wrap(info, x + 14, yy + 22, w - 28, 10.5, 'rgba(255,255,255,0.7)', 14, 600);
+    } else if (!P.pick) {
+      if (B.C.power) txt(B.C.theme === 'house' ? '\u26a0 MAIN is ON' : '\u26a0 POWER is ON', x + w - 40, y + 36, 10, '#ff6a5a', 'right', 900, MONO);
+      opts.forEach(([act, lab, cost], i) => button('a' + act, x + 14, y + 52 + i * 36, w - 28, 30, lab, { col: act === 'replace' ? '#ffb020' : act === 'lift' || act === 'resolder' ? '#7fe0e8' : '#3cff7a', size: 12, sub: null, fn: () => {
+        if (act === 'replace' && pickOptions(c)) { P.pick = true; return; } doAction(c, act); } }));
+      opts.forEach(([act, lab, cost], i) => txt(cost, x + w - 22, y + 67 + i * 36, 9.5, 'rgba(255,255,255,0.6)', 'right', 800, MONO));
+    } else {
+      txt(c.type === 'res' ? 'Parts bin: pick the right resistor' : 'Parts bin: pick the fuse rating', x + 14, y + 56, 11, '#fff', 'left', 800);
+      opts.forEach((v, i) => {
+        const bx = x + 14 + (i % 2) * ((w - 34) / 2 + 6), by = y + 70 + Math.floor(i / 2) * 40, bw = (w - 34) / 2, hv = hov(bx, by, bw, 34);
+        cx.fillStyle = hv ? 'rgba(255,176,32,0.25)' : 'rgba(255,255,255,0.06)'; rrect(cx, bx, by, bw, 34, 7); cx.fill(); cx.strokeStyle = hv ? '#ffb020' : 'rgba(255,255,255,0.2)'; cx.lineWidth = 1; rrect(cx, bx, by, bw, 34, 7); cx.stroke();
+        if (c.type === 'res') {
+          cx.save(); cx.translate(bx + 40, by + 17); cx.fillStyle = lin(cx, 0, -7, 0, 7, [[0, '#f2dcae'], [1, '#9a7a4a']]); rrect(cx, -23, -7, 46, 14, 7); cx.fill();
+          const bd = bandsOf(v); [-12, -5, 2].forEach((xx, k) => { cx.fillStyle = bd[k]; cx.fillRect(xx, -7, 4, 14); }); cx.fillStyle = '#c8a040'; cx.fillRect(13, -7, 3, 14); cx.restore();
+          if (!B.L.hideValues) txt(fmtR(v), bx + bw - 8, by + 17, 11, '#fff', 'right', 800, MONO); else txt('?', bx + bw - 12, by + 17, 12, 'rgba(255,255,255,0.4)', 'right', 900, MONO);
+        } else { txt(v + ' A fuse', bx + bw / 2, by + 17, 12, '#fff', 'center', 900, MONO); }
+        UI.push({ id: 'pk' + i, x: bx, y: by, w: bw, h: 34, fn: () => doAction(c, 'replace', v) });
+      });
+      const yy = y + 70 + Math.ceil(opts.length / 2) * 40 + 6;
+      if (c.type === 'res') { BAND.forEach((col, k) => { cx.fillStyle = col; cx.fillRect(x + 14 + k * 30, yy, 26, 10); txt(k + '', x + 27 + k * 30, yy + 20, 9, 'rgba(255,255,255,0.7)', 'center', 900, MONO); }); }
+      else txt('Match the rating printed on the board. Bigger is NOT safer.', x + 14, yy + 10, 10, 'rgba(255,255,255,0.65)', 'left', 700);
+    }
+  }
+  else if (P.kind === 'test') {
+    const R = P.R, rows = R.rows, r = modal(460, 150 + rows.length * 30 + (R.lifted.length ? 20 : 0), R.pass ? '#3cff7a' : '#ff5a4a');
+    metalTxt(R.pass ? 'ALL TESTS PASS' : 'STILL NOT RIGHT', r.x + r.w / 2, r.y + 36, 26, 'center', R.pass ? 'rgba(60,255,120,0.5)' : 'rgba(255,90,74,0.5)');
+    rows.forEach((row, i) => {
+      const yy = r.y + 74 + i * 30, show = P.t > 0.25 + i * 0.25;
+      const cond = row.T.sw ? Object.entries(row.T.sw).map(([k, v]) => k + (v ? ' on' : ' off')).join(', ') : 'power on';
+      txt('Test ' + (i + 1) + ': ' + cond, r.x + 24, yy, 11.5, 'rgba(255,255,255,0.8)', 'left', 800);
+      const res = row.want.map(q => q.id[0] === '@' ? q.id.slice(1) + ' ' + q.got.toFixed(2) + 'V' : q.id + ' ' + q.got).join('  ');
+      if (show) { txt(res, r.x + r.w - 60, yy, 10.5, row.ok ? '#7dffa0' : '#ff8a6a', 'right', 800, MONO); txt(row.ok ? '\u2714' : '\u2718', r.x + r.w - 30, yy, 16, row.ok ? '#3cff7a' : '#ff5a4a', 'center', 900); }
+    });
+    if (R.lifted.length) txt('Lifted legs still open: ' + R.lifted.map(c => c.id).join(', '), r.x + 24, r.y + 74 + rows.length * 30, 11, '#ffb020', 'left', 800);
+    if (R.pass) button('fin', r.x + r.w / 2 - 110, r.y + r.h - 54, 220, 40, 'COMPLETE JOB \u2192', { col: '#3cff7a', size: 15, hot: true, fn: finishJob, key: '\u21b5' });
+    else button('back', r.x + r.w / 2 - 110, r.y + r.h - 54, 220, 40, 'BACK TO THE BENCH', { col: '#ff9a6a', size: 14, fn: () => { B.popup = null; } });
+  }
+  else if (P.kind === 'end') {
+    const E = B.end, r = modal(700, 470, '#ffd23f');
+    metalTxt(B.shift ? 'BOARD FIXED' : 'JOB COMPLETE', r.x + 30, r.y + 40, 30, 'left', 'rgba(255,200,60,0.5)');
+    for (let k = 0; k < 3; k++) { const on = k < E.stars && P.t > 0.5 + k * 0.35; star(r.x + r.w - 130 + k * 44, r.y + 40, on ? 18 + Math.max(0, 6 - (P.t - 0.5 - k * 0.35) * 30) : 18, on); }
+    const rowsS = [['Fixed it', true], ['No wasted or wrong parts, nothing burned (' + (B.wasted + B.wrong) + ' extra, ' + B.damage + ' burned)', E.s2], ['Readings \u2264 ' + L.par + ' (' + B.meas + ') and no safety strikes (' + B.strikes + ')', E.s3]];
+    rowsS.forEach(([s, ok], i) => { txt(ok ? '\u2605' : '\u2606', r.x + 30, r.y + 80 + i * 20, 13, ok ? '#ffd23f' : 'rgba(255,255,255,0.35)', 'left', 900); txt(s, r.x + 50, r.y + 80 + i * 20, 11.5, ok ? '#fff' : 'rgba(255,255,255,0.5)', 'left', 700); });
+    txt('Pay $' + L.pay + '   parts & labor -$' + B.spent.toFixed(2) + (B.hintsUsed ? '   hints -$' + B.hintsUsed * 5 : '') + '   =  $' + E.earn.toFixed(2), r.x + 30, r.y + 150, 12, '#ffd23f', 'left', 800, MONO);
+    const what = L.debrief || ('The fault: ' + L.faults.map(f => f[0] + ' (' + PT[B.C.cmap[f[0]].type].name.toLowerCase() + ') - ' + FAULT_TXT[f[1]].toLowerCase()).join('; ') + '.');
+    txt('WHAT WAS WRONG', r.x + 30, r.y + 182, 10, '#7fe0e8', 'left', 900, MONO);
+    let yy = wrap(what, r.x + 30, r.y + 202, r.w - 60, 12, 'rgba(255,255,255,0.88)', 17, 600);
+    if (L.career) { yy += 28; txt('IN THE REAL WORLD', r.x + 30, yy, 10, '#7fe0e8', 'left', 900, MONO); wrap(L.career, r.x + 30, yy + 20, r.w - 60, 11.5, 'rgba(200,240,255,0.8)', 16, 600); }
+    const last = !B.shift && LEVELS.indexOf(L) === LEVELS.length - 1;
+    button('next', r.x + r.w - 230, r.y + r.h - 54, 206, 40, B.shift ? (B.shift.done >= SHIFT_LEN ? 'SHIFT SUMMARY \u2192' : 'NEXT BOARD \u2192') : last ? 'BACK TO JOBS' : 'NEXT JOB \u2192', { col: '#3cff7a', size: 14, hot: true, fn: nextAfterEnd, key: '\u21b5' });
+    if (!B.shift) button('retry', r.x + 24, r.y + r.h - 54, 130, 40, 'REPLAY', { col: '#7fe0e8', size: 13, fn: () => openJob(L) });
+    button('jobs', r.x + 164, r.y + r.h - 54, 130, 40, 'ALL JOBS', { col: '#9aa0a8', size: 13, fn: () => { game.state = 'map'; } });
+  }
+  else if (P.kind === 'shiftEnd') {
+    const r = modal(520, 300, '#ffd23f'), Sh = B.shift;
+    metalTxt('SHIFT OVER', r.x + r.w / 2, r.y + 50, 34, 'center', 'rgba(255,200,60,0.5)');
+    txt(SHIFT_LEN + ' boards fixed  \u00b7  ' + Sh.stars + ' / ' + SHIFT_LEN * 3 + ' \u2605', r.x + r.w / 2, r.y + 100, 15, '#fff', 'center', 800);
+    txt('Earned $' + Sh.earned.toFixed(2), r.x + r.w / 2, r.y + 136, 26, '#ffd23f', 'center', 900, MONO);
+    txt('Best shift: $' + save.bestShift.toFixed(2), r.x + r.w / 2, r.y + 170, 12, 'rgba(255,255,255,0.6)', 'center', 800, MONO);
+    button('again', r.x + 30, r.y + r.h - 64, 210, 42, 'ANOTHER SHIFT', { col: '#3cff7a', size: 14, hot: true, fn: startShift });
+    button('jobs2', r.x + r.w - 240, r.y + r.h - 64, 210, 42, 'ALL JOBS', { col: '#9aa0a8', size: 14, fn: () => { game.state = 'map'; } });
+  }
+}
+function startShift() { openJob(randomJob(0), { done: 0, earned: 0, stars: 0 }); }
+
+// ---------- TITLE / JOB MAP / PAUSE ----------
+let DEMO = null;
+function demo() {
+  if (DEMO) return DEMO;
+  const L = LEVELS.find(l => l.id === 'garden'), C = buildCircuit(L, { faults: [] }); C.power = true;
+  DEMO = { C, img: bakeBoard(C), S: solve(C, 'live') }; return DEMO;
+}
+function drawDemoBoard(dt) {
+  const D = demo(), C = D.C;
+  cx.drawImage(D.img, 0, 0, W, H);
+  C.comps.forEach(c => { if (c.type !== 'wire') drawComp(C, c, { dt, out: outState(C, D.S, c), psu: { v: 12, i: 0.036, cc: false } }); });
+  drawFlow(C, D.S);
+  C.nodes.forEach(n => drawPad(C, n, false));
+}
+function drawTitle(dt) {
+  drawDemoBoard(dt);
+  cx.fillStyle = 'rgba(3,5,4,0.5)'; cx.fillRect(0, 0, W, H);
+  cx.fillStyle = lin(cx, 0, 0, W, 0, [[0, 'rgba(0,0,0,0)'], [0.3, 'rgba(0,0,0,0.2)'], [0.45, 'rgba(2,4,3,0.82)'], [1, 'rgba(2,4,3,0.9)']]); cx.fillRect(0, 0, W, H);
+  // fake meter readout flourish
+  const x0 = 600;
+  cloverLogo(x0 - 210, 100, 30);
+  metalTxt('FAULT FINDER', x0 + 30, 100, 54, 'center', 'rgba(255,200,60,0.6)');
+  txt('C I R C U I T   R E P A I R   S H O P', x0 + 30, 144, 13, '#7dffa0', 'center', 900, MONO);
+  wrap('Grab a multimeter, probe the board, find the bad part and fix it. Learn how electricity really works: Ohm\'s law, series and parallel, diodes, transistors, relays and house wiring.', x0 - 190, 182, 440, 12.5, 'rgba(255,255,255,0.8)', 18, 600);
+  const done = LEVELS.filter(l => save.stars[l.id]).length;
+  button('play', x0 - 110, 262, 280, 56, done ? 'CONTINUE' : 'OPEN THE SHOP', { col: '#3cff7a', size: 20, sub: done + ' / ' + LEVELS.length + ' jobs  \u00b7  ' + totalStars() + ' \u2605  \u00b7  bank $' + save.bank.toFixed(0), hot: true, fn: () => { game.state = 'map'; }, key: '\u21b5' });
+  button('mute', x0 - 110, 332, 136, 30, muted ? 'Sound off' : 'Sound on', { col: '#7fe0e8', size: 11, fn: () => setMute(!muted) });
+  button('mus', x0 + 34, 332, 136, 30, musicOn ? 'Music on' : 'Music off', { col: '#7fe0e8', size: 11, fn: () => setMusic(!musicOn) });
+  wrap('Real circuit math under the hood: every reading comes from a live nodal-analysis solver, so the meter behaves like the real thing.', x0 - 190, 392, 440, 10.5, 'rgba(255,255,255,0.5)', 15, 600);
+  txt('Original game by Viktor for MyClover.Tech  \u00b7  all art and sound generated in code', W / 2, H - 18, 9.5, 'rgba(255,255,255,0.38)', 'center', 700);
+  txt('Mains electricity can kill. The house jobs teach concepts. Real work belongs to licensed electricians.', W / 2, H - 34, 9.5, 'rgba(255,200,120,0.5)', 'center', 700);
+  MUS.on = true; MUS.target = 0.25;
+}
+const MAPI = { focus: 0 };
+function drawMap(dt) {
+  drawDemoBoard(dt); cx.fillStyle = 'rgba(3,5,4,0.82)'; cx.fillRect(0, 0, W, H);
+  metalTxt('THE JOB BOARD', 26, 34, 28, 'left', 'rgba(255,200,60,0.45)');
+  txt(totalStars() + ' / ' + LEVELS.length * 3 + ' \u2605   \u00b7   bank $' + save.bank.toFixed(0), 280, 36, 14, '#ffd23f', 'left', 900, MONO);
+  button('home', W - 116, 16, 96, 30, '\u2190 TITLE', { col: '#7fe0e8', size: 12, fn: () => { game.state = 'title'; } });
+  const cw = 222, ch = 100, gx = 22, gy = 62;
+  const slots = LEVELS.length + 1;
+  for (let i = 0; i < slots; i++) {
+    const x = gx + (i % 4) * (cw + 8), y = gy + Math.floor(i / 4) * (ch + 8);
+    if (i === LEVELS.length) { // shift card
+      const open = LEVELS.slice(0, 4).every(l => save.stars[l.id]), hv = open && hov(x, y, cw * 2 + 8, ch);
+      cx.save(); if (hv) { cx.shadowColor = '#ffd23f'; cx.shadowBlur = 16; } glass(x, y, cw * 2 + 8, ch, open ? '#ffd23f' : 'rgba(255,255,255,0.15)', open ? 0.9 : 0.6); cx.restore();
+      txt('\u221e', x + 20, y + 30, 26, open ? '#ffd23f' : 'rgba(255,255,255,0.3)', 'center', 900);
+      txt('REPAIR SHIFT', x + 44, y + 26, 16, open ? '#fff' : 'rgba(255,255,255,0.35)', 'left', 900);
+      txt(open ? SHIFT_LEN + ' random boards, a random hidden fault in each. No lesson cards.' : 'Clear jobs 1-4 to unlock.', x + 44, y + 48, 10.5, open ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.3)', 'left', 700);
+      if (open) { txt('best shift $' + save.bestShift.toFixed(0), x + 44, y + 72, 10, '#ffd23f', 'left', 800, MONO); UI.push({ id: 'shift', x, y, w: cw * 2 + 8, h: ch, fn: startShift }); }
+      break;
+    }
+    const L = LEVELS[i], open = levelOpen(i), st = save.stars[L.id] || 0, hv = open && hov(x, y, cw, ch), foc = MAPI.focus === i, house = L.theme === 'house';
+    const ac = house ? '#ff9a1f' : '#3cff7a';
+    cx.save(); if (hv || foc) { cx.shadowColor = ac; cx.shadowBlur = 16; } glass(x, y, cw, ch, open ? (hv || foc ? ac : rgba(ac, 0.4)) : 'rgba(255,255,255,0.15)', open ? 0.9 : 0.6); cx.restore();
+    txt(String(i + 1).padStart(2, '0'), x + 12, y + 18, 13, open ? ac : 'rgba(255,255,255,0.3)', 'left', 900, MONO);
+    txt(L.name, x + 40, y + 18, 13, open ? '#fff' : 'rgba(255,255,255,0.35)', 'left', 900);
+    if (open) {
+      txt(L.lesson.title, x + 12, y + 40, 10.5, rgba(ac, 0.9), 'left', 800);
+      txt(L.client, x + 12, y + 58, 9.5, 'rgba(255,255,255,0.5)', 'left', 700);
+      txt((house ? 'HOUSE WIRING' : 'ELECTRONICS') + '  \u00b7  $' + L.pay, x + 12, y + ch - 16, 9, 'rgba(255,255,255,0.45)', 'left', 800, MONO);
+      for (let k = 0; k < 3; k++) star(x + cw - 66 + k * 22, y + ch - 18, 8.5, k < st);
+      UI.push({ id: 'lv' + i, x, y, w: cw, h: ch, fn: () => openJob(L) });
+    } else txt('LOCKED', x + cw / 2, y + 60, 12, 'rgba(255,255,255,0.3)', 'center', 900, MONO);
+  }
+}
+function updateMap() {
+  if (pressed.pause) game.state = 'title';
+  if (pressed.cycle) MAPI.focus = (MAPI.focus + 1) % LEVELS.length;
+  if (pressed.start && levelOpen(MAPI.focus)) openJob(LEVELS[MAPI.focus]);
+}
+function drawPause() {
+  cx.fillStyle = 'rgba(2,3,8,0.65)'; cx.fillRect(0, 0, W, H);
+  metalTxt('PAUSED', W / 2, H / 2 - 80, 40, 'center');
+  button('resume', W / 2 - 110, H / 2 - 40, 220, 42, 'RESUME', { col: '#3cff7a', size: 16, fn: () => { game.paused = false; } });
+  button('restart', W / 2 - 110, H / 2 + 10, 220, 34, 'RESTART JOB', { col: '#ffd23f', size: 12, fn: () => { game.paused = false; if (B.shift) openJob(B.L, B.shift); else openJob(B.L); } });
+  button('quit', W / 2 - 110, H / 2 + 52, 220, 34, 'JOB BOARD', { col: '#ff5a6a', size: 12, fn: () => { game.paused = false; game.state = 'map'; } });
+  button('pm', W / 2 - 110, H / 2 + 94, 106, 30, muted ? 'Sound off' : 'Sound on', { col: '#7fe0e8', size: 11, fn: () => setMute(!muted) });
+  button('pmu', W / 2 + 4, H / 2 + 94, 106, 30, musicOn ? 'Music on' : 'Music off', { col: '#7fe0e8', size: 11, fn: () => setMusic(!musicOn) });
+}
+// ---------- MAIN LOOP ----------
+function update(dt) {
+  game.t += dt;
+  for (const tm of game.timers) { tm.t -= dt; if (tm.t <= 0 && !tm.fired) { tm.fired = true; tm.fn(); } } game.timers = game.timers.filter(q => !q.fired);
+  for (const m of toasts) m.t -= dt; toasts = toasts.filter(m => m.t > 0);
+  if (pressed.mute) setMute(!muted);
+  musicTick();
+  if (game.state === 'title') { if (pressed.start) game.state = 'map'; }
+  else if (game.state === 'map') updateMap();
+  else if (game.state === 'bench') { if (game.paused) { if (pressed.pause || KP.Escape) game.paused = false; } else updateBench(dt); }
+  game.flash = Math.max(0, game.flash - dt * 2.5);
+}
+let lastDt = 1 / 60;
+function render() {
+  UI = [];
+  cx.setTransform(SC, 0, 0, SC, 0, 0);
+  cx.clearRect(0, 0, W, H);
+  if (game.state === 'title') drawTitle(lastDt);
+  else if (game.state === 'map') drawMap(lastDt);
+  else if (game.state === 'bench') { drawBench(lastDt); if (game.paused) drawPause(); }
+  toasts.forEach((tt, i) => { cx.globalAlpha = clamp(tt.t / 0.3, 0, 1); cx.font = '900 14px ' + FONT; const w = cx.measureText(tt.s).width + 28; glass(W / 2 - w / 2 - 120 + 120, 70 + i * 30, w, 26, tt.col, 0.9, 13); txt(tt.s, W / 2, 83 + i * 30, 14, tt.col, 'center', 900); });
+  cx.globalAlpha = 1;
+  if (game.flash > 0) { cx.save(); cx.globalAlpha = game.flash * 0.35; cx.fillStyle = game.flashCol; cx.fillRect(0, 0, W, H); cx.restore(); }
+  vignette();
+  UIprev = UI; ptr.justDown = false;
+  cv.style.cursor = game.state === 'bench' && inBoard(ptr.x, ptr.y) && !B.popup ? (B.hover ? 'pointer' : 'crosshair') : 'default';
+}
+cv.addEventListener('pointerdown', () => { ptr.consumed = false; }, true);
+function frame(dt) {
+  lastDt = dt;
+  if (pressed.click && processClicks()) { ptr.consumed = true; }
+  update(dt);
+  for (const k in pressed) pressed[k] = false;
+  for (const k in KP) KP[k] = false;
+}
+let lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000); lastT = now;
+  frame(dt); render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+window.__FF = { game, LEVELS, save, openJob, startShift, get B() { return B; }, runTests, meterRead, boardClick, doAction, setPower, setMode, runTest, finishJob, step: (n, dt) => { for (let i = 0; i < n; i++) frame(dt || 1 / 60); }, render, buildCircuit };
+
+})();
+</script>
+<!-- mct-tipjar:start -->
+<a id="mct-tip" href="https://donate.stripe.com/cNi5kDg4L2lhciI5TVfrY13" target="_blank" rel="noopener" title="Free game, no ads. Tips keep new games coming.">
+<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="#22c55e" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6l1 1.4 1-1.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.4 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg>
+<span>Support the arcade</span></a>
+<style>
+#mct-tip{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));z-index:2147483000;
+display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 10px;border-radius:999px;
+font:600 12px/1.2 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.02em;color:#ffe08a;text-decoration:none;
+background:linear-gradient(180deg,rgba(20,26,40,.88),rgba(8,11,18,.88));border:1px solid rgba(245,197,66,.55);
+box-shadow:0 0 0 1px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,246,213,.18);
+backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:.95;overflow:hidden;white-space:nowrap;transition:opacity .6s,padding .4s,box-shadow .2s}
+#mct-tip svg{flex:none}
+#mct-tip span{max-width:160px;transition:max-width .4s,opacity .3s}
+#mct-tip.dim{opacity:.55;padding:6px;gap:0}
+#mct-tip.dim span{max-width:0;opacity:0}
+#mct-tip.dim:hover,#mct-tip.dim:focus-visible{padding:5px 12px 5px 10px;gap:6px}
+#mct-tip.dim:hover span,#mct-tip.dim:focus-visible span{max-width:160px;opacity:1}
+#mct-tip:hover,#mct-tip:focus-visible{opacity:1;box-shadow:0 0 18px rgba(245,197,66,.35),0 4px 14px rgba(0,0,0,.45)}
+@media print{#mct-tip{display:none}}
+</style>
+<script>(function(){var t=document.getElementById("mct-tip");if(!t)return;
+["mousedown","pointerdown","touchstart","keydown","click"].forEach(function(e){t.addEventListener(e,function(ev){ev.stopPropagation();},true);});
+setTimeout(function(){t.classList.add("dim");},8000);})();</script>
+<!-- mct-tipjar:end -->
+</body>
+</html>
