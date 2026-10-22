@@ -92,6 +92,26 @@ footer a{color:var(--dim)}footer a:hover{color:var(--text)}
     <p class="sub">Free browser games, each one a single file. Nothing to install, no account, no ads. Click a cabinet and play.</p>
   </header>
 
+  <!-- mct-tipjar:start -->
+  <section class="tipjar">
+    <div class="tj-title">Keep the arcade free</div>
+    <p>No ads, no accounts, no trackers. If a game made your day, drop a tip in the jar and it goes straight into building the next one.</p>
+    <a class="tj-btn" href="https://donate.stripe.com/cNi5kDg4L2lhciI5TVfrY13" target="_blank" rel="noopener">&#9829; Support the arcade</a>
+    <div class="tj-note">Pick any amount from $1 &middot; secure checkout by Stripe</div>
+  </section>
+  <style>
+  .tipjar{margin:8px auto 40px;max-width:640px;text-align:center;padding:28px 24px;border-radius:18px;
+  background:linear-gradient(180deg,rgba(20,26,40,.9),rgba(10,14,22,.9));border:1px solid rgba(245,197,66,.35);
+  box-shadow:0 0 40px rgba(245,197,66,.06),inset 0 1px 0 rgba(255,246,213,.08)}
+  .tj-title{font-weight:900;font-size:1.35rem;background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tipjar p{color:var(--dim);margin:10px auto 18px;line-height:1.6;max-width:500px}
+  .tj-btn{display:inline-block;padding:12px 26px;border-radius:999px;font-weight:800;color:#1a1204;background:var(--metal);
+  box-shadow:0 4px 18px rgba(245,197,66,.25);transition:transform .15s,box-shadow .15s}
+  .tj-btn:hover{transform:translateY(-2px);box-shadow:0 6px 26px rgba(245,197,66,.4)}
+  .tj-note{margin-top:12px;font-size:.78rem;color:var(--muted)}
+  </style>
+  <!-- mct-tipjar:end -->
+
   <main class="grid">
     <a class="card" href="/games/anunnaki/">
       <div class="thumb"><img src="/games/thumbs/anunnaki.jpg" alt="ANUNNAKI: a golden winged disc over a night-time Sumerian valley, ziggurats and temples on the surface and glowing chambers carved into the rock below, as a dark entity sweeps a beam of light across the sky" loading="lazy">
@@ -319,25 +339,6 @@ footer a{color:var(--dim)}footer a:hover{color:var(--text)}
     </div>
   </main>
 
-  <!-- mct-tipjar:start -->
-  <section class="tipjar">
-    <div class="tj-title">Keep the arcade free</div>
-    <p>No ads, no accounts, no trackers. If a game made your day, drop a tip in the jar and it goes straight into building the next one.</p>
-    <a class="tj-btn" href="https://donate.stripe.com/cNi5kDg4L2lhciI5TVfrY13" target="_blank" rel="noopener">&#9829; Support the arcade</a>
-    <div class="tj-note">Pick any amount from $1 &middot; secure checkout by Stripe</div>
-  </section>
-  <style>
-  .tipjar{margin:56px auto 0;max-width:640px;text-align:center;padding:28px 24px;border-radius:18px;
-  background:linear-gradient(180deg,rgba(20,26,40,.9),rgba(10,14,22,.9));border:1px solid rgba(245,197,66,.35);
-  box-shadow:0 0 40px rgba(245,197,66,.06),inset 0 1px 0 rgba(255,246,213,.08)}
-  .tj-title{font-weight:900;font-size:1.35rem;background:var(--metal);-webkit-background-clip:text;background-clip:text;color:transparent}
-  .tipjar p{color:var(--dim);margin:10px auto 18px;line-height:1.6;max-width:500px}
-  .tj-btn{display:inline-block;padding:12px 26px;border-radius:999px;font-weight:800;color:#1a1204;background:var(--metal);
-  box-shadow:0 4px 18px rgba(245,197,66,.25);transition:transform .15s,box-shadow .15s}
-  .tj-btn:hover{transform:translateY(-2px);box-shadow:0 6px 26px rgba(245,197,66,.4)}
-  .tj-note{margin-top:12px;font-size:.78rem;color:var(--muted)}
-  </style>
-  <!-- mct-tipjar:end -->
   <footer>
     Built with plain HTML5 canvas and Web Audio, no engines and no trackers.<br>
     Fonts: <a href="https://rsms.me/inter/" target="_blank" rel="noopener">Inter</a> by Rasmus Andersson &amp; <a href="https://www.jetbrains.com/lp/mono/" target="_blank" rel="noopener">JetBrains Mono</a> (SIL OFL).<br>
