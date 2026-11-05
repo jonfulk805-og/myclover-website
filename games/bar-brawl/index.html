@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>BAR BRAWL: Last Call | MyClover Arcade</title>
+<meta name="description" content="First-person bar-fight brawler in your browser. Punch, grab and throw anything: stools, bottles, pool cues, kegs, even the other patrons. Four venues, ragdoll physics and a boss in every bar.">
+<link rel="icon" href="assets/clover.png">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{"imports":{"three":"./js/three.module.min.js"}}</script>
+<!-- mct-analytics:start -->
+<script data-goatcounter="https://myclovertech.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href*="donate.stripe.com"]');if(a&&window.goatcounter&&window.goatcounter.count){window.goatcounter.count({path:'tipjar-click'+location.pathname,title:'Tip jar click',event:true});}},true);</script>
+<!-- mct-analytics:end -->
+</head>
+<body>
+<div id="app">
+  <canvas id="c"></canvas>
+  <div id="fxlayer"><div id="vig"></div><div id="hurt"></div><div id="black"></div></div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="panel tl">
+      <div class="row"><span class="lbl">GRIT</span><div class="bar"><i id="hpb"></i><b id="hpg"></b></div></div>
+      <div class="row"><span class="lbl">BUZZ</span><div class="bar buzz"><i id="bzb"></i></div><span id="bzt" class="mini"></span></div>
+      <div class="row thin"><span class="lbl">WIND</span><div class="bar stam"><i id="stb"></i></div></div>
+    </div>
+    <div class="panel tc"><div id="vname">The Lucky Clover</div><div id="wave">Order a drink... or start something.</div></div>
+    <div class="panel tr"><div class="score"><span class="lbl">SCORE</span><b id="score">0</b></div><div class="tab"><span class="lbl">BAR TAB</span><b id="tab">$0</b></div><div id="kos" class="mini"></div></div>
+    <div id="cross"><i></i></div>
+    <div id="prompt"></div>
+    <div id="combo"></div>
+    <div id="feed"></div>
+    <div id="boss" class="hidden"><div id="bossname">BIG MICK</div><div class="bar boss"><i id="bossb"></i></div></div>
+    <div id="hint"></div>
+  </div>
+  <div id="banner"><div class="b1"></div><div class="b2"></div></div>
+
+  <!-- touch controls -->
+  <div id="touch" class="hidden">
+    <div id="stick"><div id="knob"></div></div>
+    <div class="tbtns">
+      <button data-k="L">L</button><button data-k="R">R</button><button data-k="E">GRAB</button>
+      <button data-k="F">KICK</button><button data-k="Q">BLOCK</button><button data-k="Space">JUMP</button><button data-k="G">DROP</button><button data-k="Escape">II</button>
+    </div>
+  </div>
+
+  <!-- menus -->
+  <div id="menu" class="screen">
+    <div class="title-wrap">
+      <img src="assets/clover.png" class="logo" alt="">
+      <h1 class="metal">BAR BRAWL</h1>
+      <div class="tag">LAST CALL AT THE LUCKY CLOVER</div>
+      <div class="btns">
+        <button class="btn primary" data-act="venues">Start a Fight</button>
+        <button class="btn" data-act="endless">Endless Last Call</button>
+        <button class="btn" data-act="how">How to Brawl</button>
+        <button class="btn" data-act="settings">Settings</button>
+      </div>
+      <div class="credit">A MyClover Arcade original. Inspired by <i>Drunkn Bar Fight</i>. Built with <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> (MIT).</div>
+    </div>
+  </div>
+  <div id="venues" class="screen hidden">
+    <h2 class="metal">PICK YOUR BAR</h2>
+    <div class="diffs" id="diffs"></div>
+    <div class="cards" id="cards"></div>
+    <div class="btns row"><button class="btn" data-act="back">Back</button></div>
+  </div>
+  <div id="how" class="screen hidden">
+    <h2 class="metal">HOW TO BRAWL</h2>
+    <div class="howgrid">
+      <div><h3>Move</h3><p><kbd>WASD</kbd> walk, <kbd>Shift</kbd> stagger faster, <kbd>Space</kbd> hop, mouse to look.</p></div>
+      <div><h3>Fists</h3><p><kbd>LMB</kbd> left, <kbd>RMB</kbd> right. Tap to jab, <b>hold and release</b> for a haymaker. Alternate fists to build a combo.</p></div>
+      <div><h3>Grab anything</h3><p><kbd>E</kbd> picks up stools, chairs, bottles, cues, kegs... and dazed or knocked-down people. Holding something? <kbd>LMB</kbd> swings it, <kbd>RMB</kbd> (hold) throws it. <kbd>G</kbd> drops it.</p></div>
+      <div><h3>Defend</h3><p><kbd>Q</kbd> raises your guard. Block just as a red fist lands to <b>PARRY</b> and stun them. <kbd>F</kbd> front-kicks people into furniture.</p></div>
+      <div><h3>Liquid courage</h3><p><kbd>E</kbd> on a full drink (or at the taps) to chug it: heals your grit and hits harder. Too much BUZZ and you black out.</p></div>
+      <div><h3>Run up the tab</h3><p>Smash tables, mirrors, shelves, the jukebox. The bigger the BAR TAB, the more stars. Clear every wave, then take out the boss.</p></div>
+    </div>
+    <div class="btns row"><button class="btn primary" data-act="back">Got it</button></div>
+  </div>
+  <div id="settings" class="screen hidden">
+    <h2 class="metal">SETTINGS</h2>
+    <div class="set">
+      <label>Mouse sensitivity <input type="range" id="sens" min="0.3" max="3" step="0.1"></label>
+      <label>Music <input type="range" id="mus" min="0" max="1" step="0.05"></label>
+      <label>Sound effects <input type="range" id="sfxv" min="0" max="1" step="0.05"></label>
+      <label class="chk"><input type="checkbox" id="inv"> Invert Y</label>
+      <label class="chk"><input type="checkbox" id="lowq"> Low graphics (no shadows)</label>
+      <label class="chk"><input type="checkbox" id="calm"> Calm camera (less sway and shake)</label>
+    </div>
+    <div class="btns row"><button class="btn primary" data-act="back">Done</button></div>
+  </div>
+  <div id="pause" class="screen hidden">
+    <h2 class="metal">PAUSED</h2>
+    <div class="btns">
+      <button class="btn primary" data-act="resume">Resume</button>
+      <button class="btn" data-act="restart">Restart Bar</button>
+      <button class="btn" data-act="settings">Settings</button>
+      <button class="btn" data-act="quit">Leave the Bar</button>
+    </div>
+  </div>
+  <div id="result" class="screen hidden">
+    <h2 class="metal" id="rtitle">LAST CALL!</h2>
+    <div id="rsub"></div>
+    <div id="rstars"></div>
+    <div id="rstats"></div>
+    <div class="btns row" id="rbtns"></div>
+  </div>
+  <div id="clicktip" class="hidden">Click to fight</div>
+  <div id="loading">Polishing the glasses...</div>
+</div>
+<script type="module" src="js/game.js"></script>
+<!-- mct-tipjar:start -->
+<a id="mct-tip" href="https://donate.stripe.com/cNi5kDg4L2lhciI5TVfrY13" target="_blank" rel="noopener" title="Free game, no ads. Tips keep new games coming.">
+<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="#22c55e" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6l1 1.4 1-1.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.4 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg>
+<span>Support the arcade</span></a>
+<style>
+#mct-tip{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));z-index:2147483000;
+display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 10px;border-radius:999px;
+font:600 12px/1.2 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.02em;color:#ffe08a;text-decoration:none;
+background:linear-gradient(180deg,rgba(20,26,40,.88),rgba(8,11,18,.88));border:1px solid rgba(245,197,66,.55);
+box-shadow:0 0 0 1px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,246,213,.18);
+backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:.95;overflow:hidden;white-space:nowrap;transition:opacity .6s,padding .4s,box-shadow .2s}
+#mct-tip svg{flex:none}
+#mct-tip span{max-width:160px;transition:max-width .4s,opacity .3s}
+#mct-tip.dim{opacity:.55;padding:6px;gap:0}
+#mct-tip.dim span{max-width:0;opacity:0}
+#mct-tip.dim:hover,#mct-tip.dim:focus-visible{padding:5px 12px 5px 10px;gap:6px}
+#mct-tip.dim:hover span,#mct-tip.dim:focus-visible span{max-width:160px;opacity:1}
+#mct-tip:hover,#mct-tip:focus-visible{opacity:1;box-shadow:0 0 18px rgba(245,197,66,.35),0 4px 14px rgba(0,0,0,.45)}
+@media print{#mct-tip{display:none}}
+</style>
+<script>(function(){var t=document.getElementById("mct-tip");if(!t)return;
+["mousedown","pointerdown","touchstart","keydown","click"].forEach(function(e){t.addEventListener(e,function(ev){ev.stopPropagation();},true);});
+setTimeout(function(){t.classList.add("dim");},8000);})();</script>
+<!-- mct-tipjar:end -->
+</body>
+</html>
