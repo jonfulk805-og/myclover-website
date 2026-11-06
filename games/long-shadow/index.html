@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Long Shadow: Silent Contracts | MyClover Arcade</title>
+<meta name="description" content="A stealth sniper game. Lie still on the ridge, read the patrols, wait for the generator to cough, and take the shot nobody hears. Three contracts, real bullet drop and wind, and a kill cam.">
+<link rel="icon" href="assets/clover.png">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{ "imports": { "three": "./js/three.module.min.js", "three/addons/": "./js/addons/" } }</script>
+<!-- mct-analytics:start -->
+<script data-goatcounter="https://myclovertech.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href*="donate.stripe.com"]');if(a&&window.goatcounter&&window.goatcounter.count){window.goatcounter.count({path:'tipjar-click'+location.pathname,title:'Tip jar click',event:true});}},true);</script>
+<!-- mct-analytics:end -->
+</head>
+<body>
+<div id="app">
+  <canvas id="view"></canvas>
+  <canvas id="hud"></canvas>
+  <div id="grain"></div>
+
+  <div id="loading" class="screen"><div class="loader"><img src="assets/clover.png" alt=""><span id="loadTxt">Setting up the valley...</span></div></div>
+
+  <div id="title" class="screen hidden">
+    <div class="card hero">
+      <div class="brand"><img src="assets/clover.png" alt=""><span>MyClover Arcade</span></div>
+      <div class="eyebrow"><i></i>Stealth sniper</div>
+      <h1>LONG<br>SHADOW<em>.</em></h1>
+      <div class="sub">SILENT CONTRACTS</div>
+      <p>Lie in the grass on the ridge. Read the patrols. Wait for the generator to cough, the cargo plane to pass, the thunder to roll. Then take the shot nobody hears. Three targets, one valley, and nobody can ever know you were here.</p>
+      <div class="contracts" id="contracts"></div>
+      <div class="diff" id="diffSel"><button data-d="easy">Recruit</button><button data-d="normal">Marksman</button><button data-d="hard">Ghost</button></div>
+      <div class="diffNote" id="diffNote"></div>
+      <div><button class="cta" id="btnStart">Take the contract <span>&#8982;</span></button></div>
+      <div class="row keys"><span><kbd>Mouse</kbd> Aim</span><span><kbd>RMB</kbd> Scope</span><span><kbd>Shift</kbd> Hold breath</span><span><kbd>F</kbd> Binoculars</span><span><kbd>C</kbd>/<kbd>Z</kbd> Crouch / prone</span><span><kbd>Tab</kbd> Map</span></div>
+      <div class="row links"><button class="link" id="btnHow">Field manual</button><button class="link btnQual">Graphics: <b class="qualLbl">High</b></button><button class="link btnSnd">Sound: <b class="sndLbl">On</b></button><button class="link btnMus">Music: <b class="musLbl">On</b></button><button class="link btnKc">Kill cam: <b class="kcLbl">On</b></button></div>
+      <div class="row sensrow"><label for="sens">Look sensitivity</label><input type="range" id="sens" min="0.3" max="3" step="0.05" value="1"><b id="sensVal">1.00</b></div>
+    </div>
+  </div>
+
+  <div id="brief" class="screen hidden">
+    <div class="card brief">
+      <div class="eyebrow"><i></i><span id="bSub">Contract 01</span> &middot; <span id="bTime"></span> &middot; <span id="bWeather"></span></div>
+      <h2 id="bName">First Light</h2>
+      <p id="bBlurb"></p>
+      <h3>Targets</h3>
+      <div id="bTargets" class="targets"></div>
+      <h3>Intel</h3>
+      <ul id="bIntel" class="intel"></ul>
+      <div class="row"><button class="cta" id="btnGo">Move into position <span>&#9658;</span></button><button class="ghost" id="btnBack">Back</button></div>
+    </div>
+  </div>
+
+  <div id="pause" class="screen hidden">
+    <div class="card small">
+      <div class="eyebrow"><i></i>Paused</div>
+      <h2>Breathe</h2>
+      <p class="muted">Nobody down there knows you are here. Yet.</p>
+      <div class="col"><button class="cta" id="btnResume">Resume</button><button class="ghost" id="btnRestart">Restart contract</button><button class="ghost" id="btnHowP">Field manual</button><button class="ghost" id="btnQuit">Quit to title</button></div>
+      <div class="row links"><button class="link btnSnd">Sound: <b class="sndLbl">On</b></button><button class="link btnMus">Music: <b class="musLbl">On</b></button><button class="link btnKc">Kill cam: <b class="kcLbl">On</b></button></div>
+    </div>
+  </div>
+
+  <div id="over" class="screen hidden">
+    <div class="card small result">
+      <div class="eyebrow" id="ovEyebrow"><i></i>Contract complete</div>
+      <h2 id="ovTitle">Silent Assassin</h2>
+      <div class="stars" id="ovStars"></div>
+      <p class="muted" id="ovSub"></p>
+      <div class="score"><span>Score</span><b id="ovScore">0</b></div>
+      <div class="stats" id="ovStats"></div>
+      <div class="best" id="ovBest"></div>
+      <div class="col"><button class="cta" id="btnNext">Next contract</button><button class="ghost" id="btnAgain">Replay</button><button class="ghost" id="btnMenu">Title screen</button></div>
+    </div>
+  </div>
+
+  <div id="how" class="screen hidden">
+    <div class="card how">
+      <div class="eyebrow"><i></i>Field manual</div>
+      <h2>How to stay a ghost</h2>
+      <div class="grid2">
+        <div>
+          <h3>The job</h3>
+          <ul>
+            <li>Kill every <b>target</b> before they leave. Use the <b>binoculars [F]</b> to tag people. Tagged people show through walls, and tagging a target tells you who it is.</li>
+            <li>Targets keep a schedule: they go indoors, come out on balconies, smoke by the pool. Watch first, then shoot.</li>
+            <li>If the alarm goes off, the targets run for the helicopter. If one gets aboard, the contract fails.</li>
+          </ul>
+          <h3>Staying hidden</h3>
+          <ul>
+            <li>The <b>visibility</b> bar shows how easy you are to see. Lie <b>prone [Z]</b> in a bush and stay still. Moving, standing and searchlights all make you easy to see.</li>
+            <li>The arcs around your crosshair show who is noticing you. White is curious, amber is suspicious, red means you have been seen.</li>
+            <li>Guards who find a body, or see someone drop, start a search. Shoot people where nobody is watching.</li>
+            <li>At dusk, looking through the scope toward the sun puts a <b>glint</b> on your lens, and people can see it.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>The shot</h3>
+          <ul>
+            <li><b>Supersonic</b> rounds fly flat and fast but everyone hears them. Fire one when the sound is <b>masked</b> (the generator coughs, a plane passes, thunder rolls) and nobody notices. Three unmasked shots and they find you.</li>
+            <li><b>Subsonic</b> rounds [B] are almost silent but slow. They drop a lot and need more lead on walkers.</li>
+            <li>The rifle is zeroed at 100 m. Past that, hold high using the mil dots, and allow for the wind arrow. Moving targets need lead.</li>
+            <li>Hold <b>Shift</b> while scoped to hold your breath and steady the sway. On Marksman this also shows the red impact diamond. Recruit always shows it. Ghost never does.</li>
+            <li>Headshots and body shots kill. A limb hit makes them scream, and that starts the alarm. Red barrels and the fuel tanks explode, and an explosion looks like an accident.</li>
+          </ul>
+          <h3>Controls</h3>
+          <ul class="ctl">
+            <li><kbd>WASD</kbd> move, <kbd>Mouse</kbd> aim, <kbd>LMB</kbd> fire, <kbd>RMB</kbd> scope, <kbd>Wheel</kbd> zoom, <kbd>Shift</kbd> hold breath / sprint</li>
+            <li><kbd>C</kbd> crouch, <kbd>Z</kbd> prone, <kbd>F</kbd> binoculars, <kbd>R</kbd> reload, <kbd>B</kbd> switch ammo, <kbd>N</kbd> night vision, <kbd>Tab</kbd> map, <kbd>Esc</kbd> pause, <kbd>M</kbd> mute</li>
+            <li>Gamepad: sticks, LT scope, RT fire, RB hold breath, Y binoculars, B stance, X reload, LB ammo, D-pad zoom, Back map</li>
+          </ul>
+        </div>
+      </div>
+      <button class="cta" id="btnHowClose">Understood</button>
+      <p class="credit">3D rendering by <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> (MIT, thanks mrdoob and contributors). Every model, texture and sound in this game is generated in code.</p>
+    </div>
+  </div>
+
+  <div id="touchUI" class="hidden">
+    <div id="tLook"></div>
+    <div id="tStick"><div id="tKnob"></div></div>
+    <button id="tFire" class="tb big">FIRE</button>
+    <button id="tScope" class="tb">SCOPE</button>
+    <button id="tBreath" class="tb">BREATH</button>
+    <button id="tStance" class="tb">STANCE</button>
+    <button id="tBino" class="tb">BINO</button>
+    <button id="tReload" class="tb sm2">R</button>
+    <button id="tAmmo" class="tb sm2">AMMO</button>
+    <button id="tZin" class="tb sm2">+</button>
+    <button id="tZout" class="tb sm2">-</button>
+    <button id="tMap" class="tb sm">MAP</button>
+    <button id="tPause" class="tb sm">II</button>
+  </div>
+</div>
+<script type="module" src="js/game.js"></script>
+<!-- mct-tipjar:start -->
+<a id="mct-tip" href="https://donate.stripe.com/cNi5kDg4L2lhciI5TVfrY13" target="_blank" rel="noopener" title="Free game, no ads. Tips keep new games coming.">
+<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="#22c55e" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6l1 1.4 1-1.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.4 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg>
+<span>Support the arcade</span></a>
+<style>
+#mct-tip{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));z-index:2147483000;
+display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 10px;border-radius:999px;
+font:600 12px/1.2 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.02em;color:#ffe08a;text-decoration:none;
+background:linear-gradient(180deg,rgba(20,26,40,.88),rgba(8,11,18,.88));border:1px solid rgba(245,197,66,.55);
+box-shadow:0 0 0 1px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,246,213,.18);
+backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:.95;overflow:hidden;white-space:nowrap;transition:opacity .6s,padding .4s,box-shadow .2s}
+#mct-tip svg{flex:none}
+#mct-tip span{max-width:160px;transition:max-width .4s,opacity .3s}
+#mct-tip.dim{opacity:.55;padding:6px;gap:0}
+#mct-tip.dim span{max-width:0;opacity:0}
+#mct-tip.dim:hover,#mct-tip.dim:focus-visible{padding:5px 12px 5px 10px;gap:6px}
+#mct-tip.dim:hover span,#mct-tip.dim:focus-visible span{max-width:160px;opacity:1}
+#mct-tip:hover,#mct-tip:focus-visible{opacity:1;box-shadow:0 0 18px rgba(245,197,66,.35),0 4px 14px rgba(0,0,0,.45)}
+@media print{#mct-tip{display:none}}
+</style>
+<script>(function(){var t=document.getElementById("mct-tip");if(!t)return;
+["mousedown","pointerdown","touchstart","keydown","click"].forEach(function(e){t.addEventListener(e,function(ev){ev.stopPropagation();},true);});
+setTimeout(function(){t.classList.add("dim");},8000);})();</script>
+<!-- mct-tipjar:end -->
+</body>
+</html>
