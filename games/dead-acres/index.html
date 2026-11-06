@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Dead Acres: Night Harvest | MyClover Arcade</title>
+<meta name="description" content="Round-based zombie survival on a haunted farm. Board the windows, buy guns off the wall, roll the mystery box, turn on the power and forge your weapons.">
+<link rel="icon" href="assets/clover.png">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{ "imports": { "three": "./js/three.module.min.js", "three/addons/": "./js/addons/" } }</script>
+<!-- mct-analytics:start -->
+<script data-goatcounter="https://myclovertech.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href*="donate.stripe.com"]');if(a&&window.goatcounter&&window.goatcounter.count){window.goatcounter.count({path:'tipjar-click'+location.pathname,title:'Tip jar click',event:true});}},true);</script>
+<!-- mct-analytics:end -->
+</head>
+<body>
+<div id="app">
+  <canvas id="view"></canvas>
+  <canvas id="hud"></canvas>
+  <div id="grain"></div>
+
+  <div id="title" class="screen">
+    <div class="card hero">
+      <div class="brand"><img src="assets/clover.png" alt=""><span>MyClover Arcade</span></div>
+      <div class="eyebrow"><i></i>Round-based zombie survival</div>
+      <h1>DEAD<br>ACRES<em>.</em></h1>
+      <div class="sub">NIGHT HARVEST</div>
+      <p>The crops came back wrong, and so did the neighbours. Board up the farmhouse, buy guns off the wall, roll the mystery box, turn on the power and forge your weapons. Every round there are more of them. How many nights can you last?</p>
+      <div class="diff" id="diffSel"><button data-d="easy">Easy</button><button data-d="normal">Normal</button><button data-d="hard">Hard</button></div>
+      <button class="cta" id="btnStart">Survive the night <span>&#9760;</span></button>
+      <div class="row keys"><span><kbd>WASD</kbd> Move</span><span><kbd>Mouse</kbd> Aim / fire</span><span><kbd>E</kbd> Use / buy</span><span><kbd>R</kbd> Reload</span><span><kbd>V</kbd> Knife</span><span><kbd>G</kbd> Grenade</span></div>
+      <div class="row links"><button class="link" id="btnHow">How to play</button><button class="link btnQual">Graphics: <b class="qualLbl">High</b></button><button class="link btnSnd">Sound: <b class="sndLbl">On</b></button><button class="link btnMus">Music: <b class="musLbl">On</b></button></div>
+      <div class="row sensrow"><label for="sens">Look sensitivity</label><input type="range" id="sens" min="0.3" max="3" step="0.05" value="1"><b id="sensVal">1.00</b></div>
+      <div class="best" id="bestTitle"></div>
+    </div>
+  </div>
+
+  <div id="pause" class="screen hidden">
+    <div class="card small">
+      <div class="eyebrow"><i></i>Paused</div>
+      <h2>Catch your breath</h2>
+      <p class="muted">They are still out there in the corn.</p>
+      <div class="col"><button class="cta" id="btnResume">Resume</button><button class="ghost" id="btnRestart">Restart</button><button class="ghost" id="btnHowP">How to play</button><button class="ghost" id="btnQuit">Quit to title</button></div>
+      <div class="row links"><button class="link btnSnd">Sound: <b class="sndLbl">On</b></button><button class="link btnMus">Music: <b class="musLbl">On</b></button><button class="link btnQual">Graphics: <b class="qualLbl">High</b></button></div>
+    </div>
+  </div>
+
+  <div id="over" class="screen hidden">
+    <div class="card small">
+      <div class="eyebrow red"><i></i>Game over</div>
+      <h2 id="ovTitle">You survived</h2>
+      <div class="bigRound"><span>Round</span><b id="ovRound">1</b></div>
+      <div class="stats">
+        <div><b id="ovKills">0</b><span>Kills</span></div>
+        <div><b id="ovHeads">0</b><span>Headshots</span></div>
+        <div><b id="ovPts">0</b><span>Points earned</span></div>
+        <div><b id="ovDoors">0</b><span>Doors opened</span></div>
+      </div>
+      <div class="best" id="ovBest"></div>
+      <div class="col"><button class="cta" id="btnAgain">Play again</button><button class="ghost" id="btnMenu">Title screen</button></div>
+    </div>
+  </div>
+
+  <div id="how" class="screen hidden">
+    <div class="card how">
+      <div class="eyebrow"><i></i>Field manual</div>
+      <h2>How to survive</h2>
+      <div class="grid2">
+        <div>
+          <h3>The basics</h3>
+          <ul>
+            <li>They come out of the corn and tear the boards off the windows. <b>Hold E</b> at a window to nail boards back on (+10 each).</li>
+            <li>Every hit is <b>+10</b>. A kill is +60, a headshot kill +100, a knife kill +130.</li>
+            <li>Health comes back if you avoid getting hit for a few seconds. Three hits and you're down (two on Hard).</li>
+            <li>Each round brings more of them, and they're tougher. From about round 4 some of them run.</li>
+          </ul>
+          <h3>Spending points</h3>
+          <ul>
+            <li><b>Wall guns:</b> buy the guns hanging on the walls. Buy again for ammo at half price.</li>
+            <li><b>Doors:</b> open the Yard, the Barn and the Tool Shed. More room to run, more windows to watch.</li>
+            <li><b>Mystery box (950):</b> a random weapon, maybe the <i>Clover Ray</i>. Too many rolls and it moves somewhere else.</li>
+            <li><b>Power:</b> the switch is in the Tool Shed. It powers the perk machines and the <b>Clover Forge</b> in the barn (5000 upgrades your gun).</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Perks</h3>
+          <ul class="perks">
+            <li><i style="background:#3aa0ff"></i><b>Second Wind</b> 500. You get back up once. Works without power.</li>
+            <li><i style="background:#ff3a2e"></i><b>Iron Hide</b> 2500. +150 health, roughly double the hits to go down.</li>
+            <li><i style="background:#33e06a"></i><b>Quick Draw</b> 3000. Reloads twice as fast.</li>
+            <li><i style="background:#ffb020"></i><b>Double Tap</b> 2000. Fires faster and hits harder.</li>
+            <li><i style="background:#c8ff3a"></i><b>Stamina Leaf</b> 2000. Sprint faster and for longer.</li>
+          </ul>
+          <h3>Power-ups (glowing green)</h3>
+          <ul><li>Max Ammo, Insta-Kill, Double Points, Kaboom (kills everything on screen) and Carpenter (fixes every window).</li></ul>
+          <h3>Controls</h3>
+          <ul class="ctl">
+            <li><kbd>WASD</kbd> move, <kbd>Shift</kbd> sprint, <kbd>Mouse</kbd> aim, <kbd>LMB</kbd> fire, <kbd>RMB</kbd> aim down sights</li>
+            <li><kbd>R</kbd> reload, <kbd>E</kbd> use / buy, <kbd>V</kbd> or <kbd>F</kbd> knife, <kbd>G</kbd> grenade, <kbd>Q</kbd> / wheel / <kbd>1</kbd><kbd>2</kbd> switch guns, <kbd>Esc</kbd> pause, <kbd>M</kbd> mute</li>
+            <li>Gamepad: sticks, RT fire, LT aim, X use / reload, Y swap, RB grenade, B knife, L3 sprint</li>
+          </ul>
+        </div>
+      </div>
+      <button class="cta" id="btnHowClose">Got it</button>
+      <p class="credit">3D rendering by <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> (MIT, thanks mrdoob and contributors). Every texture, model and sound in this game is generated in code.</p>
+    </div>
+  </div>
+
+  <div id="touchUI" class="hidden">
+    <div id="tLook"></div>
+    <div id="tStick"><div id="tKnob"></div></div>
+    <button id="tFire" class="tb big">FIRE</button>
+    <button id="tAds" class="tb">AIM</button>
+    <button id="tReload" class="tb">R</button>
+    <button id="tUse" class="tb">USE</button>
+    <button id="tKnife" class="tb">KNIFE</button>
+    <button id="tNade" class="tb">NADE</button>
+    <button id="tSwap" class="tb">SWAP</button>
+    <button id="tPause" class="tb sm">II</button>
+  </div>
+</div>
+<script type="module" src="js/game.js"></script>
+<!-- mct-tipjar:start -->
+<a id="mct-tip" href="https://donate.stripe.com/cNi5kDg4L2lhciI5TVfrY13" target="_blank" rel="noopener" title="Free game, no ads. Tips keep new games coming.">
+<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="#22c55e" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6l1 1.4 1-1.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.4 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg>
+<span>Support the arcade</span></a>
+<style>
+#mct-tip{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));z-index:2147483000;
+display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 10px;border-radius:999px;
+font:600 12px/1.2 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.02em;color:#ffe08a;text-decoration:none;
+background:linear-gradient(180deg,rgba(20,26,40,.88),rgba(8,11,18,.88));border:1px solid rgba(245,197,66,.55);
+box-shadow:0 0 0 1px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,246,213,.18);
+backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:.95;overflow:hidden;white-space:nowrap;transition:opacity .6s,padding .4s,box-shadow .2s}
+#mct-tip svg{flex:none}
+#mct-tip span{max-width:160px;transition:max-width .4s,opacity .3s}
+#mct-tip.dim{opacity:.55;padding:6px;gap:0}
+#mct-tip.dim span{max-width:0;opacity:0}
+#mct-tip.dim:hover,#mct-tip.dim:focus-visible{padding:5px 12px 5px 10px;gap:6px}
+#mct-tip.dim:hover span,#mct-tip.dim:focus-visible span{max-width:160px;opacity:1}
+#mct-tip:hover,#mct-tip:focus-visible{opacity:1;box-shadow:0 0 18px rgba(245,197,66,.35),0 4px 14px rgba(0,0,0,.45)}
+@media print{#mct-tip{display:none}}
+</style>
+<script>(function(){var t=document.getElementById("mct-tip");if(!t)return;
+["mousedown","pointerdown","touchstart","keydown","click"].forEach(function(e){t.addEventListener(e,function(ev){ev.stopPropagation();},true);});
+setTimeout(function(){t.classList.add("dim");},8000);})();</script>
+<!-- mct-tipjar:end -->
+</body>
+</html>
