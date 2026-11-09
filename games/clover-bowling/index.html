@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#080d10"><meta name="description" content="Clover Lanes: free 3D bowling with real rigid-body pins, hook shots, ten-frame scoring and pass-and-play two-player games."><title>CLOVER LANES | 3D Bowling</title><link rel="icon" href="/assets/favicon-32.png"><link rel="stylesheet" href="style.css"><!-- mct-analytics:start -->
+<script data-goatcounter="https://myclovertech.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[href*="donate.stripe.com"]');if(a&&window.goatcounter&&window.goatcounter.count){window.goatcounter.count({path:'tipjar-click'+location.pathname,title:'Tip jar click',event:true});}},true);</script>
+<!-- mct-analytics:end -->
+</head><body>
+<canvas id="scene" aria-label="3D bowling alley"></canvas>
+<header><a href="/games/" class="brand"><img src="/assets/clover_hero_glow.png" alt="MyClover Tech"><span>CLOVER <b>LANES</b><small>THE CLOVER ARCADE</small></span></a><div class="top-actions"><button id="sound" aria-label="Toggle sound">Sound: on</button><button id="pause">Pause</button><button id="menuBtn">Menu</button></div></header>
+<div id="scoreboard" hidden></div>
+<div id="callout" aria-live="polite"><span id="callSub"></span><strong id="callTitle"></strong></div>
+<div id="pinMap" aria-label="Standing pins" hidden></div>
+<div id="status" hidden><span id="turnLabel">PLAYER 1</span><strong id="frameLabel">FRAME 1 / 10</strong><span id="pinLabel">10 PINS STANDING</span></div>
+<section id="controls" hidden aria-label="Shot controls"><div class="control-head"><strong>Line it up.</strong><span id="hint">Aim for the pocket, just off the head pin.</span></div><div class="sliders">
+<label>Position <output id="positionOut"></output><input id="position" type="range" min="-40" max="40" value="0" step="1"></label>
+<label>Aim <output id="aimOut"></output><input id="aim" type="range" min="-3" max="3" value="0" step=".05"></label>
+<label>Hook <output id="hookOut"></output><input id="hook" type="range" min="-100" max="100" value="0" step="1"></label>
+<label>Power <output id="powerOut"></output><input id="power" type="range" min="0" max="100" value="70" step="1"></label>
+</div><div class="shot-row"><button id="bowl" class="primary">BOWL <span>SPACE</span></button><button id="next" class="primary" hidden>Next ball <span>ENTER</span></button><span id="keyHelp">A / D aim &nbsp; Q / E hook &nbsp; arrows position &nbsp; W / S power</span></div></section>
+<div id="rolling" hidden><span class="pulse"></span> BALL IN PLAY <button id="skip">Skip animation</button></div>
+<div id="menu" class="overlay"><section class="menu-panel"><div class="eyebrow">MYCLOVER TECH PRESENTS</div><h1>CLOVER<br><em>LANES.</em></h1><p class="tagline">Find the pocket. Make some noise.</p><p class="intro">Polished wood. Heavy hooks. Ten pins with nowhere to hide.</p>
+<div class="menu-options"><label>Your game<select id="mode"><option value="solo">Solo / 10 frames</option><option value="two">Two players / pass & play</option><option value="practice">Practice / endless racks</option></select></label><label>Lane oil<select id="pattern"><option value="house">House shot / balanced</option><option value="sport">Sport / longer oil, later hook</option><option value="dry">Dry lane / early hook</option></select></label><label>Ball finish<select id="finish"><option value="green">Clover emerald</option><option value="red">Ruby fire</option><option value="gold">Gold rush</option><option value="silver">Midnight chrome</option></select></label><label class="check"><input id="bumpers" type="checkbox"> Bumpers <span>Keep it out of the gutters</span></label></div>
+<button id="start" class="primary">LET’S ROLL <span>&#8599;</span></button><p class="how">Set position, aim, hook and power. Bowl, then clear the remaining pins. Strikes and spares earn bonus points on the next throws. Max score: 300.</p><footer>Built by MyClover.Tech. Powered by <a href="https://threejs.org/" target="_blank" rel="noopener">three.js</a> and <a href="https://github.com/pmndrs/cannon-es" target="_blank" rel="noopener">cannon-es</a> (MIT).</footer></section></div>
+<div id="pauseOverlay" class="overlay" hidden><section class="small-panel"><div class="eyebrow">TAKE A BREATHER</div><h2>Game paused.</h2><p>Your lane will be right here.</p><button id="resume" class="primary">Resume</button></section></div>
+<div id="end" class="overlay" hidden><section class="small-panel"><div class="eyebrow">THAT’S A WRAP</div><h2 id="endTitle">Nice game.</h2><div id="endScores"></div><p id="best"></p><button id="again" class="primary">Bowl again</button><button id="endMenu">Back to menu</button></section></div>
+<div id="loading">RACKING THE PINS…</div><script type="module" src="js/game.mjs"></script><!-- mct-tipjar:start -->
+<a id="mct-tip" href="https://donate.stripe.com/cNi5kDg4L2lhciI5TVfrY13" target="_blank" rel="noopener" title="Free game, no ads. Tips keep new games coming.">
+<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="#22c55e" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 5 6.4 5c2 0 3.6 1.1 4.6 2.6l1 1.4 1-1.4C14 6.1 15.6 5 17.6 5 21 5 23.1 8.4 21.6 11.8 19.5 16.4 12 21 12 21z"/></svg>
+<span>Support the arcade</span></a>
+<style>
+#mct-tip{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));z-index:2147483000;
+display:inline-flex;align-items:center;gap:6px;padding:5px 12px 5px 10px;border-radius:999px;
+font:600 12px/1.2 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.02em;color:#ffe08a;text-decoration:none;
+background:linear-gradient(180deg,rgba(20,26,40,.88),rgba(8,11,18,.88));border:1px solid rgba(245,197,66,.55);
+box-shadow:0 0 0 1px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,246,213,.18);
+backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:.95;overflow:hidden;white-space:nowrap;transition:opacity .6s,padding .4s,box-shadow .2s}
+#mct-tip svg{flex:none}
+#mct-tip span{max-width:160px;transition:max-width .4s,opacity .3s}
+#mct-tip.dim{opacity:.55;padding:6px;gap:0}
+#mct-tip.dim span{max-width:0;opacity:0}
+#mct-tip.dim:hover,#mct-tip.dim:focus-visible{padding:5px 12px 5px 10px;gap:6px}
+#mct-tip.dim:hover span,#mct-tip.dim:focus-visible span{max-width:160px;opacity:1}
+#mct-tip:hover,#mct-tip:focus-visible{opacity:1;box-shadow:0 0 18px rgba(245,197,66,.35),0 4px 14px rgba(0,0,0,.45)}
+@media print{#mct-tip{display:none}}
+</style>
+<script>(function(){var t=document.getElementById("mct-tip");if(!t)return;
+["mousedown","pointerdown","touchstart","keydown","click"].forEach(function(e){t.addEventListener(e,function(ev){ev.stopPropagation();},true);});
+setTimeout(function(){t.classList.add("dim");},8000);})();</script>
+<!-- mct-tipjar:end -->
+</body></html>
